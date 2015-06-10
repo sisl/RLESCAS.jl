@@ -136,12 +136,13 @@ function sv_encounter_id(d::SaveDict)
     warn("sv_encounter_number: Cannot find required fields.")
   end
 
-  return enc, enctype
+  return (enc, enctype)
 end
 
-nmacs_only{T<:String}(files::Vector{T}) = filter(is_nmac, files)
-
 is_nmac(file::String) = file |> trajLoad |> sv_nmac
+
+nmacs_only(file::String) = is_nmac(file)
+nmacs_only{T<:String}(files::Vector{T}) = filter(is_nmac, files)
 
 function contains_only{T <: String}(filenames::Vector{T}, substr::String)
 

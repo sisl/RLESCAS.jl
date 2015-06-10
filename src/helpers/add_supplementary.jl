@@ -5,7 +5,7 @@ include("label270.jl")
 
 function add_label270{T<:String}(files::Vector{T})
 
-  for f = files
+  for f in files
 
     d = trajLoad(f)
 

@@ -29,10 +29,15 @@ function fill_to_max_time(filename::String)
   return outfilename
 end
 
-function fill_replay(filename::String)
+function fill_replay(filename::String; overwrite::Bool=false)
 
   fillfile = fill_to_max_time(filename)
-  outfile = trajReplay(fillfile)
+
+  if overwrite
+    outfile = trajReplay(fillfile, fileroot=getSaveFileRoot(filename))
+  else
+    outfile = trajReplay(fillfile)
+  end
 
   rm(fillfile) #delete intermediate fill file
 

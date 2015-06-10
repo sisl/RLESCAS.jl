@@ -34,7 +34,7 @@ MCBestStudyResults() = MCBestStudyResults(0, Float64[])
 
 function trajSave(study_params::MCBestStudy,
                   cases::Cases = Cases(Case());
-                  outdir::String = "./")
+                  outdir::String = "./", postproc::Function=identity)
 
   pmap(case->begin
          starttime_us = CPUtime_us()
@@ -91,7 +91,11 @@ function trajSave(study_params::MCBestStudy,
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
-         trajSave(joinpath(outdir, fileroot_), sav)
+         outfileroot = joinpath(outdir, fileroot_)
+         outfile = trajSave(outfileroot, sav)
+
+         #callback for postprocessing
+         postproc(outfile)
 
          return reward
        end,

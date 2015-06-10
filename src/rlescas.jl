@@ -28,9 +28,10 @@ include("trajsave/trajSave_mcts.jl")
 include("trajsave/trajSave_replay.jl")
 
 include("helpers/add_supplementary.jl") #add label270
-include("tools/label270_to_txtfile.jl")
+include("tools/label270_to_text.jl")
+include("tools/summarize.jl")
 include("converters/json_to_csv.jl")
-include("converters/json_to_scripts.jl")
+include("converters/json_to_scripted.jl")
 include("converters/json_to_waypoints.jl")
 
 include("helpers/fill_to_max_time.jl")

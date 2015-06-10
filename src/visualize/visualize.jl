@@ -1,3 +1,4 @@
+include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
 include("../helpers/TikzUtils.jl")
 
@@ -10,18 +11,22 @@ using Obj2Dict
 
 using Base.Test
 
-const RA_STYLE_MAP = [
-  ((ra, h_d) -> ra && abs(h_d) < 5, "mark options={color=gray}, mark=*"),
-  ((ra, h_d) -> ra && 5 <= h_d < 30, "mark options={color=orange}, mark=*"),
-  ((ra, h_d) -> ra && 30 <= h_d, "mark options={color=red}, mark=*"),
-  ((ra, h_d) -> ra && -30 < h_d <= -5, "mark options={color=cyan}, mark=*"),
-  ((ra, h_d) -> ra && h_d <= -30, "mark options={color=violet}, mark=*")
-  ]
+if !isdefined(:RA_STYLE_MAP)
+  const RA_STYLE_MAP = [
+    ((ra, h_d) -> ra && abs(h_d) < 5, "mark options={color=gray}, mark=*"),
+    ((ra, h_d) -> ra && 5 <= h_d < 30, "mark options={color=orange}, mark=*"),
+    ((ra, h_d) -> ra && 30 <= h_d, "mark options={color=red}, mark=*"),
+    ((ra, h_d) -> ra && -30 < h_d <= -5, "mark options={color=cyan}, mark=*"),
+    ((ra, h_d) -> ra && h_d <= -30, "mark options={color=violet}, mark=*")
+    ]
+end
 
-const RESPONSE_STYLE_MAP = [
-  (r -> r == "stay", "mark options={color=black}, mark=-"),
-  (r -> r == "follow", "mark options={color=black}, mark=asterisk")
-  ]
+if !isdefined(:RESPONSE_STYLE_MAP)
+  const RESPONSE_STYLE_MAP = [
+    (r -> r == "stay", "mark options={color=black}, mark=-"),
+    (r -> r == "follow", "mark options={color=black}, mark=asterisk")
+    ]
+end
 
 function pgfplotLog(savs::SaveDict...)
 
@@ -378,13 +383,12 @@ end
 
 function trajPlot(savefile::String; format::String = "TEXPDF")
 
-  sav = trajLoad(savefile)
-
   # add suppl info and reload.  This avoids adding suppl info to all files
   add_supplementary(savefile)
   sav = trajLoad(savefile)
 
-  trajPlot(savefile, sav, format = format)
+  outfileroot = getSaveFileRoot(savefile)
+  trajPlot(outfileroot, sav, format = format)
 
   return savefile
 end
