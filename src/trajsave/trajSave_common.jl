@@ -1,6 +1,6 @@
 using RunCases
 
-function extract_params!(paramObj, case::RunCase, key::String)
+function extract_params!(paramObj, case::Case, key::String)
   #assumes format of key is: "key.field"
 
   for (k, v) in case

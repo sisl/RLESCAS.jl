@@ -17,8 +17,8 @@ MCTSStudy(;
           )
 
 function trajSave(study_params::MCTSStudy,
-                  runcases::Vector{RunCase} = RunCase[RunCase()];
-                  outdir::String = "./")
+                  cases::Cases = Cases(Case());
+                  outdir::String = "./", postproc::Function=identity)
 
   pmap(case -> begin
          starttime_us = CPUtime_us()
@@ -60,10 +60,14 @@ function trajSave(study_params::MCTSStudy,
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
-         trajSave(joinpath(outdir, fileroot_), sav)
+         outfile = joinpath(outdir, fileroot_)
+         trajSave(outfile, sav)
+
+         #callback for postprocessing
+         postproc(outfile)
 
          return reward
        end,
 
-       runcases)
+       cases)
 end

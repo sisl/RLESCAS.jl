@@ -33,7 +33,7 @@ MCBestStudyResults() = MCBestStudyResults(0, Float64[])
 
 
 function trajSave(study_params::MCBestStudy,
-                  runcases::Vector{RunCase} = RunCase[RunCase()];
+                  cases::Cases = Cases(Case());
                   outdir::String = "./")
 
   pmap(case->begin
@@ -96,5 +96,5 @@ function trajSave(study_params::MCBestStudy,
          return reward
        end,
 
-       runcases)
+       cases)
 end

@@ -16,7 +16,7 @@ OnceStudy(;
           )
 
 function trajSave(study_params::OnceStudy,
-                       runcases::Vector{RunCase} = RunCase[RunCase()];
+                       cases::Cases = Cases(Case());
                        outdir::String = "./"
                        )
 
@@ -57,5 +57,5 @@ function trajSave(study_params::OnceStudy,
          return reward
        end,
 
-       runcases)
+       cases)
 end
