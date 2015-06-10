@@ -60,8 +60,8 @@ function trajSave(study_params::MCTSStudy,
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
-         outfile = joinpath(outdir, fileroot_)
-         trajSave(outfile, sav)
+         outfileroot = joinpath(outdir, fileroot_)
+         outfile = trajSave(outfileroot, sav)
 
          #callback for postprocessing
          postproc(outfile)

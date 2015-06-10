@@ -63,9 +63,9 @@ include("corr_aem_save_scripts.jl")
 using JSON
 using Base.Test
 
-json_to_scripts_batch{T<:String}(filenames::Vector{T}) = map(json_to_scripts, filenames)
+json_to_scripted_batch{T<:String}(filenames::Vector{T}) = map(json_to_scripted, filenames)
 
-function json_to_scripts{T<:String}(filenames::Vector{T}; outfile::String = "scripts.dat")
+function json_to_scripted{T<:String}(filenames::Vector{T}; outfile::String = "scripted.dat")
 
   d = trajLoad(filenames[1]) #use the first one as a reference
   num_aircraft = sv_num_aircraft(d, "wm")
@@ -136,7 +136,7 @@ function j2s_update(d::Dict{String, Any}, aircraft_number::Int64)
   return out
 end
 
-function json_to_scripts(filename::String)
+function json_to_scripted(filename::String)
 
-  json_to_scripts([filename], outfile = string(getSaveFileRoot(filename), "_scripts.dat"))
+  json_to_scripted([filename], outfile = string(getSaveFileRoot(filename), "_scripted.dat"))
 end

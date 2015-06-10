@@ -1,8 +1,8 @@
 include("../defines/define_save.jl")
 
-write_labels_changelog{T<:String}(infiles::Vector{T}) = pmap(x->write_labels_changelog(x),infiles)
+label270_to_text{T<:String}(infiles::Vector{T}) = pmap(label270_to_text, infiles)
 
-function write_labels_changelog(infile::String)
+function label270_to_text(infile::String)
   d = trajLoad(infile)
 
   ra_names = d["sim_log"]["var_names"]["ra"]
@@ -16,7 +16,8 @@ function write_labels_changelog(infile::String)
   ra_top = d["sim_log"]["ra"]
   num_aircraft = length(ra_top["aircraft"])
 
-  outfile = string(splitext(infile)[1],".txt")
+  outfileroot = getSaveFileRoot(infile)
+  outfile = string(outfileroot,"_label270.txt")
   f = open(outfile,"w")
 
   for i = 1:num_aircraft
@@ -30,7 +31,7 @@ function write_labels_changelog(infile::String)
       label_t = ra_i["time"][string(t)][label_index]::String
 
       if label_t != label_tm1 #only output on change
-        println(f,"$t \t\t $(label_t)")
+        println(f,"$(t-1) \t\t $(label_t)")
       end
 
       label_tm1 = label_t

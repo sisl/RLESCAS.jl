@@ -17,7 +17,7 @@ OnceStudy(;
 
 function trajSave(study_params::OnceStudy,
                        cases::Cases = Cases(Case());
-                       outdir::String = "./"
+                       outdir::String = "./", postproc::Function=identity
                        )
 
   pmap(case -> begin
@@ -52,7 +52,11 @@ function trajSave(study_params::OnceStudy,
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
-         trajSave(joinpath(outdir, fileroot_), sav)
+         outfileroot = joinpath(outdir, fileroot_)
+         outfile = trajSave(outfileroot, sav)
+
+         #callback for postprocessing
+         postproc(outfile)
 
          return reward
        end,

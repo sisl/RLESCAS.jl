@@ -6,10 +6,13 @@ using Dates
 
 import Obj2Dict
 
-function trajReplay(savefile::String)
+function trajReplay(savefile::String; fileroot::String="")
 
   d = trajLoad(savefile)
-  fileroot = string(getSaveFileRoot(savefile), "_replay")
+
+  if isempty(fileroot)
+    fileroot = string(getSaveFileRoot(savefile), "_replay")
+  end
 
   return trajReplay(d; fileroot = fileroot)
 end
