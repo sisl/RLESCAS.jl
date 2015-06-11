@@ -33,6 +33,10 @@ The full RLESCAS environment is available for advanced users/developers.  Naviga
 
 ## Config File ##
 
+
+```
+#!text
+
 ; This is a comment
 number_of_aircraft = 2  ; Number of aicraft can be 2 or 3.  Pairwise uses LLCEM.  Multithreat uses Star model
 initial = ../encounters/initial.txt  ; Encounter initial conditions file
@@ -44,13 +48,21 @@ libcas_config = ../../CCAS/libcas0.8.6/parameters/0.8.5.standard.r13.xa.config.t
 output_filters = nmacs_only  ; If nmacs_only is specified, formats listed in "outputs" field are outputted only for nmac encounters.  Leave blank to output all formats for all encounters.
 outputs = tex, pdf, scripted, waypoints, label270_text, csv, summary  ; Output formats.  See description below
 output_dir = ./results  ; output directory
+```
+
 
 ### Output Formats ###
 
 **pdf**  Visualization of the encounter in PDF format.
+
 **tex**  Same as pdf option, but in TEX format.
+
 **scripted**  Scripted encounter file (.dat) compatible with CSIM.
+
 **waypoints**  Waypoints encounter file (.dat) compatiable with CSIM.
+
 **label270_text** Text file containing time and label 270 of RAs issued in the encounter.
+
 **csv**  Simulation log of all states in comma-separated values format.
+
 **summary**  Text file containing high-level info about the encounter, including reward, hmd, vmd, and whether an NMAC occurred.
