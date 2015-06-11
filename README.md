@@ -15,7 +15,8 @@ Substitute your bitbucket username in places marked [username]
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/ccas.jl.git", "CCAS")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/runcases.git", "RunCases")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/obj2dict.git", "Obj2Dict")
-
+* In Julia, run Pkg.checkout("PGFPlots", "master")
+* In Julia, run Pkg.checkout("TikzPictures", "master")
 
 ## Usage ##
 
