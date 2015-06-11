@@ -1,12 +1,14 @@
-# README #
+# Reinforcement Learning Encounter Simulator (RLES) for Collision Avoidance Systems #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+RLESCAS is a Julia package for applying Monte Carlo tree search (MCTS) to check collision avoidance systems.
 
-### What is this repository for? ###
+### Installation ###
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+Note: substitute your bitbucket username in places marked "username"
+
+* In Julia, run 
+  *Pkg.clone("https://username@bitbucket.org/rcnlee/rlescas.git", "RLESCAS")
+
 
 ### How do I get set up? ###
 
