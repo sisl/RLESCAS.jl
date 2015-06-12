@@ -199,7 +199,7 @@ function mcts_main()
         trajPlot(filename, format="PDF")
       elseif o == "tex"
         include(Pkg.dir("RLESCAS", "src", "visualize/visualize.jl"))
-        trajPlot(filename, format="TEX")"tr"
+        trajPlot(filename, format="TEX")
       elseif o == "scripted"
         include(Pkg.dir("RLESCAS", "src", "converters/json_to_scripted.jl"))
         json_to_scripted(filename)
