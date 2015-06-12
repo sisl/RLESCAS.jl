@@ -21,7 +21,7 @@ Substitute your bitbucket username in places marked [username]
 
 ## Usage ##
 
-**Method 1: Command-Line**
+###Method 1: Command-Line###
 
 At a command prompt, navigate to $PKGDIR/RLESCAS/test and run julia ../src/mcts.jl config.ini.  The output will be under ./results.
 
@@ -29,7 +29,7 @@ This command can be run from anywhere as long as the relative paths to the files
 
 RLESCAS is able to parallelize computations.  (This is the recommended way to run RLESCAS.) To use multiple processors, use the -p Julia option.  e.g., To specify 4 cores, run julia -p 4 ../src/mcts.jl config.ini
 
-##Method 2: Advanced##
+###Method 2: Advanced###
 
 The full RLESCAS environment is available for advanced users/developers.  Navigate to $PKGDIR/src, start Julia, and run include("RLESCAS.jl").
 
