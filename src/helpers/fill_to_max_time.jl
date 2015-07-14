@@ -14,9 +14,9 @@ function fill_to_max_time(filename::String)
   action_seq = Obj2Dict.to_obj(d["sim_log"]["action_seq"])
 
   max_steps = sim_params.max_steps
-  steps_to_append = max_steps - length(action_seq)  #determine missing steps
+  steps_to_append = max_steps - length(action_seq)  #determine number of missing steps
 
-  # steps_to_append > 0 check is automatically handled
+  # steps_to_append > 0 check is automatically handled by comprehension
   actions_to_append = ESAction[ ESAction(uint32(hash(t))) for t = 1 : steps_to_append ] #append hash of t
   action_seq = vcat(action_seq, actions_to_append)
 

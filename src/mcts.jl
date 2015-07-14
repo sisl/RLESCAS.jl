@@ -14,7 +14,8 @@ function parseargs(args::Vector{UTF8String})
   return configfile
 end
 
-# the default one isn't meant to return the whole block as a dict
+# the default one in the package isn't meant to return the whole block as a dict
+#override
 function retrieve_block(s::ConfParse, block::ASCIIString)
   haskey(s._data, block) ? s._data[block] : []
 end
@@ -82,7 +83,7 @@ function mcts_main()
   #Process default block
   for (k, v) in retrieve_block(conf, "default")
 
-    #Obj2Dict doesn't work well with UTF8String and and substring
+    #Obj2Dict doesn't work well with UTF8String and substring
     #work exclusively in ASCIIString
     v = convert(Array{ASCIIString}, v)
 

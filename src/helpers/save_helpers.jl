@@ -1,3 +1,5 @@
+#provides an interface to SaveDict, so that underlying format changes don't affect end-users
+
 sv_simlog_names(d::SaveDict, field::String) = d["sim_log"]["var_names"][field]
 
 sv_simlog_units(d::SaveDict, field::String) = d["sim_log"]["var_units"][field]

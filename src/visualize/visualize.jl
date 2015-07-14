@@ -28,9 +28,7 @@ if !isdefined(:RESPONSE_STYLE_MAP)
     ]
 end
 
-function pgfplotLog(savs::SaveDict...)
-
-  sav = savs[1]  #FIXME: for now...
+function pgfplotLog(sav::SaveDict)
 
   tps = TikzPicture[]
 

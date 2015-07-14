@@ -7,7 +7,7 @@ function label270_to_text(infile::String)
 
   ra_names = d["sim_log"]["var_names"]["ra"]
 
-  label_index = findfirst(x->x=="label270",ra_names)
+  label_index = findfirst(x -> x == "label270", ra_names)
 
   if label_index == 0
     error("Field label270 not found")
@@ -31,13 +31,13 @@ function label270_to_text(infile::String)
       label_t = ra_i["time"][string(t)][label_index]::String
 
       if label_t != label_tm1 #only output on change
-        println(f,"$(t-1) \t\t $(label_t)")
+        println(f, "$(t-1) \t\t $(label_t)")
       end
 
       label_tm1 = label_t
     end
 
-    println(f,"\n\n")
+    println(f, "\n\n")
   end
 
   close(f)

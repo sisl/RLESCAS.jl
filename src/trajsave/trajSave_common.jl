@@ -11,7 +11,11 @@ function extract_params!(paramObj, case::Case, key::String)
     end
 
     if k_[1] == key
-      paramObj.(symbol(k_[2])) = v
+      if isdefined(paramObj, symbol(k_[2]))
+        paramObj.(symbol(k_[2])) = v
+      else
+        warn("$(k_[2]) is not a member of type $(typeof(paramObj))")
+      end
     end
   end
 

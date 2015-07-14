@@ -36,7 +36,7 @@ function trajSave(study_params::MCBestStudy,
                   cases::Cases = Cases(Case());
                   outdir::String = "./", postproc::Function=identity)
 
-  pmap(case->begin
+  pmap(case -> begin
          starttime_us = CPUtime_us()
          startnow = string(now())
 

@@ -81,13 +81,13 @@ function json_to_scripted{T<:String}(filenames::Vector{T}; outfile::String = "sc
 
     #aircraft j
     for j = 1 : num_aircraft
-      encounters[j,i] = Dict{String,Array{Float64, 2}}()
-      encounters[j,i]["initial"] = j2s_initial(d, j)
-      encounters[j,i]["update"] = j2s_update(d, j)'
+      encounters[j, i] = Dict{String,Array{Float64, 2}}()
+      encounters[j, i]["initial"] = j2s_initial(d, j)
+      encounters[j, i]["update"] = j2s_update(d, j)'
     end
   end
 
-  save_scripts(outfile, encounters, numupdatetype = Uint8)
+  save_scripts(outfile, encounters, numupdatetype=Uint8)
 
   return encounters
 end

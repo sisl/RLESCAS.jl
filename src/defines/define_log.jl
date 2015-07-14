@@ -31,11 +31,12 @@ function addObservers!(simLog::SimLog, mdp::RLESMDP)
   return simLog #not required, but returned for convenience
 end
 
-function check_key!(d::SimLogDict,k::String; subkey::Union(String,Nothing) = nothing)
+function check_key!(d::SimLogDict,k::String; subkey::Union(String, Nothing)=nothing)
 
-  if !haskey(d,k)
+  #add it if it doesn't exist
+  if !haskey(d, k)
     d[k] = SimLogDict()
-    if subkey != nothing
+    if subkey != nothing #option to create a subkey underneath
       d[k][subkey] = SimLogDict()
     end
   end
@@ -144,7 +145,7 @@ function extract_initial(i, aem::StarDBN)
   theta = atand(h_d / v)
   phi = 0.0
 
-  return round_floats(Any[v, x, y, h, psi, theta, phi, v_d], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
+  return round_floats(Any[v, x, y, h, psi, theta, phi, v_d], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
 function log_command!(simLog::SimLog, args)
@@ -184,7 +185,7 @@ extract_command_units(command::CorrAEMCommand) = String["ft/s", "ft/s^2", "deg/s
 
 function extract_command(command::CorrAEMCommand)
 
-  return round_floats(Any[command.h_d, command.v_d, command.psi_d], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
+  return round_floats(Any[command.h_d, command.v_d, command.psi_d], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
 function log_adm!(simLog::SimLog, args)
@@ -237,7 +238,7 @@ function extract_adm(adm::LLADM)
 
   s = adm.state
 
-  return round_floats(Any[s.t, s.v, s.N, s.E, s.h, s.psi, s.theta, s.phi, s.a], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
+  return round_floats(Any[s.t, s.v, s.N, s.E, s.h, s.psi, s.theta, s.phi, s.a], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
 function log_wm!(simLog::SimLog, args)

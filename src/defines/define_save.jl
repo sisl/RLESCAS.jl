@@ -5,7 +5,7 @@ using Base.Test
 
 typealias SaveDict Dict{String, Any}
 
-function trajSave(fileroot::String, d::SaveDict; compress::Bool = true)
+function trajSave(fileroot::String, d::SaveDict; compress::Bool=true)
 
   if compress
     outfile = string(fileroot, ".json.gz")
