@@ -41,8 +41,8 @@ The full RLESCAS environment is available for advanced users/developers.  Naviga
 
 ; This is a comment
 number_of_aircraft = 2  ; Number of aicraft can be 2 or 3.  Pairwise uses LLCEM.  Multithreat uses Star model
-initial = ../encounters/initial.txt  ; Encounter initial conditions file
-transition = ../encounters/transition.txt  ; Encounter transitions file
+initial = ../encounters/initial.txt  ; Encounter initial conditions file (for 2 aircraft only)
+transition = ../encounters/transition.txt  ; Encounter transitions file (for 2 aircraft only)
 encounters = 1-2,5-6  ; Encounters numbers to run.  Uses dashes to denote ranges, and commas to separate ranges.
 mcts_iterations = 10  ; Number of inner-loop iterations for MCTS.  Default 4000.  For testing, use 10.
 libcas = ../../CCAS/libcas0.8.6/lib/libcas.dll  ; libcas library
