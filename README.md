@@ -10,7 +10,7 @@ The software requires Julia v0.3 and above.  It is currently untested on v0.4.
 Substitute your bitbucket username in places marked [username]
 
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/rlescas.git", "RLESCAS")
-* In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/rlesmdp.jl.git", "RLESMDPs")
+* In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/rlesmdps.jl.git", "RLESMDPs")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/sisles.jl.git", "SISLES")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/ccas.jl.git", "CCAS")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/runcases.git", "RunCases")
