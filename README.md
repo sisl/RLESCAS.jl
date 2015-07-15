@@ -9,12 +9,12 @@ The software requires Julia v0.3 and above.  It is currently untested on v0.4.
 
 Substitute your bitbucket username in places marked [username]
 
-* In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/rlescas.git", "RLESCAS")
+* In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/rlescas.jl.git", "RLESCAS")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/rlesmdps.jl.git", "RLESMDPs")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/sisles.jl.git", "SISLES")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/ccas.jl.git", "CCAS")
-* In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/runcases.git", "RunCases")
-* In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/obj2dict.git", "Obj2Dict")
+* In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/runcases.jl.git", "RunCases")
+* In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/obj2dict.jl.git", "Obj2Dict")
 * In Julia, run Pkg.checkout("PGFPlots", "master")
 * In Julia, run Pkg.checkout("TikzPictures", "master")
 * To be able to generate PDFs, you'll need lualatex and also aircraftshapes.sty.  For the latter, get aircraftshapes.sty from https://github.com/sisl/aircraftshapes and include it into your tex system.  For Windows (for MikTex2.9), put the aircraftshapes.sty file into "C:\Program Files\MiKTeX 2.9\tex\latex\aircraftshapes" folder.
