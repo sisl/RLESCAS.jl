@@ -1,5 +1,5 @@
 
 #emulates calling from command line
 empty!(ARGS)
-push!(ARGS, "config_2ac.ini")
+push!(ARGS, "config.ini")
 include("../src/mcts.jl")

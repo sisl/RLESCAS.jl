@@ -1,8 +1,6 @@
 using JSON
 using GZip
 
-using Base.Test
-
 typealias SaveDict Dict{String, Any}
 
 function trajSave(fileroot::String, d::SaveDict; compress::Bool=true)
@@ -42,7 +40,7 @@ end
 function readdirExt(ext::String, dir::String = ".")
 
   #ext should start with a '.' to be a valid extension
-  @test ext[1] == '.'
+  @assert ext[1] == '.'
 
   files = readdir(dir)
   filter!(f -> splitext(f)[2] == ext, files)
