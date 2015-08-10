@@ -31,7 +31,7 @@ RLESCAS is able to parallelize computations.  (This is the recommended way to ru
 
 ###Method 2: Advanced###
 
-The full RLESCAS environment is available for advanced users/developers.  Navigate to $PKGDIR/src, start Julia, and run include("RLESCAS.jl").
+The full RLESCAS environment is available for advanced users/developers.  Navigate to $PKGDIR/RLESCAS/src, start Julia, and run include("RLESCAS.jl").
 
 ## Config File ##
 
