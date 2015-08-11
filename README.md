@@ -15,9 +15,9 @@ Substitute your bitbucket username in places marked [username]
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/ccas.jl.git", "CCAS").  Follow the instructions on the CCAS wiki to configure.
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/runcases.jl.git", "RunCases")
 * In Julia, run Pkg.clone("https://[username]@bitbucket.org/rcnlee/obj2dict.jl.git", "Obj2Dict")
-* In Julia, run Pkg.checkout("PGFPlots", "master")
+* In Julia, run Pkg.checkout("PGFPlots", "master").  PGFPlots requires some additional configuration.  Follow the installation instructions on the package documentation https://github.com/sisl/PGFPlots.jl.  Note: if you use the config file method to execute, and do not require pdf and tex outputs, then you can skip installation of the visualization tools.
 * In Julia, run Pkg.checkout("TikzPictures", "master")
-* To be able to generate PDFs, you'll need lualatex and also aircraftshapes.sty.  For the latter, get aircraftshapes.sty from https://github.com/sisl/aircraftshapes and include it into your tex system.  For Windows (for MikTex2.9), put the aircraftshapes.sty file into "C:\Program Files\MiKTeX 2.9\tex\latex\aircraftshapes" folder.
+* To be able to generate PDFs, you'll need lualatex and also aircraftshapes.sty.  For the latter, get aircraftshapes.sty from https://github.com/sisl/aircraftshapes and include it into your tex system.  For Windows (for MikTex2.9), put the aircraftshapes.sty file into "C:\Program Files\MiKTeX 2.9\tex\latex\aircraftshapes" folder.  Lualatex is included in MikTex distribution.
 
 ## Usage ##
 
@@ -29,9 +29,13 @@ This command can be run from anywhere as long as the relative paths to the files
 
 RLESCAS is able to parallelize computations.  (This is the recommended way to run RLESCAS.) To use multiple processors, use the -p Julia option.  e.g., To specify 4 cores, run julia -p 4 ../src/mcts.jl config_2ac.ini
 
+Sometimes it is useful to be able to execute from within Julia (e.g., better error messages when debugging).  You can emulate the above command line call by navigating to $PKGDIR/RLESCAS/test and from within Julia run include("runtests.jl").  Edit runtests.jl with the desired config file.
+
 ###Method 2: Advanced###
 
 The full RLESCAS environment is available for advanced users/developers.  Navigate to $PKGDIR/RLESCAS/src, start Julia, and run include("RLESCAS.jl").
+
+The full environment includes visualization tools, so you will need to have PGFPlots properly configured.
 
 ## Config File ##
 
