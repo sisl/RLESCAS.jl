@@ -5,7 +5,7 @@ RLESCAS is a Julia package for applying Monte Carlo tree search (MCTS) to check 
 
 ## Installation ##
 
-The software requires Julia v0.3 and above.  It is currently untested on v0.4.
+The software requires Julia v0.3 and above.  It is currently untested on v0.4.  Requires 64-bit Julia.
 
 Substitute your bitbucket username in places marked [username]
 
