@@ -106,8 +106,6 @@ end
 
 sv_num_aircraft(d::SaveDict, field::String = "wm") = length(d["sim_log"][field]["aircraft"])
 
-sortByTime(d::SimLogDict) = sort(collect(d), by = x -> int64(x[1]))
-
 sv_run_type(d::SaveDict) = d["run_type"]
 
 sv_reward(d::SaveDict) = d["sim_log"]["run_info"][sv_lookup_id(d, "run_info", "reward")]

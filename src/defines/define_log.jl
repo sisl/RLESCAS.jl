@@ -713,3 +713,5 @@ function to_plusminus_b(x::FloatingPoint, b::FloatingPoint)
 end
 
 to_plusminus_180(x::FloatingPoint) = to_plusminus_b(x, 180.0)
+
+sortByTime(d::SimLogDict) = sort(collect(d), by = x -> int64(x[1]))
