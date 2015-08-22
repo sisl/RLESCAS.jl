@@ -89,7 +89,7 @@ d=trajLoad("trajSaveMCTS_ACASX_EvE_1.json.gz") #substitute your json.gz filename
 
 ```
 
-run_type indicates the type of study: "MCTS", "MCBEST" or "ENC"
+**run_type** indicates the type of study: "MCTS", "MCBEST" or "ENC"
 
 **sim_params** contains the simulation parameters (e.g., number of aircraft, encounter file, libcas path, etc.) in Obj2Dict format.  To recover the object, use:
 
