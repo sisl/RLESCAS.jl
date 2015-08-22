@@ -158,8 +158,6 @@ Tip: Use the json_to_csv converter to output all the fields and variables to a c
 
 The recommended way to access sim_log variables is through save_helpers.jl instead of directly through the Dict.  This allows the underlying Dict structure to be modified without impacting dependent functions.
 
-Lookup functions are available, such as:
-
 * sv_reward(d) to get the final reward
 * sv_nmac(d) to get whether an nmac occurred
 * sv_hmd(d) to get the horizontal miss distance
