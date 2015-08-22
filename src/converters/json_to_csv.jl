@@ -26,7 +26,7 @@ function json_to_csv{T<:String}(savefile::String,
   for i = 1 : num_aircraft
     for (j, c) = enumerate(categories)
       for t = sorted_times(d, c, i)
-        data[t, catranges[j], i] = sv_simlog_tdata(d, c, i, t)
+        data[t, catranges[j], i] = sv_simlog_tdata(d, c, i, [t])[1]
       end
     end
 

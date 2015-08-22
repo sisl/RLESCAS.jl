@@ -26,6 +26,7 @@ function addObservers!(simLog::SimLog, mdp::RLESMDP)
   addObserver(mdp.sim, "Response",   x -> log_response!(simLog, x))
   addObserver(mdp.sim, "Dynamics",   x -> log_adm!(simLog, x))
   addObserver(mdp.sim, "WorldModel", x -> log_wm!(simLog, x))
+  addObserver(mdp.sim, "logProb",   x -> log_logProb!(simLog, x))
   addObserver(mdp.sim, "run_info",   x -> log_runinfo!(simLog, x))
 
   return simLog #not required, but returned for convenience
@@ -74,7 +75,7 @@ function log_initial!(simLog::SimLog, args)
 
   #[aircraft_number, time_index, initial]
   aircraft_number = args[1]
-  t_index = args[2] #time index starts at 1 so we're OK
+  t_index = args[2]
   aem = args[3]
 
   @test t_index == 0
@@ -152,7 +153,7 @@ function log_command!(simLog::SimLog, args)
 
   #[aircraft_number, time_index, command]
   aircraft_number = args[1]
-  t_index = args[2] #time index starts at 1 so we're OK
+  t_index = args[2]
   command = args[3]
 
   check_key!(simLog, "var_names")
@@ -290,7 +291,7 @@ function log_sensor!(simLog::SimLog, args)
 
   #[aircraft_number, time_index, cas]
   aircraft_number = args[1]
-  t_index = args[2] #time index starts at 1 so we're OK
+  t_index = args[2]
   sr = args[3]
 
   check_key!(simLog, "var_names")
@@ -407,7 +408,7 @@ function log_ra!(simLog::SimLog, args)
 
   #[aircraft_number, time_index, cas]
   aircraft_number = args[1]
-  t_index = args[2] #time index starts at 1 so we're OK
+  t_index = args[2]
   cas = args[3]
 
   check_key!(simLog, "var_names")
@@ -475,7 +476,7 @@ function log_ra_detailed!(simLog::SimLog, args)
 
   #[aircraft_number, time_index, cas]
   aircraft_number = args[1]
-  t_index = args[2] #time index starts at 1 so we're OK
+  t_index = args[2]
   cas = args[3]
 
   check_key!(simLog, "var_names")
@@ -590,7 +591,7 @@ function log_response!(simLog::SimLog, args)
 
   #[aircraft_number, time_index, cas]
   aircraft_number = args[1]
-  t_index = args[2] #time index starts at 1 so we're OK
+  t_index = args[2]
   pr = args[3]
 
   check_key!(simLog, "var_names")
@@ -675,6 +676,35 @@ function log_runinfo!(simLog::SimLog, args)
   check_key!(simLog, "run_info")
 
   simLog["run_info"] = Any[reward, md_time, hmd, vmd, nmac]
+
+end
+
+function log_logProb!(simLog::SimLog, args)
+
+  #[time_index, logProb]
+  t_index = args[1]
+  logProb = args[2]
+
+  check_key!(simLog, "var_names")
+
+  if !haskey(simLog["var_names"], "logProb")
+    simLog["var_names"]["logProb"] = String["logProb"]
+  end
+
+  check_key!(simLog, "var_units")
+
+  if !haskey(simLog["var_units"], "logProb")
+    simLog["var_units"]["logProb"] = String["float"]
+  end
+
+  check_key!(simLog, "logProb", subkey = "time")
+  d_t = simLog["logProb"]["time"]
+
+  d_t["$(t_index)"] = round_floats(Any[logProb],
+                                   ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
+
+  #check to make sure we're in sync
+  #@test t_index == length(d_t)
 
 end
 

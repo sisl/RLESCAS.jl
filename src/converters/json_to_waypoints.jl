@@ -50,6 +50,7 @@
 #       [Encounter k]
 
 include("../defines/define_save.jl")
+include("../helpers/save_helpers.jl")
 include("corr_aem_save_scripts.jl")
 
 using JSON
@@ -90,7 +91,7 @@ function j2w_initial(d::Dict{String,Any}, aircraft_number::Int64)
 
   out = Array(Float64, 1, 3)
 
-  getvar(var::String) = sv_simlog_tdata(d, "wm", aircraft_number, 1, var)  # for local convenience
+  getvar(var::String) = sv_simlog_tdata_vid(d, "wm", aircraft_number, var, [1])[1]  # for local convenience
 
   pos_north     = getvar("y")
   pos_east      = getvar("x")
@@ -108,7 +109,7 @@ function j2w_update(d::Dict{String, Any}, aircraft_number::Int64)
   out = Array(Float64, t_end - 1, 4)
 
   for t = 2 : t_end #ignore init values
-    getvar(var::String) = sv_simlog_tdata(d, "wm", aircraft_number, t, var)  # for local convenience
+    getvar(var::String) = sv_simlog_tdata_vid(d, "wm", aircraft_number, var, [t])[1]  # for local convenience
 
     t_         = getvar("t")
     pos_north  = getvar("y")

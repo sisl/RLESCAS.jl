@@ -1,49 +1,30 @@
 include("../helpers/TikzUtils.jl")
-include("groupattributes.jl")
 
 using RunCases
 using Obj2Dict
 
-using CPUTime
 using TikzPictures
 import PGFPlots: Plots,Axis
 
-function cts_2ac_mcts_script(encounters::Vector{Int64}, maxtimes::Vector{Float64})
-  #maxtimes are in seconds for the entire run (not per step)
+function irs_2ac_mcts_script(encounter::Int64, iterations::Vector{Int64})
+  #for 1 encounter
 
   cases = generate_cases(("sim_params.encounter_number",
-                          encounters),
+                          [encounter]),
                          ("mcts_params.maxtime_s",
-                          maxtimes / 50.0),
+                          [realmax(Float64)]),
                          ("mcts_params.n",
-                          [typemax(Int64)]))
+                          iterations))
 
-  add_field!(cases, "study_params.fileroot", t -> "trajSaveMCTS_$(50.0 * t)s",
-             ["mcts_params.maxtime_s"])
+  add_field!(cases, "study_params.fileroot", n -> "trajSaveMCTS_enc$(encounter)_n$(n)",
+             ["mcts_params.n"])
 
   trajSave(MCTSStudy(), cases)
 
 end
 
-function cts_2ac_mcbest_script(encounters::Vector{Int64}, maxtimes::Vector{Float64})
-  #maxtimes are in seconds for the entire run
-
-  cases = generate_cases(("sim_params.encounter_number",
-                          encounters),
-                         ("study_params.nsamples",
-                          [typemax(Int64)]),
-                         ("study_params.maxtime_s",
-                          maxtimes))
-
-  add_field!(cases, "study_params.fileroot", t -> "trajSaveMCBEST_$(t)s", ["study_params.maxtime_s"])
-
-  trajSave(MCBestStudy(), cases)
-
-end
-
-#TODO: implement saving these case gen dicts to/from json
-
-function cts_vis(files::Vector{String}; outfileroot::String = "cts_vis", format::String = "TEXPDF")
+#=
+function irs_vis(files::Vector{String}; outfileroot::String = "irs_vis", format::String = "TEXPDF")
 
   td = TikzDocument()
 
@@ -132,7 +113,8 @@ function gettime(d::SaveDict)
   return t
 end
 
-function pgfplotcts_reward!(td::TikzDocument,
+#iteration vs total reward
+function irs_plotreward!(td::TikzDocument,
                             names::Vector{String},
                             times::Array{Vector{Float64}, 1},
                             means::Array{Vector{Float64}, 1},
@@ -161,7 +143,8 @@ function pgfplotcts_reward!(td::TikzDocument,
 
 end
 
-function pgfplotcts_nmacs!(td::TikzDocument,
+#iteration vs number of nmacs
+function irs_plotnmacs!(td::TikzDocument,
                            names::Vector{String},
                            times::Array{Vector{Float64}, 1},
                            nmacs::Array{Vector{Float64}, 1},
@@ -188,3 +171,4 @@ function pgfplotcts_nmacs!(td::TikzDocument,
   add_to_document!(td, tp, cap)
 
 end
+=#

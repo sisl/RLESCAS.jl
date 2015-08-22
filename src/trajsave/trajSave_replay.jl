@@ -1,12 +1,13 @@
 using RLESMDPs
 using SISLES.GenerativeModel
+using RunCases
 
 using CPUTime
 using Dates
 
 import Obj2Dict
 
-function trajReplay(savefile::String; fileroot::String="")
+function trajReplay(savefile::String; fileroot::String="", case::Case=Case())
 
   d = trajLoad(savefile)
 
@@ -14,13 +15,13 @@ function trajReplay(savefile::String; fileroot::String="")
     fileroot = string(getSaveFileRoot(savefile), "_replay")
   end
 
-  return trajReplay(d; fileroot = fileroot)
+  return trajReplay(d; fileroot=fileroot, case=case)
 end
 
-function trajReplay(d::SaveDict; fileroot::String = "")
+function trajReplay(d::SaveDict; fileroot::String = "", case::Case=Case())
 
-  sim_params = Obj2Dict.to_obj(d["sim_params"])
-  mdp_params = Obj2Dict.to_obj(d["mdp_params"])
+  sim_params = extract_params!(Obj2Dict.to_obj(d["sim_params"]), case, "sim_params")
+  mdp_params = extract_params!(Obj2Dict.to_obj(d["mdp_params"]), case, "mdp_params")
   reward = sv_reward(d)
 
   sim = defineSim(sim_params)

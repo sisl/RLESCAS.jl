@@ -58,6 +58,7 @@
 #           ...
 
 include("../defines/define_save.jl")
+include("../helpers/save_helpers.jl")
 include("corr_aem_save_scripts.jl")
 
 using JSON
@@ -98,7 +99,7 @@ function j2s_initial(d::Dict{String, Any}, aircraft_number::Int64)
 
   out = Array(Float64, 1, 8)
 
-  getvar(var::String) = sv_simlog_data(d, "initial", aircraft_number, var)  # for local convenience
+  getvar(var::String) = sv_simlog_data_vid(d, "initial", aircraft_number, var)  # for local convenience
 
   airspeed            = getvar("v")
   pos_north           = getvar("y")
@@ -123,7 +124,7 @@ function j2s_update(d::Dict{String, Any}, aircraft_number::Int64)
   out = Array(Float64, t_end - 1, 4)
 
   for t = 2 : t_end #ignore init values
-    getvar(var::String) = sv_simlog_tdata(d, "response", aircraft_number, t, var) # for local convenience
+    getvar(var::String) = sv_simlog_tdata_vid(d, "response", aircraft_number, var, [t])[1] # for local convenience
 
     t_     = getvar("t")
     h_d    = getvar("h_d")

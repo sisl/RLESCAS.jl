@@ -107,8 +107,8 @@ function pplot_aircraft_num(sav, field::String, xname::String, yname::String;
 
   for i = 1 : sv_num_aircraft(d, field)
 
-    xvals = sv_simlog_tdata_f(d, field, i, [], xind)
-    yvals = sv_simlog_tdata_f(d, field, i, [], yind)
+    xvals = sv_simlog_tdata_vid_f(d, field, i, xind)
+    yvals = sv_simlog_tdata_vid_f(d, field, i, yind)
 
     # apply user-supplied transformations
     xvals = fx(xvals)
@@ -163,8 +163,8 @@ function pplot_startpoint(sav, field::String, xname::String, yname::String, view
 
   for i = 1 : sv_num_aircraft(d, field)
 
-    xvals = sv_simlog_tdata_f(d, field, i, [], xind)
-    yvals = sv_simlog_tdata_f(d, field, i, [], yind)
+    xvals = sv_simlog_tdata_vid_f(d, field, i, xind)
+    yvals = sv_simlog_tdata_vid_f(d, field, i, yind)
 
     # apply user-supplied transformations
     xvals = fx(xvals)
@@ -216,7 +216,7 @@ function pplot_z_label270s(sav; start_time::Int64 = 0, end_time::Int64 = 50, lab
 
     for t in ts
 
-      label = sv_simlog_tdata(d, "ra", i, t, lind)
+      label = sv_simlog_tdata_vid(d, "ra", i, lind, [t])[1]
 
       if prev_label != label
 
@@ -225,8 +225,8 @@ function pplot_z_label270s(sav; start_time::Int64 = 0, end_time::Int64 = 50, lab
 
         dir = closest_is_above(d, t, zind, i) ? "left" : "right" #left=below, right=above
 
-        push!(plotArray,Plots.Node(label_, sv_simlog_tdata_f(d, "wm", i, t, tind),
-                                   sv_simlog_tdata_f(d, "wm", i, t, zind),
+        push!(plotArray,Plots.Node(label_, sv_simlog_tdata_vid_f(d, "wm", i, tind, [t])[1],
+                                   sv_simlog_tdata_vid_f(d, "wm", i, zind, [t])[1],
                                    style="rotate=90,scale=$(label_scale),$dir=2mm,fill=white,rectangle,rounded corners=3pt"))
         prev_label = label
 
@@ -240,7 +240,7 @@ end
 function closest_is_above(sav, t::Int64, z_index::Int64, own_id::Int64)
 
   d = sav
-  h1 = sv_simlog_tdata(d, "wm", own_id, t, z_index)
+  h1 = sv_simlog_tdata_vid(d, "wm", own_id, z_index, [t])[1]
 
   hs = Float64[]
 
@@ -248,7 +248,7 @@ function closest_is_above(sav, t::Int64, z_index::Int64, own_id::Int64)
 
     if i != own_id
 
-      h2 = sv_simlog_tdata(d, "wm", i, t, z_index)
+      h2 = sv_simlog_tdata_vid(d, "wm", i, z_index, [t])[1]
       push!(hs,h2-h1)
 
     end
@@ -276,8 +276,8 @@ function pplot_line(sav, field::String,
 
   for i = 1:sv_num_aircraft(d, field)
     #plot trajectories
-    xvals = sv_simlog_tdata_f(d, field, i, [], xind)
-    yvals = sv_simlog_tdata_f(d, field, i, [], yind)
+    xvals = sv_simlog_tdata_vid_f(d, field, i, xind)
+    yvals = sv_simlog_tdata_vid_f(d, field, i, yind)
 
     # apply user function transforms
     xvals = fx(xvals)
