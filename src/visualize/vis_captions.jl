@@ -1,4 +1,5 @@
 using Obj2Dict
+using SISLES.GenerativeModel
 
 #runtype captions
 function vis_runtype_caps(d::SaveDict, run_type::String)
