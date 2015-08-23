@@ -148,6 +148,8 @@ function sv_encounter_id(d::SaveDict)
   return (enc, enctype)
 end
 
+sv_dpw_iterations(d::SaveDict) = d["dpw_params"]["data"]["n"]["data"]
+
 is_nmac(file::String) = file |> trajLoad |> sv_nmac
 
 nmacs_only(file::String) = is_nmac(file)
