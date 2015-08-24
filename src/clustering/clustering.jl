@@ -1,6 +1,6 @@
 module Clustering
 
-export ClusterResults, cluster, cluster_vis
+export ClusterResults, cluster, cluster_vis, save_results, load_results
 
 include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
@@ -11,6 +11,8 @@ using Levenshtein
 using CPUTime
 using TikzPictures
 using PGFPlots
+using Obj2Dict
+using JSON
 
 @pyimport sklearn.cluster as skcluster
 
@@ -18,10 +20,21 @@ type ClusterResults
   files::Vector{ASCIIString}
   labels::Vector{Int64}
   n_clusters::Int64
-  affinity::Array{Float64,2}
+  affinity::Array{Float64, 2}
 end
 
 ClusterResults() = ClusterResults(ASCIIString[], Int64[], -1, Array(Float64, 0, 0))
+
+function ==(x1::ClusterResults, x2::ClusterResults)
+
+  for sym in names(ClusterResults)
+    if x1.(sym) != x2.(sym)
+      return false #any field that doesn't match, return false
+    end
+  end
+
+  return true #all fields must match to return true
+end
 
 fields = ["sensor", "ra_detailed", "response", "adm"]
 
@@ -43,12 +56,13 @@ end
 function cluster(files::Vector{String}, n_clusters::Int)
 
   CPUtic()
-  X = map(extract_string, files)
+  X = pmap(extract_string, files)
+  X = convert(Vector{ASCIIString}, X)
   println("Extract string: $(CPUtoq()) seconds")
 
   #compute affinity matrix
   CPUtic()
-  A = [levenshtein(X[i], X[j]) for i = 1:length(X), j = 1:length(X)]
+  A = get_affinity(X)
   println("Compute affinity matrix: $(CPUtoq()) seconds")
 
   #returns a PyObject
@@ -85,8 +99,47 @@ function cluster_vis(results::ClusterResults; outfileroot::String="clustervis")
     TikzPictures.save(TEX(outfile), td)
   end
 
+end
 
+function get_affinity{T<:String}(X::Vector{T})
 
+  indmatrix = [(i, j) for i = 1:length(X), j = 1:length(X)]
+
+  #compute for upper triangular
+  #diag and lower triangular are zero
+  A = pmap(ij -> begin
+              i, j = ij
+              i < j ? levenshtein(X[i], X[j]) : 0.0
+           end,
+           indmatrix)
+
+  A = reshape(A, length(X), length(X))
+
+  #copy lower triangular from upper
+  for i = 1:length(X)
+    for j = 1:(i-1)
+      A[i, j] = A[j, i]
+    end
+  end
+
+  return convert(Array{Float64, 2}, A)
+end
+
+function save_results(results::ClusterResults, outfile::String="cluster_results.json")
+  f = open(outfile, "w")
+  d = Obj2Dict.to_dict(results)
+  JSON.print(f, d)
+  close(f)
+
+  return outfile
+end
+
+function load_results(file::String="cluster_results.json")
+  f = open(file)
+  d = JSON.parse(f)
+  close(f)
+
+  return Obj2Dict.to_obj(d)
 end
 
 end #module
