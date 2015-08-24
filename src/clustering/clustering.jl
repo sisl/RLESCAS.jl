@@ -8,7 +8,6 @@ include("../visualize/visualize.jl")
 
 using PyCall
 using Levenshtein
-using CPUTime
 using TikzPictures
 using PGFPlots
 using Obj2Dict
@@ -55,22 +54,22 @@ end
 
 function cluster(files::Vector{String}, n_clusters::Int)
 
-  CPUtic()
+  tic() #CPUtime doesn't work well for parallel
   X = pmap(extract_string, files)
   X = convert(Vector{ASCIIString}, X)
-  println("Extract string: $(CPUtoq()) seconds")
+  println("Extract string: $(toq()) wall seconds")
 
   #compute affinity matrix
-  CPUtic()
+  tic()
   A = get_affinity(X)
-  println("Compute affinity matrix: $(CPUtoq()) seconds")
+  println("Compute affinity matrix: $(toq()) wall seconds")
 
   #returns a PyObject
   model = skcluster.AgglomerativeClustering(n_clusters=n_clusters, affinity="precomputed", linkage="average")
 
-  CPUtic()
+  tic()
   model[:fit](A)
-  println("Sklearn clustering: $(CPUtoq()) seconds")
+  println("Sklearn clustering: $(toq()) wall seconds")
 
   labels = model[:labels_]
 
