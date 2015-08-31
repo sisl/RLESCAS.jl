@@ -160,4 +160,12 @@ function load_results(file::String="cluster_results.json")
   return Obj2Dict.to_obj(d)
 end
 
+function phylogenetic_tree(results::ClusterResults;
+                           outfileroot::String="cluster_tree",
+                           output::String="TEXPDF")
+
+
+
+end
+
 end #module
