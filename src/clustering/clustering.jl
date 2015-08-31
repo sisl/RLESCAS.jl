@@ -1,6 +1,6 @@
 module Clustering
 
-export ClusterResults, cluster, cluster_vis, save_results, load_results
+export ClusterResults, cluster, cluster_vis, save_results, load_results, extract_string, hamming, get_affinity
 
 include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
@@ -18,6 +18,7 @@ using JSON
 type ClusterResults
   files::Vector{ASCIIString}
   labels::Vector{Int64}
+  tree::Array{Int32, 2}
   n_clusters::Int64
   affinity::Array{Float64, 2}
 end
@@ -52,7 +53,8 @@ function extract_string(file::String)
   return takebuf_string(buf)
 end
 
-function cluster(files::Vector{String}, n_clusters::Int)
+function cluster(files::Vector{String}, n_clusters::Int,
+                 get_affinity::Function=x->get_affinity(x, levenshtein))
 
   tic() #CPUtime doesn't work well for parallel
   X = pmap(extract_string, files)
@@ -65,15 +67,18 @@ function cluster(files::Vector{String}, n_clusters::Int)
   println("Compute affinity matrix: $(toq()) wall seconds")
 
   #returns a PyObject
-  model = skcluster.AgglomerativeClustering(n_clusters=n_clusters, affinity="precomputed", linkage="average")
+  model = skcluster.AgglomerativeClustering(n_clusters=n_clusters,
+                                            affinity="precomputed",
+                                            linkage="average")
 
   tic()
   model[:fit](A)
   println("Sklearn clustering: $(toq()) wall seconds")
 
   labels = model[:labels_]
+  tree = model[:children_]
 
-  return ClusterResults(files, labels, n_clusters, A)
+  return ClusterResults(files, labels, tree, n_clusters, A)
 end
 
 function cluster_vis(results::ClusterResults; outfileroot::String="clustervis")
@@ -100,7 +105,7 @@ function cluster_vis(results::ClusterResults; outfileroot::String="clustervis")
 
 end
 
-function get_affinity{T<:String}(X::Vector{T})
+function get_affinity{T<:String}(X::Vector{T}, get_distance::Function)
 
   indmatrix = [(i, j) for i = 1:length(X), j = 1:length(X)]
 
@@ -108,7 +113,7 @@ function get_affinity{T<:String}(X::Vector{T})
   #diag and lower triangular are zero
   A = pmap(ij -> begin
               i, j = ij
-              i < j ? levenshtein(X[i], X[j]) : 0.0
+              i < j ? get_distance(X[i], X[j]) : 0.0
            end,
            indmatrix)
 
@@ -122,6 +127,20 @@ function get_affinity{T<:String}(X::Vector{T})
   end
 
   return convert(Array{Float64, 2}, A)
+end
+
+function hamming(s1::String, s2::String)
+  x = collect(s1)
+  y = collect(s2)
+
+  #pad to common length
+  if length(x) < length(y)
+    x = vcat(x, fill('-', (length(y) - length(x)))) #pad x
+  elseif length(y) < length(x)
+    y = vcat(y, fill('-', (length(x) - length(y)))) #pad y
+  end
+
+  return sum(x .!= y)
 end
 
 function save_results(results::ClusterResults, outfile::String="cluster_results.json")
