@@ -1,6 +1,6 @@
-include("../defines/define_save.jl")
-include("../helpers/save_helpers.jl")
-include("../visualize/visualize.jl")
+include("../../defines/define_save.jl")
+include("../../helpers/save_helpers.jl")
+include("../../visualize/visualize.jl")
 
 using PyCall
 

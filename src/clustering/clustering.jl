@@ -70,7 +70,8 @@ function cluster{T<:String}(files::Vector{T}, n_clusters::Int,
   #returns a PyObject
   model = skcluster.AgglomerativeClustering(n_clusters=n_clusters,
                                             affinity="precomputed",
-                                            linkage="average")
+                                            linkage="average",
+                                            compute_full_tree=true)
 
   tic()
   model[:fit](A)
@@ -159,76 +160,6 @@ function load_results(file::String="cluster_results.json")
   close(f)
 
   return Obj2Dict.to_obj(d)
-end
-
-type PhylotreeElement
-  level::Int64
-  name::ASCIIString
-  children::Vector{PhylotreeElement}
-end
-
-PhylotreeElement(level::Int64, name::String="") = PhylotreeElement(level, name, PhylotreeElement[])
-PhylotreeElement(level::Int64, name::String, children::PhylotreeElement...) =
-  PhylotreeElement(level, name, [children...])
-
-function phylogenetic_tree(results::ClusterResults)
-end
-
-#assume a scikit-learn agglomerative clustering output tree format and 0-indexing
-function phylogenetic_tree(nelements::Int64, tree0::Array{Int32,2};
-                           nametable::Dict{Int64,ASCIIString}=Dict{Int64,ASCIIString}(),
-                           show_intermediate::Bool=true,
-                           outfileroot::String="cluster_tree",
-                           output::String="TEXPDF")
-
-  lastid = nelements - 1
-  root_id = lastid #id of the root node, init value
-
-  d = Dict{Int64, PhylotreeElement}()
-
-  #preload dict with level 0's
-  for i = 0:lastid
-    name = haskey(nametable, i) ? nametable[i] : "$i"
-    d[i] = PhylotreeElement(0, name)
-  end
-
-  #parse tree into dict
-  for row = 1:size(tree0, 1)
-    root_id += 1
-    (i, j) = tree0[row, :]
-    level = max(d[i].level, d[j].level) + 1
-    name = show_intermediate ? "$(root_id)" : ""
-    d[root_id] = PhylotreeElement(level, name, d[i], d[j])
-  end
-
-  #create tikz text
-  io = IOBuffer()
-  print(io, "{")
-  print_element!(io, d[root_id])
-  print(io, "};")
-
-  return takebuf_string(io)
-end
-
-function print_element!(io::IOBuffer, element::PhylotreeElement, parent_level::Int64=-1)
-
-  len = parent_level - element.level
-
-  print(io, "$(element.name)")
-  if len > 0
-    print(io, "[>length=$len]")
-  end
-
-  #process children
-  if !isempty(element.children)
-    print(io, " -- {")
-    for child in element.children
-      print_element!(io, child, element.level)
-      print(io, ",")
-    end
-    seek(io, position(io) - 1) #backspace to remove trailing comma
-    print(io, "}")
-  end
 end
 
 end #module
