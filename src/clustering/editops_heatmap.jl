@@ -36,6 +36,7 @@ function extract_string_tracked(file::String)
   return takebuf_string(buf), tags
 end
 
+#group by value of occurrences, i.e., produce a histogram
 function groupby(X::Vector{Any})
   out = Array((Any, Int64), 0)
 
@@ -54,29 +55,40 @@ function editops_heatmap(file1::String, file2::String)
 
   ops = getops(s1, s2)
 
-  matches1 = IntSet(1:length(s1))
-  matches2 = IntSet(1:length(s2))
+  edits = Any[]
+  totals = Any[]
 
   for (op, src, dst) in ops
     src += 1 #compensate for 0 indexing
     dst += 1 #compsensate for 0 indexing
 
     if op == "insert"
-      pop!(matches2, dst)
+      push!(edits, tags2[dst])
     elseif op == "delete"
-      pop!(matches1, src)
+      push!(edits, tags1[src])
     elseif op == "replace"
-      pop!(matches1, src)
-      pop!(matches2, dst)
+      push!(edits, tags1[src])
     else
       error("op not recognized: $op")
     end
   end
 
-  tagarray1 = map(i -> tags1[i], matches1)
-  tagarray2 = map(i -> tags2[i], matches2)
-  char_matches1 = groupby(tagarray1)
-  char_matches2 = groupby(tagarray2)
+  for i = 1:length(s1)
+    push!(totals, tags1[i])
+  end
 
-  return char_matches1, char_matches2
+  edit_stats = groupby(edits)
+  total_stats = groupby(totals)
+
+  fraction = Any[]
+  for (edit_record, total_record) in zip(edit_stats, total_stats)
+
+    @assert edit_record[1] == total_record[1] # == val
+
+    val, edit_count = edit_record
+    val, total_count = total_record
+    push!(fraction, (val, edit_count / total_count))
+  end
+
+  return edit_stats, total_stats, fraction
 end

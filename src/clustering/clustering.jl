@@ -23,7 +23,8 @@ type ClusterResults
   affinity::Array{Float64, 2}
 end
 
-ClusterResults() = ClusterResults(ASCIIString[], Int64[], -1, Array(Float64, 0, 0))
+ClusterResults() = ClusterResults(ASCIIString[], Int64[], Array(Int32, 0, 0),
+                                  -1, Array(Float64, 0, 0))
 
 function ==(x1::ClusterResults, x2::ClusterResults)
 
@@ -53,7 +54,7 @@ function extract_string(file::String)
   return takebuf_string(buf)
 end
 
-function cluster(files::Vector{String}, n_clusters::Int,
+function cluster{T<:String}(files::Vector{T}, n_clusters::Int,
                  get_affinity::Function=x->get_affinity(x, levenshtein))
 
   tic() #CPUtime doesn't work well for parallel
@@ -160,12 +161,74 @@ function load_results(file::String="cluster_results.json")
   return Obj2Dict.to_obj(d)
 end
 
-function phylogenetic_tree(results::ClusterResults;
+type PhylotreeElement
+  level::Int64
+  name::ASCIIString
+  children::Vector{PhylotreeElement}
+end
+
+PhylotreeElement(level::Int64, name::String="") = PhylotreeElement(level, name, PhylotreeElement[])
+PhylotreeElement(level::Int64, name::String, children::PhylotreeElement...) =
+  PhylotreeElement(level, name, [children...])
+
+function phylogenetic_tree(results::ClusterResults)
+end
+
+#assume a scikit-learn agglomerative clustering output tree format and 0-indexing
+function phylogenetic_tree(nelements::Int64, tree0::Array{Int32,2};
+                           nametable::Dict{Int64,ASCIIString}=Dict{Int64,ASCIIString}(),
+                           show_intermediate::Bool=true,
                            outfileroot::String="cluster_tree",
                            output::String="TEXPDF")
 
+  lastid = nelements - 1
+  root_id = lastid #id of the root node, init value
 
+  d = Dict{Int64, PhylotreeElement}()
 
+  #preload dict with level 0's
+  for i = 0:lastid
+    name = haskey(nametable, i) ? nametable[i] : "$i"
+    d[i] = PhylotreeElement(0, name)
+  end
+
+  #parse tree into dict
+  for row = 1:size(tree0, 1)
+    root_id += 1
+    (i, j) = tree0[row, :]
+    level = max(d[i].level, d[j].level) + 1
+    name = show_intermediate ? "$(root_id)" : ""
+    d[root_id] = PhylotreeElement(level, name, d[i], d[j])
+  end
+
+  #create tikz text
+  io = IOBuffer()
+  print(io, "{")
+  print_element!(io, d[root_id])
+  print(io, "};")
+
+  return takebuf_string(io)
+end
+
+function print_element!(io::IOBuffer, element::PhylotreeElement, parent_level::Int64=-1)
+
+  len = parent_level - element.level
+
+  print(io, "$(element.name)")
+  if len > 0
+    print(io, "[>length=$len]")
+  end
+
+  #process children
+  if !isempty(element.children)
+    print(io, " -- {")
+    for child in element.children
+      print_element!(io, child, element.level)
+      print(io, ",")
+    end
+    seek(io, position(io) - 1) #backspace to remove trailing comma
+    print(io, "}")
+  end
 end
 
 end #module
