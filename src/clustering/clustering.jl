@@ -162,4 +162,26 @@ function load_results(file::String="cluster_results.json")
   return Obj2Dict.to_obj(d)
 end
 
+function sortbydistance(A::Array{Float64,2},
+                        nametable::Vector{ASCIIString}=ASCIIString[])
+  nrows, ncols = size(A)
+  @assert nrows == ncols
+  n = nrows
+  nelements = convert(Int64, (n^2 - n) / 2)
+  data = Array((ASCIIString, ASCIIString, Float64), nelements)
+
+  k = 1
+  for i = 1:n
+    for j = (i + 1):n
+      namei = !isempty(nametable) ? nametable[i] : "$i"
+      namej = !isempty(nametable) ? nametable[j] : "$j"
+      data[k] = (namei, namej, A[i, j])
+      k += 1
+    end
+  end
+  sort!(data, by=x->x[3])
+
+  data
+end
+
 end #module
