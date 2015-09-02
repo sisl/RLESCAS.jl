@@ -48,7 +48,8 @@ function groupby(X::Vector{Any})
   return out
 end
 
-function editops_heatmap(file1::String, file2::String)
+function editops_heatmap(file1::String, file2::String;
+                         outfile::String="editops_heatmap.txt")
 
   s1, tags1 = extract_string_tracked(file1)
   s2, tags2 = extract_string_tracked(file2)
@@ -89,6 +90,21 @@ function editops_heatmap(file1::String, file2::String)
     val, total_count = total_record
     push!(fraction, (val, edit_count / total_count))
   end
+
+  f = open(outfile, "w")
+  println(f, "EDIT_STATS")
+  for i = 1:size(edit_stats, 1)
+    println(f, edit_stats[i])
+  end
+  println(f, "\n\nTOTAL_STATS")
+  for i = 1:size(edit_stats, 1)
+    println(f, total_stats[i])
+  end
+  println(f, "\n\nFRACTION")
+  for i = 1:size(edit_stats, 1)
+    println(f, fraction[i])
+  end
+  close(f)
 
   return edit_stats, total_stats, fraction
 end

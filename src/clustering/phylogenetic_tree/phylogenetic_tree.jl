@@ -1,3 +1,7 @@
+module PhylogeneticTree
+
+export vis_from_tree, vis_from_distances
+
 using TikzPictures
 
 type PhylotreeElement
@@ -11,7 +15,7 @@ PhylotreeElement(level::Int64, name::String, children::PhylotreeElement...) =
   PhylotreeElement(level, name, [children...])
 
 #assume a scikit-learn agglomerative clustering output tree format and 0-indexing
-function phylogenetic_tree(nelements::Int64, tree0::Array{Int32,2};
+function vis_from_tree(nelements::Int64, tree0::Array{Int32,2};
                            nametable::Dict{Int64,ASCIIString}=Dict{Int64,ASCIIString}(),
                            show_intermediate::Bool=true,
                            outfileroot::String="cluster_tree",
@@ -67,7 +71,7 @@ function print_element!(io::IOBuffer, element::PhylotreeElement, parent_level::I
   end
 end
 
-function tree_from_distance(affinity::Array{Float64,2}, offset_scale::Float64=0.8;
+function vis_from_distances(affinity::Array{Float64,2}, offset_scale::Float64=0.8;
                             nametable::Vector{ASCIIString}=ASCIIString[],
                            outfileroot::String="cluster_tree",
                            output::String="TEXPDF")
@@ -126,6 +130,8 @@ function print_names!(io::IOBuffer, nametable::Vector{ASCIIString}, n::Int64)
   seek(io, position(io) - 1) #backspace, erase extra comma
   nothing
 end
+
+end #module
 
 #=
 nametable=[13,19,27,29,39,4,45,50,55,61,64,7,72,73,84,9,97,99]

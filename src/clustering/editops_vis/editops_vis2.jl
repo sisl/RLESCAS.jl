@@ -97,7 +97,7 @@ function clear_tags!(textbuf::GtkTextBufferLeaf, start_index::Int64, end_index::
 end
 
 function editops_filevis(file1::String, file2::String)
-  include("clustering.jl") #only this function needs Clustering, so isolate it here for performance
+  include("../clustering.jl") #only this function needs Clustering, so isolate it here for performance
 
   s1 = Clustering.extract_string(file1)
   s2 = Clustering.extract_string(file2)

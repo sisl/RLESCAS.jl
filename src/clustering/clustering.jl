@@ -1,6 +1,7 @@
 module Clustering
 
-export ClusterResults, cluster, cluster_vis, save_results, load_results, extract_string, hamming, get_affinity
+export ClusterResults, cluster, cluster_vis, save_results, load_results,
+        extract_string, hamming, get_affinity, sortbydistance
 
 include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
@@ -163,7 +164,8 @@ function load_results(file::String="cluster_results.json")
 end
 
 function sortbydistance(A::Array{Float64,2},
-                        nametable::Vector{ASCIIString}=ASCIIString[])
+                        nametable::Vector{ASCIIString}=ASCIIString[];
+                        outfile::String="sorted.txt")
   nrows, ncols = size(A)
   @assert nrows == ncols
   n = nrows
@@ -180,6 +182,12 @@ function sortbydistance(A::Array{Float64,2},
     end
   end
   sort!(data, by=x->x[3])
+
+  f = open(outfile, "w")
+  for entry in data
+    println(f, entry)
+  end
+  close(f)
 
   data
 end

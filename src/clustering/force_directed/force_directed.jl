@@ -14,7 +14,12 @@
 #d["links"][1]["target"] = index of array of target node (0-indexing)
 #d["links"][1]["value"] = force of link
 
+include("../clustering.jl")
+using Clustering
+
 using JSON
+
+force_directed(cr::ClusterResults) = force_directed(cr.files, cr.labels, cr.affinity)
 
 function force_directed{T<:String}(names::Vector{T}, labels::Vector{Int},
                                    affinity::Array{Float64,2};
@@ -32,7 +37,7 @@ function force_directed{T<:String}(names::Vector{T}, labels::Vector{Int},
     #force function
     F = 1 ./ affinity.^2
     minval, maxval = extrema(filter(x->x!=Inf, F[:])) #min/max excluding 0.0s
-    F = 0.01 * ((F - minval) ./ (maxval - minval))
+    F = 0.1 * ((F - minval) ./ (maxval - minval))
     f(i, j) = F[i, j]
 
     for i = 1:size(affinity, 1) #rows
