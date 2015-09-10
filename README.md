@@ -7,8 +7,6 @@ RLESCAS is a Julia package for applying Monte Carlo tree search (MCTS) to check 
 
 The software requires Julia v0.3 and above.  It is currently untested on v0.4.  Requires 64-bit Julia.
 
-Substitute your bitbucket username in places marked [username]
-
 * In Julia, run Pkg.clone("https://github.com/sisl/rlescas.jl.git", "RLESCAS")
 * In Julia, run Pkg.clone("https://github.com/sisl/adaptivestresstesting.jl.git", "AdaptiveStressTesting")
 * In Julia, run Pkg.clone("https://github.com/sisl/rles-sisles.jl.git", "SISLES")
