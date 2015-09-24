@@ -32,13 +32,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using RLESMDPs
+using AdaptiveStressTesting
 using SISLES.GenerativeModel
 
 using CPUTime
 using Dates
-import Obj2Dict
-using RunCases
+using RLESUtils: Obj2Dict, RunCases
 
 type MCTSStudy
   fileroot::String
@@ -59,25 +58,25 @@ function trajSave(study_params::MCTSStudy,
          startnow = string(now())
 
          sim_params = extract_params!(defineSimParams(), case, "sim_params")
-         mdp_params = extract_params!(defineMDPParams(), case, "mdp_params")
+         ast_params = extract_params!(defineASTParams(), case, "ast_params")
          mcts_params = extract_params!(defineMCTSParams(), case, "mcts_params")
          study_params = extract_params!(study_params, case, "study_params")
 
          sim = defineSim(sim_params)
-         mdp = defineMDP(sim, mdp_params)
-         dpw = defineMCTS(mdp, mcts_params)
+         ast = defineAST(sim, ast_params)
+         dpw = defineMCTS(ast, mcts_params)
 
          reward, action_seq = runMCTS(dpw)
 
          #replay to get logs
          simLog = SimLog()
-         addObservers!(simLog, mdp)
-         replay_reward = playSequence(getTransitionModel(mdp), action_seq)
+         addObservers!(simLog, ast)
+         replay_reward = playSequence(get_transition_model(ast), action_seq)
 
          notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
 
          #sanity check replay
-         @test replay_reward == reward
+         @assert replay_reward == reward
 
          compute_info = ComputeInfo(startnow,
                                     string(now()),
@@ -89,7 +88,7 @@ function trajSave(study_params::MCTSStudy,
          sav["run_type"] = "MCTS"
          sav["compute_info"] = Obj2Dict.to_dict(compute_info)
          sav["sim_params"] = Obj2Dict.to_dict(sim.params)
-         sav["mdp_params"] = Obj2Dict.to_dict(mdp.params)
+         sav["ast_params"] = Obj2Dict.to_dict(ast.params)
          sav["dpw_params"] = Obj2Dict.to_dict(dpw.p)
          sav["sim_log"] = simLog
 

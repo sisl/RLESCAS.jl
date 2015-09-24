@@ -39,8 +39,8 @@ include("config/config_ACASX_EvE.jl") #defineSim
 #Pick a reward function:
 include("defines/define_reward.jl") #get_reward #supports ACASX_EvE and ACASX_Multi
 
-#Config RLESMDP
-include("config/config_mdp.jl") #defineMDP
+#Config AdaptiveStressTest
+include("config/config_ast.jl") #defineAST
 
 #Config MCTS solver
 include("config/config_mcts.jl") #defineMCTS

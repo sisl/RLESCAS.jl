@@ -32,15 +32,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-import RLESMDPs: ESAction
-using SISLES.Encounter
-using SISLES.WorldModel
-using SISLES.Sensor
-using SISLES.CollisionAvoidanceSystem
-using SISLES.PilotResponse
-
-import Obj2Dict
-using Base.Test
+using AdaptiveStressTesting
+using SISLES: Encounter, WorldModel, Sensor, CollisionAvoidanceSystem, PilotResponse
+using RLESUtils: Obj2Dict
 
 const ENABLE_ROUNDING = true
 const ROUND_NDECIMALS = 9
@@ -49,25 +43,23 @@ const ROUND_NDECIMALS = 9
 typealias SimLog Dict{String, Any}
 typealias SimLogDict Dict{String, Any}
 
-function addObservers!(simLog::SimLog, mdp::RLESMDP)
-
-  addObserver(mdp,     "action_seq", x -> log_action!(simLog, x))
-  addObserver(mdp.sim, "CAS_info",   x -> log_cas_info!(simLog, x))
-  addObserver(mdp.sim, "Initial",    x -> log_initial!(simLog, x))
-  addObserver(mdp.sim, "Command",    x -> log_command!(simLog, x))
-  addObserver(mdp.sim, "Sensor",     x -> log_sensor!(simLog, x))
-  addObserver(mdp.sim, "CAS",        x -> log_ra!(simLog, x))
-  addObserver(mdp.sim, "Response",   x -> log_response!(simLog, x))
-  addObserver(mdp.sim, "Dynamics",   x -> log_adm!(simLog, x))
-  addObserver(mdp.sim, "WorldModel", x -> log_wm!(simLog, x))
-  addObserver(mdp.sim, "logProb",   x -> log_logProb!(simLog, x))
-  addObserver(mdp.sim, "run_info",   x -> log_runinfo!(simLog, x))
+function addObservers!(simLog::SimLog, ast::AdaptiveStressTest)
+  addObserver(ast,     "action_seq", x -> log_action!(simLog, x))
+  addObserver(ast.sim, "CAS_info",   x -> log_cas_info!(simLog, x))
+  addObserver(ast.sim, "Initial",    x -> log_initial!(simLog, x))
+  addObserver(ast.sim, "Command",    x -> log_command!(simLog, x))
+  addObserver(ast.sim, "Sensor",     x -> log_sensor!(simLog, x))
+  addObserver(ast.sim, "CAS",        x -> log_ra!(simLog, x))
+  addObserver(ast.sim, "Response",   x -> log_response!(simLog, x))
+  addObserver(ast.sim, "Dynamics",   x -> log_adm!(simLog, x))
+  addObserver(ast.sim, "WorldModel", x -> log_wm!(simLog, x))
+  addObserver(ast.sim, "logProb",   x -> log_logProb!(simLog, x))
+  addObserver(ast.sim, "run_info",   x -> log_runinfo!(simLog, x))
 
   return simLog #not required, but returned for convenience
 end
 
 function check_key!(d::SimLogDict,k::String; subkey::Union(String, Nothing)=nothing)
-
   #add it if it doesn't exist
   if !haskey(d, k)
     d[k] = SimLogDict()
@@ -78,7 +70,6 @@ function check_key!(d::SimLogDict,k::String; subkey::Union(String, Nothing)=noth
 end
 
 function log_cas_info!(simLog::SimLog, args)
-
   #[CAS version]
   cas = args[1]
 
@@ -112,7 +103,7 @@ function log_initial!(simLog::SimLog, args)
   t_index = args[2]
   aem = args[3]
 
-  @test t_index == 0
+  @assert t_index == 0
 
   check_key!(simLog, "var_names")
 
@@ -212,7 +203,7 @@ function log_command!(simLog::SimLog, args)
   d_t["$(t_index)"] = v
 
   #check to make sure we're in sync
-  #@test t_index == length(d_t) + 1 #not called on initialize
+  #@assert t_index == length(d_t) + 1 #not called on initialize
 end
 
 extract_command_names(command::CorrAEMCommand) = String["h_d", "v_d", "psi_d"]
@@ -252,7 +243,7 @@ function log_adm!(simLog::SimLog, args)
   d_t["$(t_index)"] = v
 
   #check to make sure we're in sync
-  #@test t_index == length(d_t) #make sure we're in sync
+  #@assert t_index == length(d_t) #make sure we're in sync
 
 end
 
@@ -306,7 +297,7 @@ function log_wm!(simLog::SimLog, args)
     d_t["$(t_index)"] = v
 
     #check to make sure we're in sync
-    #@test t_index == length(d_t) #make sure we're in sync
+    #@assert t_index == length(d_t) #make sure we're in sync
   end
 
 end
@@ -350,7 +341,7 @@ function log_sensor!(simLog::SimLog, args)
   d_t["$(t_index)"] = v
 
   #check to make sure we're in sync
-  #@test t_index == length(d_t)
+  #@assert t_index == length(d_t)
 
 end
 
@@ -382,11 +373,9 @@ function extract_sensor_units(sr::SimpleTCASSensor)
 end
 
 function extract_sensor(sr::SimpleTCASSensor)
-
   #input=[r,r_d, a, a_d],[num_intruders],[h,h_d for each intruder]
   out = sr.output
   num_intruders = length(out.h)
-
   hhd = Float64[]
 
   for (h, h_d) in zip(out.h, out.h_d)
@@ -468,7 +457,7 @@ function log_ra!(simLog::SimLog, args)
   d_t["$(t_index)"] = v
 
   #check to make sure we're in sync
-  #@test t_index == length(d_t)
+  #@assert t_index == length(d_t)
 
   log_ra_detailed!(simLog, args)
 
@@ -536,7 +525,7 @@ function log_ra_detailed!(simLog::SimLog, args)
   d_t["$(t_index)"] = v
 
   #check to make sure we're in sync
-  #@test t_index == length(d_t)
+  #@assert t_index == length(d_t)
 
 end
 
@@ -650,7 +639,7 @@ function log_response!(simLog::SimLog, args)
   d_t["$(t_index)"] = v
 
   #check to make sure we're in sync
-  #@test t_index == length(d_t)
+  #@assert t_index == length(d_t)
 
 end
 
@@ -738,44 +727,35 @@ function log_logProb!(simLog::SimLog, args)
                                    ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 
   #check to make sure we're in sync
-  #@test t_index == length(d_t)
+  #@assert t_index == length(d_t)
 
 end
 
 function log_action!(simLog::SimLog, args)
-
   #t_index = args[1] #there but not used
-  action = args[2]::ESAction
-
+  action = args[2]::ASTAction
   if !haskey(simLog, "action_seq")
     simLog["action_seq"] = SaveDict[]
   end
-
   push!(simLog["action_seq"], Obj2Dict.to_dict(action))
-
+  return
 end
 
-function round_floats(v::Vector{Any}, ndigits::Int64; enable::Bool = true)
-
+function round_floats(v::Vector{Any}, ndigits::Int64; enable::Bool=true)
   out = v
-
   if enable
     out = map(v) do x
       return isa(x, FloatingPoint) ? round(x, ndigits) : x
     end
   end
-
   return out
 end
 
 #mods x to the range [-b, b]
 function to_plusminus_b(x::FloatingPoint, b::FloatingPoint)
-
   z = mod(x, 2 * b)
-
   return (z > b) ? (z - 2 * b) : z
 end
 
 to_plusminus_180(x::FloatingPoint) = to_plusminus_b(x, 180.0)
-
 sortByTime(d::SimLogDict) = sort(collect(d), by = x -> int64(x[1]))

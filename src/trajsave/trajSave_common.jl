@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using RunCases
+using RLESUtils.RunCases
 
 function extract_params!(paramObj, case::Case, key::String)
   #assumes format of key is: "key.field"

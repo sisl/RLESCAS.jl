@@ -32,53 +32,43 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using RLESMDPs
+using AdaptiveStressTesting
 using SISLES.GenerativeModel
-using RunCases
+using RLESUtils: Obj2Dict, RunCases
 
 using CPUTime
 using Dates
 
-import Obj2Dict
-
 function trajReplay(savefile::String; fileroot::String="", case::Case=Case())
-
   d = trajLoad(savefile)
-
   if isempty(fileroot)
     fileroot = string(getSaveFileRoot(savefile), "_replay")
   end
-
   return trajReplay(d; fileroot=fileroot, case=case)
 end
 
 function trajReplay(d::SaveDict; fileroot::String = "", case::Case=Case())
-
   sim_params = extract_params!(Obj2Dict.to_obj(d["sim_params"]), case, "sim_params")
-  mdp_params = extract_params!(Obj2Dict.to_obj(d["mdp_params"]), case, "mdp_params")
+  ast_params = extract_params!(Obj2Dict.to_obj(d["ast_params"]), case, "ast_params")
   reward = sv_reward(d)
 
   sim = defineSim(sim_params)
-  mdp = defineMDP(sim, mdp_params)
+  ast = defineAST(sim, ast_params)
   action_seq = Obj2Dict.to_obj(d["sim_log"]["action_seq"])
 
   simLog = SimLog()
-  addObservers!(simLog, mdp)
+  addObservers!(simLog, ast)
 
-  reward = playSequence(getTransitionModel(mdp), action_seq)
-
+  reward = playSequence(get_transition_model(ast), action_seq)
   notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
 
   #Save
   sav = d #copy original
   sav["sim_log"] = simLog #replace with new log
-
   replay_reward = sv_reward(d)  #there's rounding in logs, so need to compare the log version of rewards
-
   if replay_reward != reward
     warn("traj_save_load::trajReplay: replay reward is different than original reward")
   end
-
   fileroot = isempty(fileroot) ? "trajReplay$(enc)" : fileroot
   outfilename = trajSave(fileroot, sav)
 

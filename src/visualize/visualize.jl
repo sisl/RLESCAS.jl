@@ -41,9 +41,7 @@ include("vis_captions.jl")
 using TikzPictures
 import PGFPlots: Plots, Axis, GroupPlot
 
-using Obj2Dict
-
-using Base.Test
+using RLESUtils.Obj2Dict
 
 if !isdefined(:RA_STYLE_MAP)
   const RA_STYLE_MAP = [
@@ -232,7 +230,7 @@ function pplot_z_label270s(sav; start_time::Int64 = 0, end_time::Int64 = 50, lab
 
   d = sav
 
-  @test start_time < end_time
+  @assert start_time < end_time
 
   plotArray = Plots.Plot[]
 

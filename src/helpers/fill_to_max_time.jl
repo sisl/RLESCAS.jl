@@ -32,8 +32,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using RLESMDPs  #For ESAction
-import Obj2Dict
+using AdaptiveStressTesting: ASTAction
+using RLESUtils: Obj2Dict
+using RNGWrapper
 
 include("../defines/define_save.jl")
 
@@ -46,35 +47,32 @@ function fill_to_max_time(filename::String)
   d["sim_params"] = Obj2Dict.to_dict(sim_params)
 
   action_seq = Obj2Dict.to_obj(d["sim_log"]["action_seq"])
+  ast_params = Obj2Dict.to_obj(d["ast_params"])
+  rng_length = ast_params.rng_length
 
   max_steps = sim_params.max_steps
   steps_to_append = max_steps - length(action_seq)  #determine number of missing steps
 
   # steps_to_append > 0 check is automatically handled by comprehension
-  actions_to_append = ESAction[ ESAction(uint32(hash(t))) for t = 1 : steps_to_append ] #append hash of t
+  seed = steps_to_append #arbitrarily use this as a seed
+  actions_to_append = ASTAction[ ASTAction(rng_length, seed) for t = 1:steps_to_append ] #append hash of t
   action_seq = vcat(action_seq, actions_to_append)
 
   d["sim_log"]["action_seq"] = Obj2Dict.to_dict(action_seq)
-
   outfilename = trajSave(string(getSaveFileRoot(filename), "_filled"), d, compress = isCompressedSave(filename))
-
   println("File: ", filename, "; Steps appended: ", steps_to_append)
 
   return outfilename
 end
 
 function fill_replay(filename::String; overwrite::Bool=false)
-
   fillfile = fill_to_max_time(filename)
-
   if overwrite
     outfile = trajReplay(fillfile, fileroot=getSaveFileRoot(filename))
   else
     outfile = trajReplay(fillfile)
   end
-
   rm(fillfile) #delete intermediate fill file
-
   return outfile
 end
 

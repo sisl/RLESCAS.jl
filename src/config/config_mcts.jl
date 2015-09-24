@@ -32,8 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-import RLESMDPs: uniform_policy
-import MCTSdpw: DPWParams, DPWModel, DPW, Depth
+using AdaptiveStressTesting
+using MCTSdpw
 
 function defineMCTSParams(;
                           d::Depth = 50,
@@ -48,15 +48,12 @@ function defineMCTSParams(;
                           rng_seed::Uint64 = uint64(0)
                           )
 
-  p = DPWParams(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed)
-
-  return p
+  return p = DPWParams(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed)
 end
 
-function defineMCTS(mdp::RLESMDP, p::DPWParams)
-
-  f = DPWModel(getTransitionModel(mdp),(s::State, rng::AbstractRNG) -> uniform_policy(mdp, s),
-               (s::State, rng::AbstractRNG) -> uniform_policy(mdp, s))
-
+function defineMCTS(ast::AdaptiveStressTest, p::DPWParams)
+  model = get_transition_model(ast)
+  policy(s::State, rng::AbstractRNG) = uniform_policy(ast, s)
+  f = DPWModel(model, policy, policy)
   return DPW(p, f)
 end

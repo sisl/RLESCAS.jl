@@ -36,8 +36,7 @@ using SISLES.GenerativeModel
 
 using CPUTime
 using Dates
-import Obj2Dict
-using RunCases
+using RLESUtils: Obj2Dict, RunCases
 
 type MCBestStudy
   fileroot::String
@@ -65,7 +64,6 @@ end
 
 MCBestStudyResults() = MCBestStudyResults(0, Float64[])
 
-
 function trajSave(study_params::MCBestStudy,
                   cases::Cases = Cases(Case());
                   outdir::String = "./", postproc::Function=identity)
@@ -75,39 +73,38 @@ function trajSave(study_params::MCBestStudy,
          startnow = string(now())
 
          sim_params = extract_params!(defineSimParams(), case, "sim_params")
-         mdp_params = extract_params!(defineMDPParams(), case, "mdp_params")
+         ast_params = extract_params!(defineASTParams(), case, "ast_params")
          study_params = extract_params!(study_params, case, "study_params")
 
          sim = defineSim(sim_params)
-         mdp = defineMDP(sim, mdp_params)
+         ast = defineAST(sim, ast_params)
 
          #generate different samples by varying the action counter initial value
          function init(i::Int)
-           mdp.action_counter = uint32(hash(i + study_params.trial * study_params.nsamples))
-           return getTransitionModel(mdp), mdp
+           set_from_seed!(ast.rng, i + study_params.trial * study_params.nsamples)
+           return getTransitionModel(ast), ast
          end
 
          rewards, action_seqs, nsamples = directSample(init, uniform_policy,
                                                        study_params.nsamples,
                                                        maxtime_s = study_params.maxtime_s)
 
-         study_results = MCBestStudyResults(nsamples,
-                                            rewards)
+         study_results = MCBestStudyResults(nsamples, rewards)
 
          besti = indmax(rewards)
-         model, mdp = init(besti)
+         model, ast = init(besti)
 
          #replay to get the logs
          simLog = SimLog()
-         addObservers!(simLog, mdp)
+         addObservers!(simLog, ast)
 
-         reward, action_seq = directSample(model, mdp, uniform_policy)
+         reward, action_seq = directSample(model, ast, uniform_policy)
 
          notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
 
          #sanity check replay
-         @test reward == rewards[besti]
-         @test action_seq == action_seqs[besti]
+         @assert reward == rewards[besti]
+         @assert action_seq == action_seqs[besti]
 
          compute_info = ComputeInfo(startnow,
                                     string(now()),
@@ -120,8 +117,8 @@ function trajSave(study_params::MCBestStudy,
          sav["compute_info"] = Obj2Dict.to_dict(compute_info)
          sav["study_params"] = Obj2Dict.to_dict(study_params)
          sav["study_results"] = Obj2Dict.to_dict(study_results)
-         sav["sim_params"] = Obj2Dict.to_dict(mdp.sim.params)
-         sav["mdp_params"] = Obj2Dict.to_dict(mdp.params)
+         sav["sim_params"] = Obj2Dict.to_dict(ast.sim.params)
+         sav["ast_params"] = Obj2Dict.to_dict(ast.params)
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"

@@ -34,23 +34,23 @@
 
 using SISLES
 using SISLES.GenerativeModel
-using RLESMDPs
+using AdaptiveStressTesting
 
-function defineMDPParams(;
+function defineASTParams(;
                          max_steps::Int64 = 50,
-                         action_counter_init::Uint32 = uint32(0),
-                         action_counter_reset::Union(Uint32, Nothing) = nothing)
-  p = RLESMDP_params()
-
+                         rng_length::Int64 = 3,
+                         init_seed::Int64 = 0,
+                         reset_seed::Union(Nothing, Int64) = nothing)
+  p = ASTParams()
   p.max_steps = max_steps
-  p.action_counter_init = action_counter_init
-  p.action_counter_reset = action_counter_reset
+  p.rng_length = rng_length
+  p.init_seed = init_seed
+  p.reset_seed = reset_seed
 
   return p
 end
 
-function defineMDP(sim::AbstractGenerativeModel, p::RLESMDP_params)
-
-  return RLESMDP(p, sim, GenerativeModel.initialize, GenerativeModel.step,
-                 GenerativeModel.isEndState, get_reward)
+function defineAST(sim::AbstractGenerativeModel, p::ASTParams)
+  return AdaptiveStressTest(p, sim, GenerativeModel.initialize, GenerativeModel.step,
+                 GenerativeModel.isterminal, get_reward)
 end

@@ -36,8 +36,7 @@ using SISLES.GenerativeModel
 
 using CPUTime
 using Dates
-import Obj2Dict
-using RunCases
+using RLESUtils: Obj2Dict, RunCases
 
 type OnceStudy
   fileroot::String
