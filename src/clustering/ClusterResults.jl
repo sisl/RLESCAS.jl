@@ -34,7 +34,7 @@
 
 module ClusterResults
 
-export ClusterResult, save_result, load_result, to_sorted_list
+export ClusterResult, save_result, load_result, to_sorted_list, by_label
 
 using JSON
 using RLESUtils.Obj2Dict
@@ -106,6 +106,11 @@ end
 
 function to_sorted_list(result::ClusterResult; outfile::String="sorted.txt")
   to_sorted_list(result.affinity, convert(Vector{ASCIIString}, result.names), outfile)
+end
+
+function by_label(result::ClusterResult, label)
+  inds = find(x -> x == label,result.labels)
+  return result.names[inds]
 end
 
 end #module

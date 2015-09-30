@@ -32,24 +32,47 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module JSON2ASCII
+push!(LOAD_PATH, "./")
+push!(LOAD_PATH, "../") #clustering folder
 
-export extract_string
+using RLESUtils.FileUtils
+using RLESUtils.LookupCallbacks
+using CSVFeatures
 
-include(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajLoad
-include(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl")) #sv_*
+feature_map = LookupCallback[
+  LookupCallback("ra_detailed.ra_active", x -> x == "TRUE" ? 1.0 : 0.0),
+  LookupCallback("ra_detailed.ownInput.dz"),
+  LookupCallback(["ra_detailed.ownInput.z", "ra_detailed.intruderInput[1].z"], (z1, z2) -> z2 - z1),
+  LookupCallback("ra_detailed.ownInput.psi"),
+  LookupCallback("ra_detailed.intruderInput[1].sr"),
+  LookupCallback("ra_detailed.intruderInput[1].chi"),
+  LookupCallback("ra_detailed.intruderInput[1].cvc"),
+  LookupCallback("ra_detailed.intruderInput[1].vrc"),
+  LookupCallback("ra_detailed.intruderInput[1].vsb"),
+  LookupCallback("ra_detailed.ownOutput.cc"),
+  LookupCallback("ra_detailed.ownOutput.vc"),
+  LookupCallback("ra_detailed.ownOutput.ua"),
+  LookupCallback("ra_detailed.ownOutput.da"),
+  LookupCallback("ra_detailed.ownOutput.target_rate"),
+  LookupCallback("ra_detailed.ownOutput.crossing", x -> x == "TRUE" ? 1.0 : 0.0),
+  LookupCallback("ra_detailed.ownOutput.alarm", x -> x == "TRUE" ? 1.0 : 0.0),
+  LookupCallback("ra_detailed.ownOutput.alert", x -> x == "TRUE" ? 1.0 : 0.0),
+  LookupCallback("ra_detailed.ownOutput.dh_min"),
+  LookupCallback("ra_detailed.ownOutput.dh_max"),
+  LookupCallback("ra_detailed.ownOutput.ddh"),
+  LookupCallback("ra_detailed.intruderOutput[1].cvc"),
+  LookupCallback("ra_detailed.intruderOutput[1].vrc"),
+  LookupCallback("ra_detailed.intruderOutput[1].vsb"),
+  LookupCallback("ra_detailed.intruderOutput[1].tds"),
+  LookupCallback("ra_detailed.intruderOutput[1].code"), #this is categorical, may need special attn
+  LookupCallback("response.state", x -> x == "none" ? 0.0 : x == "stay" ? 1.0 : 2.0), #this is categorical, may need special attn
+  LookupCallback("response.timer"),
+  LookupCallback("response.h_d"),
+  LookupCallback("response.psi_d")
+  ]
 
-function extract_string{T<:String}(file::T, fields::Vector{T})
-  d = trajLoad(file)
-  buf = IOBuffer()
-  for t = 1:sv_sim_steps(d)
-    for i = 1:sv_num_aircraft(d)
-      for field in fields
-        print(buf, sv_simlog_tdata(d, field, i, [t])[1])
-      end
-    end
-  end
-  return takebuf_string(buf)
-end
+files = readdir_ext("csv", "../data/dasc_nmacs")'
 
-end #module
+M = feature_matrix(files, feature_map)
+MM = hcat(M...) #stack them all together
+

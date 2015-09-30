@@ -34,16 +34,16 @@
 
 module ClusteringsDistance
 
-export get_pairs_set, filestats, setdist, get_adjacency, adj_dist
+export same_cluster_pairs, filestats, setdist, get_adjacency, adjacency_dist
 
 using RLESUtils.FileUtils
 using Iterators
 
-function get_pairs_set(file::String)
+function same_cluster_pairs(file::String)
   dat = readcsv(file)
   pairsset = Set() #set of id pairs in the same cluster
   mapslices(dat, 2) do v #returns each row
-    filter!(x->!isempty(x), v)
+    filter!(x -> !isempty(x), v) #filter out ""
     if length(v) >= 2
       for id_pair in subsets(v, 2) #all pairs
         sort!(id_pair)
@@ -53,6 +53,7 @@ function get_pairs_set(file::String)
   end
   return pairsset
 end
+set_dist(s1::Set, s2::Set) = length(intersect(s1, s2))
 
 function get_adjacency(file::String)
   dat = readcsv(file)
@@ -64,7 +65,7 @@ function get_adjacency(file::String)
   end
   adjacency = zeros(Bool, length(idset), length(idset))
   mapslices(dat, 2) do v #each row
-    filter!(x->!isempty(x), v)
+    filter!(x -> !isempty(x), v) #filter out ""
     if length(v) >= 2
       for ids in subsets(v, 2) #all pairs
         id1, id2 = ids
@@ -77,7 +78,6 @@ function get_adjacency(file::String)
   return adjacency
 end
 
-set_dist(s1::Set, s2::Set) = length(intersect(s1, s2))
 function adjacency_dist(a1::Array{Bool, 2}, a2::Array{Bool, 2})
   diffcount = count(identity, a1 .!= a2) / 2 #div by 2 since symmetric
   @assert size(a1) == size(a2) && size(a1, 1) == size(a1, 2)
@@ -86,13 +86,13 @@ function adjacency_dist(a1::Array{Bool, 2}, a2::Array{Bool, 2})
 end
 
 function filestats{T<:String}(files::Vector{T}; evalfunction::Function=get_adjacency,
-                              dist::Function=adjacency_dist)
+                              distance::Function=adjacency_dist)
   XS = map(evalfunction, files)
   num_xs = length(XS)
   M = zeros(num_xs, num_xs)
   for i = 1:num_xs, j = 1:num_xs
     if i <= j
-      M[i, j] = dist(XS[i], XS[j])
+      M[i, j] = distance(XS[i], XS[j])
     else
       M[i, j] = M[j, i] #symmetric
     end

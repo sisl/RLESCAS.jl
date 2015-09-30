@@ -32,24 +32,43 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module JSON2ASCII
+module CSVFeatures
 
-export extract_string
+export feature_matrix
 
-include(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajLoad
-include(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl")) #sv_*
+using RLESUtils.LookupCallbacks
 
-function extract_string{T<:String}(file::T, fields::Vector{T})
-  d = trajLoad(file)
-  buf = IOBuffer()
-  for t = 1:sv_sim_steps(d)
-    for i = 1:sv_num_aircraft(d)
-      for field in fields
-        print(buf, sv_simlog_tdata(d, field, i, [t])[1])
-      end
+function feature_matrix{T<:String}(csvfiles::Array{T,2}, feature_map::Vector{LookupCallback})
+  f(csvfile::String) = feature_matrix(csvfile, feature_map)
+  return map(f, csvfiles)
+end
+
+function feature_matrix(csvfile::String, feature_map::Vector{LookupCallback})
+  #files = one aircraft per csv file
+  #lookup the variables in lookups and pass them to the function in mapper
+  #e.g., lookups[1] = ["wm.x", "wm.y"], values x and y are retrieved from file,
+  # then z = mapper[1](x, y) is written to the vector
+  #num_features (rows) x num_timesteps (cols)
+  csv = readcsv(csvfile)
+  headers = csv[1, :] |> vec
+  units = csv[2, :] |> vec
+  dat = csv[3:end, :]
+  tmax = size(dat, 1)
+  M = zeros(Float64, length(feature_map), tmax)
+
+  lookup_ids = map(feature_map) do lcb
+    ids = map(lcb.lookups) do l
+      findfirst(x -> x == l, headers)
     end
+    any(x -> x == 0, ids) && error("Lookup not found: $v") #all lookup ids should be found
+    return ids
   end
-  return takebuf_string(buf)
+  for t = 1:tmax, i = 1:size(M, 1)
+    input_vars = dat[t, lookup_ids[i]]
+    f = feature_map[i].callback
+    M[i, t] = f(input_vars...) |> float64
+  end
+  return M
 end
 
 end #module

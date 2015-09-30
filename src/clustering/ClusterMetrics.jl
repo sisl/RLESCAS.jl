@@ -32,24 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module JSON2ASCII
+module ClusterMetrics
 
-export extract_string
-
-include(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajLoad
-include(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl")) #sv_*
-
-function extract_string{T<:String}(file::T, fields::Vector{T})
-  d = trajLoad(file)
-  buf = IOBuffer()
-  for t = 1:sv_sim_steps(d)
-    for i = 1:sv_num_aircraft(d)
-      for field in fields
-        print(buf, sv_simlog_tdata(d, field, i, [t])[1])
-      end
-    end
-  end
-  return takebuf_string(buf)
-end
+#PairMatches
 
 end #module
