@@ -32,81 +32,31 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module ASCIILevenClustering
+push!(LOAD_PATH, "./")
+push!(LOAD_PATH, "../") #clustering folder
 
-export cluster, extract_string, get_affinity
-
-include("../defines/define_save.jl")
-include("../helpers/save_helpers.jl")
-
-using PyCall
-using Levenshtein
+using RLESUtils.FileUtils
+using RLESUtils.StringUtils #hamming
+using JSON2ASCII
 using ClusterResults
+using CRVisualize
 
-@pyimport sklearn.cluster as skcluster
+const NCLUSTERS = 5
+const FIELDS = ASCIIString["sensor", "ra_detailed", "response", "adm"]
 
-function extract_string{T<:String}(file::T, fields::Vector{T})
-  d = trajLoad(file)
-  buf = IOBuffer()
-  for t = 1:sv_sim_steps(d)
-    for i = 1:sv_num_aircraft(d)
-      for field in fields
-        print(buf, sv_simlog_tdata(d, field, i, [t])[1])
-      end
-    end
-  end
-  return takebuf_string(buf)
-end
+files = readdir_ext("gz", "../data/dasc_nmacs")
 
-function cluster{T<:String}(files::Vector{T}, n_clusters::Int, fields::Vector{T},
-                 get_affinity::Function=x->get_affinity(x, levenshtein))
+tic() #CPUtime doesn't work well for parallel
+X = pmap(f -> extract_string(f, FIELDS), files)
+X = convert(Vector{ASCIIString}, X)
+println("Extract string: $(toq()) wall seconds")
 
-  tic() #CPUtime doesn't work well for parallel
-  X = pmap(f -> extract_string(f, fields), files)
-  X = convert(Vector{ASCIIString}, X)
-  println("Extract string: $(toq()) wall seconds")
+#compute affinity matrix
+tic()
+#A = symmetric_affinity(X, levenshtein)
+A = symmetric_affinity(X, hamming)
+println("Compute affinity matrix: $(toq()) wall seconds")
 
-  #compute affinity matrix
-  tic()
-  A = get_affinity(X)
-  println("Compute affinity matrix: $(toq()) wall seconds")
-
-  #returns a PyObject
-  model = skcluster.AgglomerativeClustering(n_clusters=n_clusters,
-                                            affinity="precomputed",
-                                            linkage="average",
-                                            compute_full_tree=true)
-
-  tic()
-  model[:fit](A)
-  println("Sklearn clustering: $(toq()) wall seconds")
-
-  labels = model[:labels_]
-  tree = model[:children_]
-
-  return ClusterResult(files, labels, n_clusters, A, tree)
-end
-
-function get_affinity{T<:String}(X::Vector{T}, distance::Function)
-
-  indmatrix = [(i, j) for i = 1:length(X), j = 1:length(X)]
-
-  #compute for upper triangular
-  #diag and lower triangular are zero
-  A = pmap(ij -> begin
-              i, j = ij
-              i < j ? distance(X[i], X[j]) : 0.0
-           end,
-           indmatrix)
-  A = reshape(A, length(X), length(X))
-
-  #copy lower triangular from upper
-  for i = 1:length(X)
-    for j = 1:(i-1)
-      A[i, j] = A[j, i]
-    end
-  end
-  return convert(Array{Float64, 2}, A) #affinity matrix aka distance matrix
-end
-
-end #module
+result = agglomerative_cluster(A, NCLUSTERS)
+save_result(result, "asciicluster_leven.json") #change these for hamming
+plot_to_file(result, outfileroot="asciicluster_leven") #change these for hamming

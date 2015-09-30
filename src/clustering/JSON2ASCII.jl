@@ -32,19 +32,26 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, "./")
-push!(LOAD_PATH, "../") #clustering folder
+module JSON2ASCII
 
-include("../cluster_results_vis.jl")
+export extract_string
 
-using RLESUtils.FileUtils
-using ASCIILevenClustering
-using ClusterResults
+include("../defines/define_save.jl")
+include("../helpers/save_helpers.jl")
 
-const NCLUSTERS = 5
-const FIELDS = ASCIIString["sensor", "ra_detailed", "response", "adm"]
+using Levenshtein
 
-files = readdir_ext("gz", "../data/dasc_nmacs")
-result = cluster(files, NCLUSTERS, FIELDS)
-save_result(result, "asciilevencluster.json")
-plot_to_file(result, outfileroot="asciilevencluster")
+function extract_string{T<:String}(file::T, fields::Vector{T})
+  d = trajLoad(file)
+  buf = IOBuffer()
+  for t = 1:sv_sim_steps(d)
+    for i = 1:sv_num_aircraft(d)
+      for field in fields
+        print(buf, sv_simlog_tdata(d, field, i, [t])[1])
+      end
+    end
+  end
+  return takebuf_string(buf)
+end
+
+end #module

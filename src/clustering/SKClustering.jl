@@ -32,31 +32,61 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("ClusterResults.jl") #ClusterResult
-include("../defines/define_save.jl") #trajLoad
-include("../helpers/save_helpers.jl") #sv_*
-include("../visualize/visualize.jl") #pgfplotLog
+module SKClustering
 
-using TikzPictures
-using PGFPlots
+export agglomerative_cluster, symmetric_affinity, full_affinity
+
+using PyCall
 using ClusterResults
 
-function plot_to_file(result::ClusterResult; outfileroot::String="clustervis")
-  labelset = unique(result.labels)
-  for label in labelset
-    td = TikzDocument()
-    for (f, l) in filter(x -> x[2] == label, zip(result.names, result.labels))
-      d = trajLoad(f)
-      tps = pgfplotLog(d)
-      cap = string(vis_runtype_caps(d, sv_run_type(d)),
-                   vis_sim_caps(d),
-                   vis_runinfo_caps(d))
-      add_to_document!(td, tps, cap)
-    end
+@pyimport sklearn.cluster as skcluster
 
-    outfile = string(outfileroot, "_$(label).pdf")
-    TikzPictures.save(PDF(outfile), td)
-    outfile = string(outfileroot, "_$(label).tex")
-    TikzPictures.save(TEX(outfile), td)
-  end
+function agglomerative_cluster{T<:String}(affinity::Array{Float64, 2}, n_clusters::Int)
+  #returns a PyObject
+  model = skcluster.AgglomerativeClustering(n_clusters=n_clusters,
+                                            affinity="precomputed",
+                                            linkage="average",
+                                            compute_full_tree=true)
+
+  tic()
+  model[:fit](affinity)
+  println("Sklearn clustering: $(toq()) wall seconds")
+
+  labels = model[:labels_]
+  tree = model[:children_]
+  return ClusterResult(files, labels, n_clusters, affinity, tree)
 end
+
+function symmetric_affinity{T}(X::Vector{T}, distance::Function)
+  indmatrix = [(i, j) for i = 1:length(X), j = 1:length(X)]
+
+  #compute for upper triangular in parallel
+  #diag and lower triangular are zero
+  A = pmap(ij -> begin
+              i, j = ij
+              i < j ? distance(X[i], X[j]) : 0.0
+           end,
+           indmatrix)
+  A = reshape(A, length(X), length(X))
+
+  #copy lower triangular from upper
+  for i = 1:length(X)
+    for j = 1:(i-1)
+      A[i, j] = A[j, i]
+    end
+  end
+  return convert(Array{Float64, 2}, A) #affinity matrix aka distance matrix
+end
+
+function full_affinity{T}(X::Vector{T}, distance::Function)
+  indmatrix = [(i, j) for i = 1:length(X), j = 1:length(X)]
+  A = pmap(ij -> begin #diags are zero
+              i, j = ij
+              i != j ? distance(X[i], X[j]) : 0.0
+           end,
+           indmatrix)
+  A = reshape(A, length(X), length(X))
+  return convert(Array{Float64, 2}, A) #affinity matrix aka distance matrix
+end
+
+end #module
