@@ -32,61 +32,80 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module ClusterResults
+
+export ClusterResult, save_result, load_result, to_sorted_list
+
+using JSON
 using RLESUtils.Obj2Dict
-using SISLES.GenerativeModel
 
-#runtype captions
-function vis_runtype_caps(d::SaveDict, run_type::String)
+type ClusterResult
+  names::Vector{ASCIIString}
+  labels::Vector{Int64}
+  n_clusters::Int64
+  affinity::Array{Float64, 2} #empty if not used
+  tree::Array{Int32, 2} #empty if not used
+end
+ClusterResult() = ClusterResult(ASCIIString[], Int64[], -1, Array(Float64, 0, 0),
+                                  Array(Int32, 0, 0))
 
-  if run_type == "ONCE"
-    cap = "Encounter. "
-  elseif run_type == "MCBEST"
-    cap = "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
-  elseif run_type == "MCTS"
-    cap = "MCTS. N=$(sv_dpw_iterations(d)). "
-  else
-    warn("vis_captions::vis_runtype_caps: No such run type! ")
-    cap = ""
+function ==(x1::ClusterResult, x2::ClusterResult)
+  for sym in names(ClusterResult)
+    if x1.(sym) != x2.(sym)
+      return false #any field that doesn't match, return false
+    end
   end
-
-  return cap
+  return true #all fields must match to return true
 end
 
-#sim parameter captions
-function vis_sim_caps(d::SaveDict)
-
-  sim_caps_helper(Obj2Dict.to_obj(d["sim_params"]))
+function save_result(result::ClusterResult, outfile::String="cluster_result.json")
+  f = open(outfile, "w")
+  d = Obj2Dict.to_dict(result)
+  JSON.print(f, d)
+  close(f)
+  return outfile
 end
 
-function sim_caps_helper(sim_params::Union(SimpleTCAS_EvU_params, SimpleTCAS_EvE_params, ACASX_EvE_params))
-
-  "Enc=$(sim_params.encounter_number). Cmd=$(sim_params.command_method). "
+function load_result(file::String="cluster_result.json")
+  f = open(file)
+  d = JSON.parse(f)
+  close(f)
+  return Obj2Dict.to_obj(d)
 end
 
-sim_caps_helper(sim_params::ACASX_Multi_params) = "Enc-seed=$(sim_params.encounter_seed). "
+function to_sorted_list(affinity_matrix::Array{Float64, 2},
+                        nametable::Vector{ASCIIString}=ASCIIString[];
+                        outfile::String="sorted.txt")
+  A = affinity_matrix
+  nrows, ncols = size(A)
+  @assert nrows == ncols
+  n = nrows
+  nelements = convert(Int64, n * (n - 1) / 2)
+  out = Array((ASCIIString, ASCIIString, Float64), nelements)
 
-sim_caps_helper(sim_params) = ""
+  k = 1
+  for i = 1:n
+    for j = (i + 1):n
+      namei = !isempty(nametable) ? nametable[i] : "$i"
+      namej = !isempty(nametable) ? nametable[j] : "$j"
+      out[k] = (namei, namej, A[i, j])
+      k += 1
+    end
+  end
+  sort!(data, by=x->x[3]) #sort by metric
 
-#runinfo captions
-function vis_runinfo_caps(d::SaveDict)
+  #write result to file
+  f = open(outfile, "w")
+  for entry in data
+    println(f, entry)
+  end
+  close(f)
 
-  r = round(sv_reward(d), 2)
-  nmac = sv_nmac(d)
-  vmd = round(sv_vmd(d), 2)
-  hmd = round(sv_hmd(d), 2)
-  mdt = sv_md_time(d)
-
-  return "R=$r. vmd=$vmd. hmd=$hmd. md-time=$mdt. NMAC=$nmac. "
+  return out
 end
 
+function to_sorted_list(result::ClusterResult; outfile::String="sorted.txt")
+  to_sorted_list(result.affinity, convert(Vector{ASCIIString}, result.names), outfile)
+end
 
-# Use this when Value types become available in 0.4
-##runtype captions
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"ONCE"}}) = "Encounter. "
-#
-#function vis_runtype_caps(d::SaveDict, ::Type{Val{"MCBEST"}})
-#
-#  "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
-#end
-#
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"MCTS"}}) = "MCTS. N=$(Obj2Dict.to_obj(d["dpw_params"]).n). "
+end #module

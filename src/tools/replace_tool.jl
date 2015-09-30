@@ -32,61 +32,26 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using RLESUtils.Obj2Dict
-using SISLES.GenerativeModel
+using GZip
 
-#runtype captions
-function vis_runtype_caps(d::SaveDict, run_type::String)
-
-  if run_type == "ONCE"
-    cap = "Encounter. "
-  elseif run_type == "MCBEST"
-    cap = "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
-  elseif run_type == "MCTS"
-    cap = "MCTS. N=$(sv_dpw_iterations(d)). "
-  else
-    warn("vis_captions::vis_runtype_caps: No such run type! ")
-    cap = ""
+function search_replace{T<:String}(files::Vector{T}, src::String, dst::String; outdir::String="./converted")
+  mkpath(outdir)
+  for file in files
+    fileroot, fileext = splitext(file)
+    if fileext == ".gz" #Gzip format
+      replace_text(file, src, dst, outdir, fopen=GZip.open)
+    else #assume ascii-compatible
+      replace_text(file, src, dst, outdir, fopen=open)
+    end
   end
-
-  return cap
 end
 
-#sim parameter captions
-function vis_sim_caps(d::SaveDict)
+function replace_text(file::String, src::String, dst::String, outdir::String; fopen::Function=open)
+  text = fopen(readall, file)
+  text = replace(text, src, dst)
 
-  sim_caps_helper(Obj2Dict.to_obj(d["sim_params"]))
+  fout = fopen(joinpath(outdir, file), "w")
+  write(fout, text)
+  close(fout)
 end
 
-function sim_caps_helper(sim_params::Union(SimpleTCAS_EvU_params, SimpleTCAS_EvE_params, ACASX_EvE_params))
-
-  "Enc=$(sim_params.encounter_number). Cmd=$(sim_params.command_method). "
-end
-
-sim_caps_helper(sim_params::ACASX_Multi_params) = "Enc-seed=$(sim_params.encounter_seed). "
-
-sim_caps_helper(sim_params) = ""
-
-#runinfo captions
-function vis_runinfo_caps(d::SaveDict)
-
-  r = round(sv_reward(d), 2)
-  nmac = sv_nmac(d)
-  vmd = round(sv_vmd(d), 2)
-  hmd = round(sv_hmd(d), 2)
-  mdt = sv_md_time(d)
-
-  return "R=$r. vmd=$vmd. hmd=$hmd. md-time=$mdt. NMAC=$nmac. "
-end
-
-
-# Use this when Value types become available in 0.4
-##runtype captions
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"ONCE"}}) = "Encounter. "
-#
-#function vis_runtype_caps(d::SaveDict, ::Type{Val{"MCBEST"}})
-#
-#  "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
-#end
-#
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"MCTS"}}) = "MCTS. N=$(Obj2Dict.to_obj(d["dpw_params"]).n). "

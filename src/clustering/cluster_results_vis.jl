@@ -32,61 +32,31 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using RLESUtils.Obj2Dict
-using SISLES.GenerativeModel
+include("ClusterResults.jl") #ClusterResult
+include("../defines/define_save.jl") #trajLoad
+include("../helpers/save_helpers.jl") #sv_*
+include("../visualize/visualize.jl") #pgfplotLog
 
-#runtype captions
-function vis_runtype_caps(d::SaveDict, run_type::String)
+using TikzPictures
+using PGFPlots
+using ClusterResults
 
-  if run_type == "ONCE"
-    cap = "Encounter. "
-  elseif run_type == "MCBEST"
-    cap = "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
-  elseif run_type == "MCTS"
-    cap = "MCTS. N=$(sv_dpw_iterations(d)). "
-  else
-    warn("vis_captions::vis_runtype_caps: No such run type! ")
-    cap = ""
+function plot_to_file(result::ClusterResult; outfileroot::String="clustervis")
+  labelset = unique(result.labels)
+  for label in labelset
+    td = TikzDocument()
+    for (f, l) in filter(x -> x[2] == label, zip(result.names, result.labels))
+      d = trajLoad(f)
+      tps = pgfplotLog(d)
+      cap = string(vis_runtype_caps(d, sv_run_type(d)),
+                   vis_sim_caps(d),
+                   vis_runinfo_caps(d))
+      add_to_document!(td, tps, cap)
+    end
+
+    outfile = string(outfileroot, "_$(label).pdf")
+    TikzPictures.save(PDF(outfile), td)
+    outfile = string(outfileroot, "_$(label).tex")
+    TikzPictures.save(TEX(outfile), td)
   end
-
-  return cap
 end
-
-#sim parameter captions
-function vis_sim_caps(d::SaveDict)
-
-  sim_caps_helper(Obj2Dict.to_obj(d["sim_params"]))
-end
-
-function sim_caps_helper(sim_params::Union(SimpleTCAS_EvU_params, SimpleTCAS_EvE_params, ACASX_EvE_params))
-
-  "Enc=$(sim_params.encounter_number). Cmd=$(sim_params.command_method). "
-end
-
-sim_caps_helper(sim_params::ACASX_Multi_params) = "Enc-seed=$(sim_params.encounter_seed). "
-
-sim_caps_helper(sim_params) = ""
-
-#runinfo captions
-function vis_runinfo_caps(d::SaveDict)
-
-  r = round(sv_reward(d), 2)
-  nmac = sv_nmac(d)
-  vmd = round(sv_vmd(d), 2)
-  hmd = round(sv_hmd(d), 2)
-  mdt = sv_md_time(d)
-
-  return "R=$r. vmd=$vmd. hmd=$hmd. md-time=$mdt. NMAC=$nmac. "
-end
-
-
-# Use this when Value types become available in 0.4
-##runtype captions
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"ONCE"}}) = "Encounter. "
-#
-#function vis_runtype_caps(d::SaveDict, ::Type{Val{"MCBEST"}})
-#
-#  "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
-#end
-#
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"MCTS"}}) = "MCTS. N=$(Obj2Dict.to_obj(d["dpw_params"]).n). "
