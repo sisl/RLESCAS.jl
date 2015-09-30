@@ -56,7 +56,6 @@ function plot_to_file(result::ClusterResult; outfileroot::String="clustervis")
                    vis_runinfo_caps(d))
       add_to_document!(td, tps, cap)
     end
-
     outfile = string(outfileroot, "_$(label).pdf")
     TikzPictures.save(PDF(outfile), td)
     outfile = string(outfileroot, "_$(label).tex")

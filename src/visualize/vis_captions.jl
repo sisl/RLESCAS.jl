@@ -37,7 +37,6 @@ using SISLES.GenerativeModel
 
 #runtype captions
 function vis_runtype_caps(d::SaveDict, run_type::String)
-
   if run_type == "ONCE"
     cap = "Encounter. "
   elseif run_type == "MCBEST"
@@ -48,34 +47,29 @@ function vis_runtype_caps(d::SaveDict, run_type::String)
     warn("vis_captions::vis_runtype_caps: No such run type! ")
     cap = ""
   end
-
   return cap
 end
 
-#sim parameter captions
+#sim parameter captions.  TODO: make this more robust
 function vis_sim_caps(d::SaveDict)
-
-  sim_caps_helper(Obj2Dict.to_obj(d["sim_params"]))
+  if d["sim_params"]["type"] == "SimpleTCAS_EvU_params" ||
+    d["sim_params"]["type"] == "SimpleTCAS_EvE_params" ||
+    d["sim_params"]["type"] == "ACASX_EvE_params"
+    return "Enc=$(sv_encounter_id(d)[1]). Cmd=$(sv_command_method(d)). "
+  elseif d["sim_params"]["type"] == "ACASX_Multi_params"
+    return "Enc-seed=$(sv_encounter_id(d)). "
+  else
+    return ""
+  end
 end
-
-function sim_caps_helper(sim_params::Union(SimpleTCAS_EvU_params, SimpleTCAS_EvE_params, ACASX_EvE_params))
-
-  "Enc=$(sim_params.encounter_number). Cmd=$(sim_params.command_method). "
-end
-
-sim_caps_helper(sim_params::ACASX_Multi_params) = "Enc-seed=$(sim_params.encounter_seed). "
-
-sim_caps_helper(sim_params) = ""
 
 #runinfo captions
 function vis_runinfo_caps(d::SaveDict)
-
   r = round(sv_reward(d), 2)
   nmac = sv_nmac(d)
   vmd = round(sv_vmd(d), 2)
   hmd = round(sv_hmd(d), 2)
   mdt = sv_md_time(d)
-
   return "R=$r. vmd=$vmd. hmd=$hmd. md-time=$mdt. NMAC=$nmac. "
 end
 

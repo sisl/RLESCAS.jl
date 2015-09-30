@@ -41,20 +41,16 @@ using ClusterResults
 
 @pyimport sklearn.cluster as skcluster
 
-function agglomerative_cluster{T<:String}(affinity::Array{Float64, 2}, n_clusters::Int)
+function agglomerative_cluster(names::Vector{ASCIIString}, affinity::Array{Float64, 2}, n_clusters::Int)
   #returns a PyObject
   model = skcluster.AgglomerativeClustering(n_clusters=n_clusters,
                                             affinity="precomputed",
                                             linkage="average",
                                             compute_full_tree=true)
-
-  tic()
   model[:fit](affinity)
-  println("Sklearn clustering: $(toq()) wall seconds")
-
   labels = model[:labels_]
   tree = model[:children_]
-  return ClusterResult(files, labels, n_clusters, affinity, tree)
+  return ClusterResult(names, labels, n_clusters, affinity, tree)
 end
 
 function symmetric_affinity{T}(X::Vector{T}, distance::Function)

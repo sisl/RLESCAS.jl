@@ -39,6 +39,7 @@ using RLESUtils.FileUtils
 using RLESUtils.StringUtils #hamming
 using JSON2ASCII
 using ClusterResults
+using SKClustering
 using CRVisualize
 
 const NCLUSTERS = 5
@@ -53,10 +54,13 @@ println("Extract string: $(toq()) wall seconds")
 
 #compute affinity matrix
 tic()
-#A = symmetric_affinity(X, levenshtein)
-A = symmetric_affinity(X, hamming)
+A = symmetric_affinity(X, levenshtein)
+#A = symmetric_affinity(X, hamming)
 println("Compute affinity matrix: $(toq()) wall seconds")
 
-result = agglomerative_cluster(A, NCLUSTERS)
+tic()
+result = agglomerative_cluster(files, A, NCLUSTERS)
+println("Sklearn clustering: $(toq()) wall seconds")
+
 save_result(result, "asciicluster_leven.json") #change these for hamming
 plot_to_file(result, outfileroot="asciicluster_leven") #change these for hamming
