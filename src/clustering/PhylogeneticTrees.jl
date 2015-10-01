@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module PhylogeneticTree
+module PhylogeneticTrees
 
 export vis_from_tree, vis_from_distances
 
@@ -43,7 +43,6 @@ type PhylotreeElement
   name::ASCIIString
   children::Vector{PhylotreeElement}
 end
-
 PhylotreeElement(level::Int64, name::String="") = PhylotreeElement(level, name, PhylotreeElement[])
 PhylotreeElement(level::Int64, name::String, children::PhylotreeElement...) =
   PhylotreeElement(level, name, [children...])
@@ -54,18 +53,14 @@ function vis_from_tree(nelements::Int64, tree0::Array{Int32,2};
                            show_intermediate::Bool=true,
                            outfileroot::String="cluster_tree",
                            output::String="TEXPDF")
-
   lastid = nelements - 1
   root_id = lastid #id of the root node, init value
-
   d = Dict{Int64, PhylotreeElement}()
-
   #preload dict with level 0's
   for i = 0:lastid
     name = haskey(nametable, i) ? nametable[i] : "$i"
     d[i] = PhylotreeElement(0, name)
   end
-
   #parse tree into dict
   for row = 1:size(tree0, 1)
     root_id += 1
@@ -74,25 +69,20 @@ function vis_from_tree(nelements::Int64, tree0::Array{Int32,2};
     name = show_intermediate ? "$(root_id)" : ""
     d[root_id] = PhylotreeElement(level, name, d[i], d[j])
   end
-
   #create tikz text
   io = IOBuffer()
   print(io, "{")
   print_element!(io, d[root_id])
   print(io, "};")
-
   return takebuf_string(io)
 end
 
 function print_element!(io::IOBuffer, element::PhylotreeElement, parent_level::Int64=-1)
-
   len = parent_level - element.level
-
   print(io, "$(element.name)")
   if len > 0
     print(io, "[>length=$len]")
   end
-
   #process children
   if !isempty(element.children)
     print(io, " -- {")
@@ -109,8 +99,6 @@ function vis_from_distances(affinity::Array{Float64,2}, offset_scale::Float64=0.
                             nametable::Vector{ASCIIString}=ASCIIString[],
                            outfileroot::String="cluster_tree",
                            output::String="TEXPDF")
-
-
   preamble = string("\\usetikzlibrary{graphs, graphdrawing}\n",
                     "\\usegdlibrary{phylogenetics}\n",
                     "\\pgfgdset{phylogenetic inner node/.style={
@@ -141,8 +129,7 @@ function vis_from_distances(affinity::Array{Float64,2}, offset_scale::Float64=0.
   else
     error("Unrecognized output type")
   end
-
-  tp
+  return tp
 end
 
 function print_matrix!(io::IOBuffer, X::Array{Float64, 2}, scale::Float64=1.0)
@@ -156,7 +143,6 @@ function print_matrix!(io::IOBuffer, X::Array{Float64, 2}, scale::Float64=1.0)
 end
 
 function print_names!(io::IOBuffer, nametable::Vector{ASCIIString}, n::Int64)
-
   for i = 1:n
     name = !isempty(nametable) ? nametable[i] : i
     print(io, name, ",")

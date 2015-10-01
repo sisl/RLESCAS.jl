@@ -34,10 +34,13 @@
 
 module ClusterResults
 
+import Base.writecsv
+
 export ClusterResult, save_result, load_result, to_sorted_list, by_label
 
 using JSON
 using RLESUtils.Obj2Dict
+using Iterators
 
 type ClusterResult
   names::Vector{ASCIIString}
@@ -111,6 +114,20 @@ end
 function by_label(result::ClusterResult, label)
   inds = find(x -> x == label,result.labels)
   return result.names[inds]
+end
+
+function writecsv{T}(io::IO, result::ClusterResult; nametable::Vector{T}=[])
+  if isempty(nametable) #use default if nametable is not provided
+    nametable = result.names
+  end
+  A = sort(collect(zip(nametable, result.labels)), by=x -> x[2])
+  B = groupby(x -> x[2], A) |> collect
+  maxlen = map(x -> length(x), B) |> maximum
+  D = fill("", (result.n_clusters, maxlen))
+  for (i, v) in enumerate(B)
+    D[i, 1:length(v)] = map(x -> string(x[1]), v)
+  end
+  writecsv(io, D)
 end
 
 end #module
