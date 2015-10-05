@@ -34,26 +34,9 @@
 
 module ClusteringsDistance
 
-export same_cluster_pairs, filestats, setdist, get_adjacency, adjacency_dist
+export filestats, get_adjacency, adjacency_dist
 
-using RLESUtils.FileUtils
 using Iterators
-
-function same_cluster_pairs(file::String)
-  dat = readcsv(file)
-  pairsset = Set() #set of id pairs in the same cluster
-  mapslices(dat, 2) do v #returns each row
-    filter!(x -> !isempty(x), v) #filter out ""
-    if length(v) >= 2
-      for id_pair in subsets(v, 2) #all pairs
-        sort!(id_pair)
-        push!(pairsset, tuple(id_pair...))
-      end
-    end
-  end
-  return pairsset
-end
-set_dist(s1::Set, s2::Set) = length(intersect(s1, s2))
 
 function get_adjacency(file::String)
   dat = readcsv(file)
@@ -79,8 +62,8 @@ function get_adjacency(file::String)
 end
 
 function adjacency_dist(a1::Array{Bool, 2}, a2::Array{Bool, 2})
-  diffcount = count(identity, a1 .!= a2) / 2 #div by 2 since symmetric
   @assert size(a1) == size(a2) && size(a1, 1) == size(a1, 2)
+  diffcount = count(identity, a1 .!= a2) / 2 #div by 2 since symmetric
   totalcount = (length(a1) - size(a1, 1)) / 2
   return diffcount / totalcount
 end
