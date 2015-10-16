@@ -35,9 +35,9 @@
 push!(LOAD_PATH, "./")
 push!(LOAD_PATH, "../") #clustering folder
 
-include("../cluster_metrics/clusterings_distance.jl")
+include("../ExternalMetrics.jl")
 
-using ClusteringsDistance
+using ExternalMetrics
 using RLESUtils.FileUtils
 
 files = readdir_ext("txt", "../data/human_clustering")

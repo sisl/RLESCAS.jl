@@ -45,9 +45,6 @@ include("config/config_ast.jl") #defineAST
 #Config MCTS solver
 include("config/config_mcts.jl") #defineMCTS
 
-# TODO: where do these methods go?
-include("trajsave/traj_sim.jl") #directSample,runMcBest,runMCTS
-
 include("defines/define_log.jl") #SimLog
 include("defines/define_save.jl") #trajSave, trajLoad and helpers
 include("defines/save_types.jl") #ComputeInfo

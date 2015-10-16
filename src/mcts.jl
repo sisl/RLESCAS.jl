@@ -67,8 +67,6 @@ function init(number_of_aircraft::Int)
   #Config MCTS solver
   require(Pkg.dir("RLESCAS", "src", "config/config_mcts.jl")) #defineMCTS
 
-  require(Pkg.dir("RLESCAS", "src", "trajsave/traj_sim.jl")) #directSample,runMcBest,runMCTS
-
   require(Pkg.dir("RLESCAS", "src", "defines/define_log.jl")) #SimLog
   require(Pkg.dir("RLESCAS", "src", "defines/define_save.jl")) #trajSave, trajLoad and helpers
   require(Pkg.dir("RLESCAS", "src", "defines/save_types.jl")) #ComputeInfo

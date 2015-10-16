@@ -32,6 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+using AdaptiveStressTesting
 using SISLES.GenerativeModel
 
 using CPUTime
@@ -42,32 +43,30 @@ type OnceStudy
   fileroot::String
 end
 
-OnceStudy(;
-        fileroot::String = "trajSaveONCE"
-        ) =
-  OnceStudy(fileroot
-          )
+function OnceStudy(;
+                   fileroot::String = "trajSaveONCE")
+  OnceStudy(fileroot)
+end
 
 function trajSave(study_params::OnceStudy,
                        cases::Cases = Cases(Case());
-                       outdir::String = "./", postproc::Function=identity
-                       )
+                       outdir::String = "./", postproc::Function=identity)
 
   pmap(case -> begin
          starttime_us = CPUtime_us()
          startnow = string(now())
 
          sim_params = extract_params!(defineSimParams(), case, "sim_params")
-         mdp_params = extract_params!(defineMDPParams(), case, "mdp_params")
+         ast_params = extract_params!(defineASTParams(), case, "ast_params")
          study_params = extract_params!(study_params, case, "study_params")
 
          sim = defineSim(sim_params)
-         mdp = defineMDP(sim, mdp_params)
+         ast = defineAST(sim, ast_params)
 
          simLog = SimLog()
-         addObservers!(simLog, mdp)
+         addObservers!(simLog, ast)
 
-         reward, action_seqs = directSample(getTransitionModel(mdp), mdp, uniform_policy)
+         reward, action_seq = sample(ast)
 
          notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
 
@@ -80,8 +79,8 @@ function trajSave(study_params::OnceStudy,
          sav = SaveDict()
          sav["run_type"] = "ONCE"
          sav["compute_info"] = Obj2Dict.to_dict(compute_info)
-         sav["sim_params"] = Obj2Dict.to_dict(sim.params)
-         sav["mdp_params"] = Obj2Dict.to_dict(mdp.params)
+         sav["sim_params"] = Obj2Dict.to_dict(sim_params)
+         sav["ast_params"] = Obj2Dict.to_dict(ast_params)
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"

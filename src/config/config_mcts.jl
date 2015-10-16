@@ -33,10 +33,9 @@
 # *****************************************************************************
 
 using AdaptiveStressTesting
-using MCTSdpw
 
 function defineMCTSParams(;
-                          d::Depth = 50,
+                          d::Int64 = 50,
                           ec::Float64 = 100.0,
                           n::Int64 = 1000,
                           k::Float64 = 0.5,
@@ -51,9 +50,3 @@ function defineMCTSParams(;
   return p = DPWParams(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed)
 end
 
-function defineMCTS(ast::AdaptiveStressTest, p::DPWParams)
-  model = get_transition_model(ast)
-  policy(s::State, rng::AbstractRNG) = uniform_policy(ast, s)
-  f = DPWModel(model, policy, policy)
-  return DPW(p, f)
-end

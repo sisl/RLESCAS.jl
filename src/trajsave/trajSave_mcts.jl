@@ -43,11 +43,10 @@ type MCTSStudy
   fileroot::String
 end
 
-MCTSStudy(;
-        fileroot::String = "trajSaveMCTS"
-        ) =
-  MCTSStudy(fileroot
-          )
+function MCTSStudy(;
+                   fileroot::String = "trajSaveMCTS")
+  MCTSStudy(fileroot)
+end
 
 function trajSave(study_params::MCTSStudy,
                   cases::Cases=Cases(Case());
@@ -64,14 +63,13 @@ function trajSave(study_params::MCTSStudy,
 
          sim = defineSim(sim_params)
          ast = defineAST(sim, ast_params)
-         dpw = defineMCTS(ast, mcts_params)
 
-         reward, action_seq = runMCTS(dpw)
+         reward, action_seq = stress_test(ast, mcts_params)
 
          #replay to get logs
          simLog = SimLog()
          addObservers!(simLog, ast)
-         replay_reward = playSequence(get_transition_model(ast), action_seq)
+         replay_reward, action_seq2 = play_sequence(ast, action_seq)
 
          notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
 
@@ -87,9 +85,9 @@ function trajSave(study_params::MCTSStudy,
          sav = SaveDict()
          sav["run_type"] = "MCTS"
          sav["compute_info"] = Obj2Dict.to_dict(compute_info)
-         sav["sim_params"] = Obj2Dict.to_dict(sim.params)
-         sav["ast_params"] = Obj2Dict.to_dict(ast.params)
-         sav["dpw_params"] = Obj2Dict.to_dict(dpw.p)
+         sav["sim_params"] = Obj2Dict.to_dict(sim_params)
+         sav["ast_params"] = Obj2Dict.to_dict(ast_params)
+         sav["dpw_params"] = Obj2Dict.to_dict(mcts_params)
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"

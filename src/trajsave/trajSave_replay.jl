@@ -59,7 +59,7 @@ function trajReplay(d::SaveDict; fileroot::String = "", case::Case=Case())
   simLog = SimLog()
   addObservers!(simLog, ast)
 
-  reward = playSequence(get_transition_model(ast), action_seq)
+  reward, action_seq2 = play_sequence(ast, action_seq)
   notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
 
   #Save

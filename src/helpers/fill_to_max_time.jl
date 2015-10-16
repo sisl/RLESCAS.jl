@@ -48,14 +48,14 @@ function fill_to_max_time(filename::String)
 
   action_seq = Obj2Dict.to_obj(d["sim_log"]["action_seq"])
   ast_params = Obj2Dict.to_obj(d["ast_params"])
-  rng_length = ast_params.rng_length
+  rsg_length = ast_params.rsg_length
 
   max_steps = sim_params.max_steps
   steps_to_append = max_steps - length(action_seq)  #determine number of missing steps
 
   # steps_to_append > 0 check is automatically handled by comprehension
   seed = steps_to_append #arbitrarily use this as a seed
-  actions_to_append = ASTAction[ ASTAction(rng_length, seed) for t = 1:steps_to_append ] #append hash of t
+  actions_to_append = ASTAction[ ASTAction(rsg_length, seed) for t = 1:steps_to_append ] #append hash of t
   action_seq = vcat(action_seq, actions_to_append)
 
   d["sim_log"]["action_seq"] = Obj2Dict.to_dict(action_seq)

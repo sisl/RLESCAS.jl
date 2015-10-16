@@ -32,6 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+using AdaptiveStressTesting
 using SISLES.GenerativeModel
 
 using CPUTime
@@ -45,17 +46,13 @@ type MCBestStudy
   maxtime_s::Float64
 end
 
-MCBestStudy(;
-       fileroot::String = "trajSaveMCBEST",
-       trial::Int64 = 0,
-       nsamples::Int64 = 200,
-       maxtime_s::Float64 = realmax(Float64)
-       ) =
-  MCBestStudy(fileroot,
-         trial,
-         nsamples,
-         maxtime_s
-         )
+function MCBestStudy(;
+                     fileroot::String = "trajSaveMCBEST",
+                     trial::Int64 = 0,
+                     nsamples::Int64 = 50,
+                     maxtime_s::Float64 = realmax(Float64))
+  MCBestStudy(fileroot, trial, nsamples, maxtime_s)
+end
 
 type MCBestStudyResults
   nsamples::Int64    # actual number of samples used, i.e., when limited by time
@@ -79,32 +76,29 @@ function trajSave(study_params::MCBestStudy,
          sim = defineSim(sim_params)
          ast = defineAST(sim, ast_params)
 
-         #generate different samples by varying the action counter initial value
-         function init(i::Int)
-           set_from_seed!(ast.rng, i + study_params.trial * study_params.nsamples)
-           return getTransitionModel(ast), ast
+         if study_params.maxtime_s != realmax(Float64)
+           results = sample_timed(ast, study_params.maxtime_s)
+         else
+           results = sample(ast, study_params.nsamples)
          end
-
-         rewards, action_seqs, nsamples = directSample(init, uniform_policy,
-                                                       study_params.nsamples,
-                                                       maxtime_s = study_params.maxtime_s)
+         nsamples = length(results)
+         rewards = map(x -> x[1], results)
 
          study_results = MCBestStudyResults(nsamples, rewards)
-
-         besti = indmax(rewards)
-         model, ast = init(besti)
+         index = indmax(rewards)
+         reward, action_seq = results[index]
 
          #replay to get the logs
          simLog = SimLog()
          addObservers!(simLog, ast)
 
-         reward, action_seq = directSample(model, ast, uniform_policy)
+         reward2, action_seq2 = play_sequence(ast, action_seq)
 
          notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
 
          #sanity check replay
-         @assert reward == rewards[besti]
-         @assert action_seq == action_seqs[besti]
+         @assert reward2 == reward
+         @assert action_seq2 == action_seq
 
          compute_info = ComputeInfo(startnow,
                                     string(now()),

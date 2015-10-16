@@ -32,8 +32,52 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module ClusterMetrics
+module ExternalMetrics
 
-#PairMatches
+export filestats, pairs_classifier, rand_index, error_index
+
+using Iterators
+
+function pairs_classifier(file::String; IdType::Type=Int64)
+  dat = readcsv(file)
+  idset = filter(x -> !isempty(x), unique(dat))
+  convert(Vector{IdType}, idset)
+  sort!(idset)
+  out = Dict{(IdType, IdType), Bool}()
+  for ids in subsets(idset, 2)
+    id1, id2 = ids
+    out[(id1, id2)] = false
+  end
+  mapslices(dat, 2) do v #each row
+    filter!(x -> !isempty(x), v) #filter out ""
+    if length(v) >= 2
+      for ids in subsets(v, 2) #all pairs
+        id1, id2 = sort(ids)
+        out[(id1, id2)] = true
+      end
+    end
+  end
+  return out::Dict{(IdType, IdType), Bool}
+end
+
+function rand_index{T}(a1::Dict{(T, T), Bool}, a2::Dict{(T, T), Bool})
+  @assert length(a1) == length(a2)
+  samecount = count(x -> a2[x[1]] == x[2], a1)
+  totalcount = length(a1)
+  return samecount / totalcount
+end
+
+error_index{T}(a1::Dict{(T, T), Bool}, a2::Dict{(T, T), Bool}) = 1 - rand_index(a1, a2)
+
+function filestats{T<:String}(files::Vector{T}; evalfunction::Function=pairs_classifier,
+                              distance::Function=error_index)
+  XS = map(evalfunction, files)
+  num_xs = length(XS)
+  M = zeros(num_xs, num_xs)
+  for i = 1:num_xs, j = i:num_xs #upper triangular
+    M[i, j] = M[j, i] = distance(XS[i], XS[j]) #symmetric
+  end
+  return M
+end
 
 end #module
