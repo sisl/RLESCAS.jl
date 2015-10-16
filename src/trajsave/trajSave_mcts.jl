@@ -72,9 +72,11 @@ function trajSave(study_params::MCTSStudy,
          replay_reward, action_seq2 = play_sequence(ast, action_seq)
 
          notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
+         notifyObserver(sim, "action_seq", Any[action_seq])
 
          #sanity check replay
          @assert replay_reward == reward
+         @assert action_seq2 == action_seq
 
          compute_info = ComputeInfo(startnow,
                                     string(now()),
@@ -87,7 +89,7 @@ function trajSave(study_params::MCTSStudy,
          sav["compute_info"] = Obj2Dict.to_dict(compute_info)
          sav["sim_params"] = Obj2Dict.to_dict(sim_params)
          sav["ast_params"] = Obj2Dict.to_dict(ast_params)
-         sav["dpw_params"] = Obj2Dict.to_dict(mcts_params)
+         sav["mcts_params"] = Obj2Dict.to_dict(mcts_params)
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"

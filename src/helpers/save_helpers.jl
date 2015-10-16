@@ -157,7 +157,7 @@ function sv_encounter_id(d::SaveDict)
   return (enc, enctype)
 end
 
-sv_dpw_iterations(d::SaveDict) = d["dpw_params"]["data"]["n"]["data"]
+sv_mcts_iterations(d::SaveDict) = d["mcts_params"]["data"]["n"]["data"]
 is_nmac(file::String) = file |> trajLoad |> sv_nmac
 nmacs_only(file::String) = is_nmac(file)
 nmacs_only{T<:String}(files::Vector{T}) = filter(is_nmac, files)

@@ -42,7 +42,7 @@ function vis_runtype_caps(d::SaveDict, run_type::String)
   elseif run_type == "MCBEST"
     cap = "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
   elseif run_type == "MCTS"
-    cap = "MCTS. N=$(sv_dpw_iterations(d)). "
+    cap = "MCTS. N=$(sv_mcts_iterations(d)). "
   else
     warn("vis_captions::vis_runtype_caps: No such run type! ")
     cap = ""
@@ -83,4 +83,4 @@ end
 #  "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
 #end
 #
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"MCTS"}}) = "MCTS. N=$(Obj2Dict.to_obj(d["dpw_params"]).n). "
+#vis_runtype_caps(d::SaveDict, ::Type{Val{"MCTS"}}) = "MCTS. N=$(Obj2Dict.to_obj(d["mcts_params"]).n). "

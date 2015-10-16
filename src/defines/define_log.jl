@@ -44,7 +44,7 @@ typealias SimLog Dict{String, Any}
 typealias SimLogDict Dict{String, Any}
 
 function addObservers!(simLog::SimLog, ast::AdaptiveStressTest)
-  addObserver(ast,     "action_seq", x -> log_action!(simLog, x))
+  addObserver(ast.sim, "action_seq", x -> log_actions!(simLog, x))
   addObserver(ast.sim, "CAS_info",   x -> log_cas_info!(simLog, x))
   addObserver(ast.sim, "Initial",    x -> log_initial!(simLog, x))
   addObserver(ast.sim, "Command",    x -> log_command!(simLog, x))
@@ -731,13 +731,12 @@ function log_logProb!(simLog::SimLog, args)
 
 end
 
-function log_action!(simLog::SimLog, args)
-  #t_index = args[1] #there but not used
-  action = args[2]::ASTAction
+function log_actions!(simLog::SimLog, args)
+  action_seq = args[1]::Vector{ASTAction}
   if !haskey(simLog, "action_seq")
     simLog["action_seq"] = SaveDict[]
   end
-  push!(simLog["action_seq"], Obj2Dict.to_dict(action))
+  push!(simLog["action_seq"], map(Obj2Dict.to_dict, action_seq)...)
   return
 end
 
