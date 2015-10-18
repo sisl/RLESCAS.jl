@@ -58,9 +58,6 @@ function init(number_of_aircraft::Int)
     error("invalid number_of_aircraft")
   end
 
-  #Pick a reward function:
-  require(Pkg.dir("RLESCAS", "src", "defines/define_reward.jl")) #get_reward #supports ACASX_EvE and ACASX_Multi
-
   #Config AdaptiveStressTest
   require(Pkg.dir("RLESCAS", "src", "config/config_ast.jl")) #defineAST
 

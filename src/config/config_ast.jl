@@ -52,5 +52,5 @@ end
 
 function defineAST(sim::AbstractGenerativeModel, p::ASTParams)
   return AdaptiveStressTest(p, sim, GenerativeModel.initialize, GenerativeModel.step,
-                 GenerativeModel.isterminal, get_reward)
+                 GenerativeModel.isterminal)
 end

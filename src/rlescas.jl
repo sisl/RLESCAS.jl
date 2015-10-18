@@ -36,9 +36,6 @@
 include("config/config_ACASX_EvE.jl") #defineSim
 #include("config/config_ACASX_Multi.jl") #defineSim
 
-#Pick a reward function:
-include("defines/define_reward.jl") #get_reward #supports ACASX_EvE and ACASX_Multi
-
 #Config AdaptiveStressTest
 include("config/config_ast.jl") #defineAST
 
