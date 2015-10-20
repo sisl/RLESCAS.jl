@@ -39,29 +39,38 @@ export feature_matrix
 using RLESUtils.LookupCallbacks
 using DataFrames
 
-function feature_matrix(csvfile::ASCIIString, feature_map::Vector{LookupCallback},
-                        colnames::Vector{Symbol}=Symbol[])
+function feature_matrix{T<:String}(csvfiles::Vector{T}, feature_map::Vector{LookupCallback})
+  f(csvfile::String) = feature_matrix(csvfile, feature_map)
+  return vcat(f, csvfiles)
+end
 
+function feature_matrix(csvfiles::Vector{ASCIIString}, feature_map::Vector{LookupCallback},
+                        colnames::Vector{ASCIIString}=ASCIIString[])
+  #files = one aircraft per csv file
+  #lookup the variables in lookups and pass them to the function in mapper
+  #e.g., lookups[1] = ["wm.x", "wm.y"], values x and y are retrieved from file,
+  # then z = mapper[1](x, y) is written to the vector
+  #num_features (rows) x num_timesteps (cols)
   csv = readcsv(csvfile)
   headers = csv[1, :] |> vec
   units = csv[2, :] |> vec
   dat = csv[3:end, :]
   tmax = size(dat, 1)
-  V = Array(Any, length(feature_map))
+  V = Array(Float64, length(feature_map))
 
   lookup_ids = map(feature_map) do lcb
     ids = map(lcb.lookups) do l
       findfirst(x -> x == l, headers)
     end
-    any(x -> x == 0, ids) && error("Lookup not found: $lcb") #all lookup ids should be found
+    any(x -> x == 0, ids) && error("Lookup not found: $v") #all lookup ids should be found
     return ids
   end
-  for i = 1:length(V)
-    input_vars = dat[:, lookup_ids[i]]
+  for t = 1:tmax, i = 1:size(M, 1)
+    input_vars = dat[t, lookup_ids[i]]
     f = feature_map[i].callback
-    V[i] = mapslices(x -> f(x...), input_vars, 2) |> vec
+    M[i, t] = f(input_vars...) |> float64
   end
-  return DataFrame(V, colnames)
+  return M
 end
 
 end #module

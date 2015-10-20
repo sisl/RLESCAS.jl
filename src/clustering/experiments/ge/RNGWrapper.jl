@@ -32,36 +32,41 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module CSVFeatures
+module RNGWrapper
 
-export feature_matrix
+export RSG, set_global, next, next!, set_from_seed!, hash, ==, isequal, length
 
-using RLESUtils.LookupCallbacks
-using DataFrames
+using Iterators
+import Base: next, hash, ==, isequal, length
 
-function feature_matrix(csvfile::ASCIIString, feature_map::Vector{LookupCallback},
-                        colnames::Vector{Symbol}=Symbol[])
-
-  csv = readcsv(csvfile)
-  headers = csv[1, :] |> vec
-  units = csv[2, :] |> vec
-  dat = csv[3:end, :]
-  tmax = size(dat, 1)
-  V = Array(Any, length(feature_map))
-
-  lookup_ids = map(feature_map) do lcb
-    ids = map(lcb.lookups) do l
-      findfirst(x -> x == l, headers)
-    end
-    any(x -> x == 0, ids) && error("Lookup not found: $lcb") #all lookup ids should be found
-    return ids
-  end
-  for i = 1:length(V)
-    input_vars = dat[:, lookup_ids[i]]
-    f = feature_map[i].callback
-    V[i] = mapslices(x -> f(x...), input_vars, 2) |> vec
-  end
-  return DataFrame(V, colnames)
+type RSG #Seed generator
+  state::Vector{Uint32}
+end
+function RSG(len::Int64=1, seed::Int64=0)
+  return seed_to_state_itr(len, seed) |> collect |> RSG
 end
 
-end #module
+set_from_seed!(rsg::RSG, len::Int64, seed::Int64) = copy!(rsg.state, seed_to_state_itr(len, seed))
+seed_to_state_itr(len::Int64, seed::Int64) = take(iterate(hash_uint32, seed), len)
+
+set_global(rsg::RSG) = set_gv_rng_state(rsg.state)
+function next!(rsg::RSG)
+  map!(hash_uint32, rsg.state)
+  return rsg
+end
+function next(rsg0::RSG)
+  rsg1 = deepcopy(rsg0)
+  next!(rsg1)
+  return rsg1
+end
+
+hash_uint32(x) = uint32(hash(x))
+set_gv_rng_state(i::Uint32) = set_gv_rng_state([i])
+set_gv_rng_state(a::Vector{Uint32}) = Base.dSFMT.dsfmt_gv_init_by_array(a) #not exported, so probably not stable
+
+length(rsg::RSG) = length(rsg.state)
+hash(rsg::RSG) = hash(rsg.state)
+==(rsg1::RSG, rsg2::RSG) = rsg1.state == rsg2.state
+isequal(rsg1::RSG, rsg2::RSG) = rsg1 == rsg2
+
+end
