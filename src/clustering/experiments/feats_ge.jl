@@ -42,6 +42,10 @@ using RLESUtils.LookupCallbacks
 using CSVFeatures
 using ClusterResults
 using Iterators
+using DataFrames
+using GrammaticalEvolution
+
+typealias RealVec Union(DataArray{Float64,1}, Vector{Float64})
 
 const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.ra_active", bool),
@@ -119,13 +123,148 @@ const FEATURE_NAMES = ASCIIString[
   "response_psi_d"
   ]
 
-feature_names_append(s::String) = map(x->"$(x)$(s)", FEATURE_NAMES)
+append(V::Vector{ASCIIString}, s::String) = map(x -> "$(x)$(s)", V)
 
 get_col_types(D::DataFrame) = [typeof(D.columns[i]).parameters[1] for i=1:length(D.columns)]
 
-files=["../data/dasc_nmacs/trajSaveMCTS_ACASX_EvE_4_aircraft1.csv",
-       "../data/dasc_nmacs/trajSaveMCTS_ACASX_EvE_4_aircraft2.csv"]
-D1 = feature_matrix(files[1], FEATURE_MAP, convert(Vector{Symbol}, feature_names_append("_1")))
-D2 = feature_matrix(files[2], FEATURE_MAP, convert(Vector{Symbol}, feature_names_append("_2")))
-D = hcat(D1, D2)
+include("ge/RNGWrapper.jl")
+using RNGWrapper
 
+include("ge/ExamplePopulation.jl")
+
+convert_number(lst) = float(join(lst))
+
+function create_grammar()
+  @grammar grammar begin
+    start = bin
+
+    bin = and | or | not | always | eventually #implies, until, next, release and weak until not implemented
+    and = Expr(:&&, bin, bin)
+    or = Expr(:||, bin, bin)
+    not = Expr(:call, :!, bin)
+    always = Expr(:call, :all, bin_vec) #global
+    eventually = Expr(:call, :any, bin_vec) #future
+
+    bin_vec = vec_and | vec_or | vec_not | vec_lte | vec_diff_lte | vec_absdiff_lte
+    vec_and = Expr(:call, :&, bin_vec, bin_vec)
+    vec_or = Expr(:call, :|, bin_vec, bin_vec)
+    vec_not = Expr(:call, :!, bin_vec)
+    vec_lte = Expr(:comparison, real_feat_vec, :.<=, real_number) | Expr(:comparison, real_feat_vec, :.<=, real_feat_vec) | Expr(:comparison, real_number, :.<=, real_feat_vec)
+    vec_diff_lte = Expr(:call, :diff_lte, real_feat_vec, real_feat_vec, real_number)
+    vec_absdiff_lte = Expr(:call, :abs_diff_lte, real_feat_vec, real_feat_vec, real_number)
+
+    real_feat_vec = Expr(:ref, :D, :(:), real_feat_id)
+    bin_feat_vec = Expr(:ref, :D, :(:), bin_feat_id)
+    real_feat_id = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 22 | 26 | 27 | 28 | 29 | 33 | 34 | 35 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 57 | 61 | 62 | 63 | 64 | 68 | 69 | 70
+    bin_feat_id = 1 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 | 30 | 31 | 32 | 36 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 58 | 59 | 60 | 65 | 66 | 67
+
+    #real_number = Expr(:call, :get_rand, real_feat_id)
+    real_number[convert_number] = digit + '.' + digit
+    digit = 0:9
+  end
+
+  return grammar
+end
+
+diff_lte(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .<= b
+abs_diff_lte(v1::RealVec, v2::RealVec, b::Float64) = abs(v1 - v2) .<= b
+get_rand(id::Int64) = rand() #for now...
+
+function grammar_test(pop_size::Int64, genome_size::Int64, maxwraps::Int64)
+  #rsg = RSG(2, 2)
+  #set_global(rsg)
+
+  # our grammar
+  grammar = create_grammar()
+
+  # create population
+  pop = ExamplePopulation(pop_size, genome_size)
+
+  ngood = 0
+  nbad = 0
+  ntotal = 0
+
+  for ind in pop.individuals
+    try
+      ind.code = transform(grammar, ind, maxwraps=maxwraps)
+      @show ind.code
+      ngood += 1
+      ntotal += 1
+    catch e
+      println("exception = $e")
+      nbad += 1
+      ntotal += 1
+    end
+  end
+
+  @show ngood
+  @show nbad
+  @show ntotal
+  return pop
+end
+
+const DF_DIR = "./ge"
+const GRAMMAR = create_grammar()
+const W1 = 0.001
+const GENOME_SIZE = 200
+const POP_ZIE = 5000
+
+function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, Ds::Vector{DataFrame}, labels::Vector{Bool})
+  try
+    ind.code = transform(grammar, ind, maxwraps=maxwraps)
+    @eval fn(D) = $(ind.code)
+  catch e
+    #println("exception = $e")
+    #@show ind.code
+    ind.fitness = Inf
+    return
+  end
+
+  @assert length(Ds) == length(labels)
+  predicted_labels = map(fn, Ds_pos)
+  accuracy = count(identity, predicted_labels .== labels) / length(labels)
+  if 0.0 < accuracy < 0.5
+    ind.code = negate_expr(ind.code)
+    accuracy = 1.0 - accuracy
+  end
+
+  ind.fitness = accuracy + W1*length(string(ind.code))
+end
+
+function negate_expr(ex::Expr)
+  return parse("!($ex)")
+end
+
+function learn_rule(Ds::Vector{DataFrame}, labels::Vector{Bool}, n_iterations::Int64,
+                    grammar::Grammar=GRAMMAR, pop_size::Int64=POP_SIZE,
+                    genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
+  #rsg = RSG(2, 2)
+  #set_global(rsg)
+
+  # create population
+  pop = ExamplePopulation(pop_size, genome_size)
+
+  generation = 1
+  while generation < n_iterations
+    # generate a new population (based off of fitness)
+    pop = generate(grammar, pop, 0.1, 0.2, 0.2, Ds, labels)
+
+    # population is sorted, so first entry it the best
+    fitness = pop[1].fitness
+    println("generation: $generation, max fitness=$fitness, code=$(pop[1].code)")
+    generation += 1
+  end
+  return pop[1] #return best
+end
+
+convert2dataframes() = csv_to_dataframe("../data/dasc_nmacs", outdir=DF_DIR)
+
+function main()
+  files = readdir_ext("csv", DF_DIR) |> sort! #csvs
+  all_DFs = map(readtable, files)
+  cr = load_results("./ge/cluster_results.jl")
+  ids0 = find(x -> x == 0, cr.labels)
+  ids1 = find(x -> x == 2, cr.labels)
+
+
+end

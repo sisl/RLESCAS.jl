@@ -34,12 +34,12 @@
 
 module CSVFeatures
 
-export feature_matrix
+export feature_frame, csv_to_dataframe
 
 using RLESUtils.LookupCallbacks
 using DataFrames
 
-function feature_matrix(csvfile::ASCIIString, feature_map::Vector{LookupCallback},
+function feature_frame(csvfile::ASCIIString, feature_map::Vector{LookupCallback},
                         colnames::Vector{Symbol}=Symbol[])
 
   csv = readcsv(csvfile)
@@ -62,6 +62,22 @@ function feature_matrix(csvfile::ASCIIString, feature_map::Vector{LookupCallback
     V[i] = mapslices(x -> f(x...), input_vars, 2) |> vec
   end
   return DataFrame(V, colnames)
+end
+
+#map a directory of trajSave_aircraft.csv files to trajSave_dataframe.csv file
+function csv_to_dataframe(dir::ASCIIString; outdir::ASCIIString="./")
+  files = readdir_ext("csv", dir) |> sort! #csvs
+  grouped_files = Iterators.groupby(x -> split(x, "_aircraft")[1], files) |> collect
+  for i = 1:length(grouped_files)
+    D_ = map(enumerate(grouped_files[i])) do jf
+      (j, f) = jf
+      feature_frame(f, FEATURE_MAP, convert(Vector{Symbol}, append(FEATURE_NAMES, "_$j")))
+    end
+    D = hcat(D_...)
+    df_file = split(grouped_files[i][1], "_aircraft")[1] * "_dataframe.csv"
+    df_file = joinpath(outdir, basename(df_file))
+    writetable(df_file, D)
+  end
 end
 
 end #module
