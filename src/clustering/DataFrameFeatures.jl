@@ -32,57 +32,46 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module CSVFeatures
+module DataFrameFeatures
 
-export feature_frame, csv_to_dataframe
+export add_features!
 
 using RLESUtils.LookupCallbacks
 using RLESUtils.FileUtils
 using DataFrames
 using Iterators
 
-function feature_frame(csvfile::ASCIIString, feature_map::Vector{LookupCallback},
-                        colnames::Vector{Symbol}=Symbol[])
-
-  csv = readcsv(csvfile)
-  headers = csv[1, :] |> vec
-  units = csv[2, :] |> vec
-  dat = csv[3:end, :]
-  tmax = size(dat, 1)
-  V = Array(Any, length(feature_map))
-
-  lookup_ids = map(feature_map) do lcb
-    ids = map(lcb.lookups) do l
-      findfirst(x -> x == l, headers)
-    end
-    any(x -> x == 0, ids) && error("Lookup not found: $lcb") #all lookup ids should be found
-    return ids
+function add_features!(csvfiles::Vector{ASCIIString}, feature_map::Vector{LookupCallback},
+                        feature_names::Vector{ASCIIString}; overwrite::Bool=false)
+  Ds = map(readtable, csvfiles)
+  add_features!(Ds, feature_map, feature_names)
+  for (f, D) in zip(csvfiles, Ds)
+    fileroot, ext = splitext(f)
+    f_ = overwrite ? f : fileroot * "_addfeats" * ext
+    writetable(f_, D)
   end
-  for i = 1:length(V)
-    input_vars = dat[:, lookup_ids[i]]
-    f = feature_map[i].callback
-    V[i] = mapslices(x -> f(x...), input_vars, 2) |> vec
-  end
-  return DataFrame(V, colnames)
 end
 
-append(V::Vector{ASCIIString}, s::String) = map(x -> "$(x)$(s)", V)
-
-#map a directory of trajSave_aircraft.csv files to trajSave_dataframe.csv file
-function csv_to_dataframe(feature_map::Vector{LookupCallback}, feature_names::Vector{ASCIIString}, dir::ASCIIString; outdir::ASCIIString="./")
-  @assert length(feature_map) == length(feature_names)
-  files = readdir_ext("csv", dir) |> sort! #csvs
-  grouped_files = Iterators.groupby(x -> split(x, "_aircraft")[1], files) |> collect
-  for i = 1:length(grouped_files)
-    D_ = map(enumerate(grouped_files[i])) do jf
-      (j, f) = jf
-      feature_frame(f, feature_map, convert(Vector{Symbol}, append(feature_names, "_$j")))
-    end
-    D = hcat(D_...)
-    df_file = split(grouped_files[i][1], "_aircraft")[1] * "_dataframe.csv"
-    df_file = joinpath(outdir, basename(df_file))
-    writetable(df_file, D)
+function add_features!(Ds::Vector{DataFrame}, feature_map::Vector{LookupCallback},
+                        feature_names::Vector{ASCIIString})
+  map(Ds) do D
+    add_features(D, feature_map, feature_names)
   end
+end
+
+function add_features!(D::DataFrame, feature_map::Vector{LookupCallback},
+                        feature_names::Vector{ASCIIString})
+  for i = 1:length(feature_map)
+    lookups = map(symbol, feature_map[i].lookups) #map lookups to symbols
+    f = feature_map[i].callback #function
+    feat_name = symbol(feature_names[i]) #as a symbol
+    D[feat_name] = Array(Any, size(D, 1)) #add a new column
+    for r = 1:size(D, 1)
+      x = map(l -> D[r, l], lookups) #extract to a vector
+      D[r, feat_name] = f(x...)
+    end
+  end
+  return D
 end
 
 end #module

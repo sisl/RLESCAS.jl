@@ -82,7 +82,9 @@ const FEATURE_MAP = LookupCallback[
   LookupCallback("response.state", x -> x == "follow"), #split categorical to 1-hot
   LookupCallback("response.timer"),
   LookupCallback("response.h_d"),
-  LookupCallback("response.psi_d")
+  LookupCallback("response.psi_d"),
+  LookupCallback("adm.v"),
+  LookupCallback("adm.h")
   ]
 
 const FEATURE_NAMES = ASCIIString[
@@ -120,10 +122,28 @@ const FEATURE_NAMES = ASCIIString[
   "response_follow",
   "response_timer",
   "response_h_d",
-  "response_psi_d"
+  "response_psi_d",
+  "v",
+  "h"
   ]
 
-append(V::Vector{ASCIIString}, s::String) = map(x -> "$(x)$(s)", V)
+function is_converging(psi1::Float64, chi1::Float64, psi2::Float64, chi2::Float64)
+  #println("psi1=$psi1, chi1=$chi1, psi2=$psi2, chi2=$chi2")
+  if abs(chi1) > pi/2 && abs(chi2) > pi/2 #flying away from each other
+    return false
+  end
+  z1 = to_plusminus_pi(psi2 - psi1)
+  z2 = to_plusminus_pi(psi1 - psi2)
+  return z1 * chi1 <= 0 && z2 * chi2 <= 0
+end
+
+const ADD_FEATURE_MAP = LookupCallback[
+  LookupCallback(["psi_1", "intr_chi_1", "psi_2", "intr_chi_2"], is_converging)
+  ]
+
+const ADD_FEATURE_NAMES = ASCIIString[
+  "converging"
+  ]
 
 get_col_types(D::DataFrame) = [typeof(D.columns[i]).parameters[1] for i=1:length(D.columns)]
 
@@ -138,39 +158,113 @@ function create_grammar()
   @grammar grammar begin
     start = bin
 
-    bin = and | or | not | always | eventually #implies, until, next, release and weak until not implemented
+    #produces bin
+    bin = and | or | not | implies | always | eventually | until | weakuntil | release | next | lte | lt #goto?
     and = Expr(:&&, bin, bin)
     or = Expr(:||, bin, bin)
     not = Expr(:call, :!, bin)
-    always = Expr(:call, :all, bin_vec) #global
-    eventually = Expr(:call, :any, bin_vec) #future
+    implies = Expr(:call, :Y, bin, bin) | Expr(:call, :Y, bin_vec, bin_vec)
+    always = Expr(:call, :G, bin_vec) #global
+    eventually = Expr(:call, :F, bin_vec) #future
+    until = Expr(:call, :U, bin_vec, bin_vec) #until
+    weakuntil = Expr(:call, :W, bin_vec, bin_vec) #weak until
+    release = Expr(:call, :R, bin_vec, bin_vec) #release
+    next = Expr(:call, :X, bin_vec) #next
+    lte = Expr(:comparison, real, :<=, real_number) | Expr(:comparison, real, :<=, real) | Expr(:comparison, real_number, :<=, real)
+    lt = Expr(:comparison, real, :<, real_number) | Expr(:comparison, real, :<, real) | Expr(:comparison, real_number, :<, real)
 
-    bin_vec = vec_and | vec_or | vec_not | vec_lte | vec_diff_lte | vec_absdiff_lte
+    #produces a bin_vec
+    bin_vec = bin_feat_vec | vec_and | vec_or | vec_not | vec_lte | vec_diff_lte | vec_lt | vec_diff_lt | sign
     vec_and = Expr(:call, :&, bin_vec, bin_vec)
     vec_or = Expr(:call, :|, bin_vec, bin_vec)
     vec_not = Expr(:call, :!, bin_vec)
     vec_lte = Expr(:comparison, real_feat_vec, :.<=, real_number) | Expr(:comparison, real_feat_vec, :.<=, real_feat_vec) | Expr(:comparison, real_number, :.<=, real_feat_vec)
-    vec_diff_lte = Expr(:call, :diff_lte, real_feat_vec, real_feat_vec, real_number)
-    vec_absdiff_lte = Expr(:call, :abs_diff_lte, real_feat_vec, real_feat_vec, real_number)
+    vec_lt = Expr(:comparison, real_feat_vec, :.<, real_number) | Expr(:comparison, real_feat_vec, :.<, real_feat_vec) | Expr(:comparison, real_number, :.<, real_feat_vec)
+    vec_diff_lte = Expr(:call, :de, real_feat_vec, real_feat_vec, real_number)
+    vec_diff_lt = Expr(:call, :dl, real_feat_vec, real_feat_vec, real_number)
+    sign = Expr(:call, :sn, real_feat_vec, real_feat_vec)
 
+    #produces a real
+    real = count
+    count = Expr(:call, :ct, bin_vec)
+
+    #based on features
     real_feat_vec = Expr(:ref, :D, :(:), real_feat_id)
     bin_feat_vec = Expr(:ref, :D, :(:), bin_feat_id)
     real_feat_id = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 22 | 26 | 27 | 28 | 29 | 33 | 34 | 35 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 57 | 61 | 62 | 63 | 64 | 68 | 69 | 70
     bin_feat_id = 1 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 | 30 | 31 | 32 | 36 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 58 | 59 | 60 | 65 | 66 | 67
 
-    #real_number = Expr(:call, :get_rand, real_feat_id)
-    real_number[convert_number] = digit + '.' + digit
+    #random numbers
+    real_number = Expr(:call, :rn, expdigit, rand_)
+    expdigit = -4:4
+    rand_[convert_number] =  digit + '.' + digit + digit + digit + digit
     digit = 0:9
   end
 
   return grammar
 end
 
+get_real(n::Int64, x::Float64) = x * 10.0^n #compose_real
+get_real(n::Int64, c::Char) = rn(n, string(c)) #for debug only
+function get_real(n::Int64, s::String) #for debug only
+  println("n=$n, s=$s")
+  throw(DomainError())
+end
 diff_lte(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .<= b
-abs_diff_lte(v1::RealVec, v2::RealVec, b::Float64) = abs(v1 - v2) .<= b
-get_rand(id::Int64) = rand() #for now...
+diff_lt(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .< b
 
-function grammar_test(pop_size::Int64, genome_size::Int64, maxwraps::Int64)
+function until(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
+  t = findfirst(v2)
+  if t > 0
+    return all(v1[1:t-1])
+  else #true not found
+    return false
+  end
+end
+
+function weak_until(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
+  t = findfirst(v2)
+  if t > 0
+    return all(v1[1:t - 1])
+  else #true not found
+    return all(v1)
+  end
+end
+
+function release(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
+  t = findfirst(v2)
+  if t > 0
+    return all(v1[1:t])
+  else #true not found
+    return all(v1)
+  end
+end
+
+next_(v::AbstractVector{Bool}) = v[2]
+implies(b1::Bool, b2::Bool) = !b1 || b2
+function implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
+  ids = find(v1)
+  return v2[ids] |> all
+end
+
+sign_(v1::RealVec, v2::RealVec) = (sign(v1) .* sign(v2)) .>= 0.0 #same sign, 0 matches any sign
+count_f(v::AbstractVector{Bool}) = count(identity, v) |> float
+
+#shorthands used in grammar
+rn = get_real
+de = diff_lte
+dl = diff_lt
+F = any
+G = all
+U = until
+W = weak_until
+R = release
+X = next_ #avoid conflict with Base.next
+Y = implies
+sn = sign_ #avoid conflict with Base.sign
+ct = count_f
+
+function grammar_test(pop_size::Int64=POP_SIZE, genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
   #rsg = RSG(2, 2)
   #set_global(rsg)
 
@@ -192,6 +286,7 @@ function grammar_test(pop_size::Int64, genome_size::Int64, maxwraps::Int64)
       ntotal += 1
     catch e
       println("exception = $e")
+      ind.code = nothing
       nbad += 1
       ntotal += 1
     end
@@ -200,44 +295,50 @@ function grammar_test(pop_size::Int64, genome_size::Int64, maxwraps::Int64)
   @show ngood
   @show nbad
   @show ntotal
-  return pop
+  return filter(ind -> ind.code != nothing, pop)
 end
 
 const DF_DIR = "./ge"
 const GRAMMAR = create_grammar()
-const W1 = 0.001
-const GENOME_SIZE = 200
-const POP_ZIE = 5000
+const W1 = 0.0001 #code length
+const W2 = 0#.001 #noise
+const GENOME_SIZE = 500
+const POP_SIZE = 10000
+const MAXWRAPS = 2
+const N_ITERATIONS = 3
 
-function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, Ds::Vector{DataFrame}, labels::Vector{Bool})
+function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, Ds::Vector{DataFrame}, labels::AbstractVector{Bool})
+  predicted_labels = nothing
   try
-    ind.code = transform(grammar, ind, maxwraps=maxwraps)
+    ind.code = transform(grammar, ind, maxwraps=MAXWRAPS)
     @eval fn(D) = $(ind.code)
+    predicted_labels = map(fn, Ds)
   catch e
-    #println("exception = $e")
-    #@show ind.code
+    if !isa(e, MaxWrapException)
+      println("exception = $e")
+      println("code: $(ind.code)")
+    end
+    ind.code = :(throw($e))
     ind.fitness = Inf
     return
   end
-
   @assert length(Ds) == length(labels)
-  predicted_labels = map(fn, Ds_pos)
   accuracy = count(identity, predicted_labels .== labels) / length(labels)
-  if 0.0 < accuracy < 0.5
+  if 0.0 <= accuracy < 0.5
     ind.code = negate_expr(ind.code)
     accuracy = 1.0 - accuracy
   end
-
-  ind.fitness = accuracy + W1*length(string(ind.code))
+  err = 1.0 - accuracy
+  #ind.fitness = err + W1*length(string(ind.code)) + W2*rand()
+  ind.fitness = err > 0.0 ? err : W1*length(string(ind.code))
 end
 
-function negate_expr(ex::Expr)
-  return parse("!($ex)")
-end
+negate_expr(ex::Expr) = parse("!($ex)")
 
-function learn_rule(Ds::Vector{DataFrame}, labels::Vector{Bool}, n_iterations::Int64,
+function learn_rule(Ds::Vector{DataFrame}, labels::AbstractVector{Bool}, n_iterations::Int64,
                     grammar::Grammar=GRAMMAR, pop_size::Int64=POP_SIZE,
                     genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
+  println("learn_rule()")
   #rsg = RSG(2, 2)
   #set_global(rsg)
 
@@ -245,7 +346,7 @@ function learn_rule(Ds::Vector{DataFrame}, labels::Vector{Bool}, n_iterations::I
   pop = ExamplePopulation(pop_size, genome_size)
 
   generation = 1
-  while generation < n_iterations
+  while generation <= n_iterations
     # generate a new population (based off of fitness)
     pop = generate(grammar, pop, 0.1, 0.2, 0.2, Ds, labels)
 
@@ -257,14 +358,124 @@ function learn_rule(Ds::Vector{DataFrame}, labels::Vector{Bool}, n_iterations::I
   return pop[1] #return best
 end
 
-convert2dataframes() = csv_to_dataframe("../data/dasc_nmacs", outdir=DF_DIR)
+convert2dataframes() = csv_to_dataframe(FEATURE_MAP, FEATURE_NAMES, "../data/dasc_nmacs", outdir=DF_DIR)
 
-function main()
-  files = readdir_ext("csv", DF_DIR) |> sort! #csvs
-  all_DFs = map(readtable, files)
-  cr = load_results("./ge/cluster_results.jl")
-  ids0 = find(x -> x == 0, cr.labels)
-  ids1 = find(x -> x == 2, cr.labels)
-
-
+function fileroot_to_dataframe{T<:String}(fileroots::Vector{T}; dir::String="")
+  map(fileroots) do f
+    fileroot_to_dataframe(f, dir=dir)
+  end
 end
+#TODO: clean this up, make less assumptions on cr.names
+function fileroot_to_dataframe(fileroot::String; dir::String="./")
+  return joinpath(dir, "$(fileroot)_dataframe.csv")
+end
+
+function cluster_test(Ds::Vector{DataFrame}, labels::AbstractVector{Bool})
+  ind = learn_rule(Ds, labels, N_ITERATIONS)
+  @eval f(D) = $(ind.code)
+  pred = map(f, Ds)
+  return (f, ind, pred)
+end
+
+function get_Ds()
+  files = readdir_ext("csv", DF_DIR) |> sort! #csvs
+  Ds = map(readtable, files)
+  return files, Ds
+end
+
+function get_Ds(cluster_neg::Int64, cluster_pos::Int64)
+  cr = load_result("./ge/cluster_results.json")
+  ids0 = find(x -> x == cluster_neg, cr.labels)
+  ids1 = find(x -> x == cluster_pos, cr.labels)
+  Ds0 = map(readtable, fileroot_to_dataframe(cr.names[ids0], dir=DF_DIR))
+  Ds1 = map(readtable, fileroot_to_dataframe(cr.names[ids0], dir=DF_DIR))
+  Ds = vcat(Ds0, Ds1)
+  labels = vcat(falses(length(Ds0)), trues(length(Ds1)))
+  return (Ds, labels)
+end
+
+function direct_sample(Ds::Vector{DataFrame}, labels::AbstractVector{Bool}, genome_size::Int64, nsamples::Int64)
+
+  grammar = create_grammar()
+
+  best_ind = ExampleIndividual(genome_size, 1000)
+  best_ind.fitness = Inf
+  for i = 1:nsamples
+    ind = ExampleIndividual(genome_size, 1000)
+    evaluate!(grammar, ind, Ds, labels)
+    s = string(ind.code)
+    l = min(length(s), 50)
+    println("$i: fitness=$(ind.fitness), best=$(best_ind.fitness), length=$(length(s)), code=$(s[1:l])")
+    if 0.0 < ind.fitness < best_ind.fitness
+      best_ind = ind
+    end
+  end
+  return best_ind
+end
+
+function fill_to_col!{T}(Ds::Vector{DataFrame}, field_id::Int64, fillvals::AbstractVector{T})
+  @assert length(Ds) == length(fillvals)
+  for i = 1:length(Ds)
+    fill!(Ds[i].columns[field_id], fillvals[i])
+  end
+end
+
+function script1()
+  Ds, labels = get_Ds(0,2)
+  fill_to_col!(Ds, 1, !labels)
+  #should give: all(!D[:,1])
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
+
+function script2()
+  Ds, labels = get_Ds(0,2)
+  fill_to_col!(Ds, 2, map(x -> x ? 25.0 : -5.0, labels))
+  #should give: all(0.0 .<= D[:,2])
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
+
+function script3()
+  #should give ngood close to 1000
+  grammar_test(1000, 500, 2)
+end
+
+function samedir_firstRA!(Ds::Vector{DataFrame}, labels::AbstractVector{Bool})
+  vr1, al1, rnon1, tr1 = map(x -> Ds[1].colindex[x], [:vert_rate_1, :alarm_1, :response_none_1, :target_rate_1])
+  for i = 1:length(Ds)
+    col = Ds[i].columns
+    for j = 1:length(col[vr1])
+      if col[al1][j] && col[rnon1][j] #first RA
+        s = sign(col[tr1][j])
+        if s == 0.0
+          col[vr1][j] = labels[i] ? 0.0 : -1.0
+        else #s not zero
+          z = s * abs(col[vr1][j]) #same sign as tr1
+          col[vr1][j] = labels[i] ? z : -z
+        end
+      end
+    end
+  end
+  #should give: Y(D[:,al1] && D[:,rnon1], sn(D[:,:tr1], D[:,:vr1]))
+  #should give: Y(D[:,24] && D[:,30], sn(D[:,22], D[:,2]))
+end
+
+function script4()
+  Ds, labels = get_Ds(0,2)
+  samedir_firstRA!(Ds, labels)
+  #should give: Y(D[:,al1] && D[:,rnon1], sn(D[:,:tr1], D[:,:vr1]))
+  #should give: Y(D[:,24] && D[:,30], sn(D[:,22], D[:,2]))
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
+
+function script5()
+  Ds, labels = get_Ds(0,2)
+  samedir_firstRA!(Ds, labels)
+  direct_sample(Ds, labels, 500, 100000)
+end
+
+
+#TODOs:
+#inject other properties as tests
+#papers
+#survey
+
