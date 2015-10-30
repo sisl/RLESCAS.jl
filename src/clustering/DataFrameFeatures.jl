@@ -41,21 +41,26 @@ using RLESUtils.FileUtils
 using DataFrames
 using Iterators
 
-function add_features!(csvfiles::Vector{ASCIIString}, feature_map::Vector{LookupCallback},
+function add_features!(df_files::Vector{ASCIIString}, feature_map::Vector{LookupCallback},
                         feature_names::Vector{ASCIIString}; overwrite::Bool=false)
-  Ds = map(readtable, csvfiles)
+  Ds = map(readtable, dffiles)
   add_features!(Ds, feature_map, feature_names)
-  for (f, D) in zip(csvfiles, Ds)
+  outfiles = Array(ASCIIString, length(Ds))
+  for i = 1:length(Ds)
+    f = df_files[i]
+    D = Ds[i]
     fileroot, ext = splitext(f)
     f_ = overwrite ? f : fileroot * "_addfeats" * ext
+    outfiles[i] = f_
     writetable(f_, D)
   end
+  return outfiles
 end
 
 function add_features!(Ds::Vector{DataFrame}, feature_map::Vector{LookupCallback},
                         feature_names::Vector{ASCIIString})
   map(Ds) do D
-    add_features(D, feature_map, feature_names)
+    add_features!(D, feature_map, feature_names)
   end
 end
 

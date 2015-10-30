@@ -69,10 +69,11 @@ end
 append(V::Vector{ASCIIString}, s::String) = map(x -> "$(x)$(s)", V)
 
 #map a directory of trajSave_aircraft.csv files to trajSave_dataframe.csv file
-function csv_to_dataframe(feature_map::Vector{LookupCallback}, feature_names::Vector{ASCIIString}, dir::ASCIIString; outdir::ASCIIString="./")
+function csv_to_dataframe(files::Vector{ASCIIString}, feature_map::Vector{LookupCallback}, feature_names::Vector{ASCIIString}; outdir::ASCIIString="./")
   @assert length(feature_map) == length(feature_names)
-  files = readdir_ext("csv", dir) |> sort! #csvs
+  sort!(files)
   grouped_files = Iterators.groupby(x -> split(x, "_aircraft")[1], files) |> collect
+  outfiles = Array(ASCIIString, length(grouped_files))
   for i = 1:length(grouped_files)
     D_ = map(enumerate(grouped_files[i])) do jf
       (j, f) = jf
@@ -81,8 +82,10 @@ function csv_to_dataframe(feature_map::Vector{LookupCallback}, feature_names::Ve
     D = hcat(D_...)
     df_file = split(grouped_files[i][1], "_aircraft")[1] * "_dataframe.csv"
     df_file = joinpath(outdir, basename(df_file))
+    outfiles[i] = df_file
     writetable(df_file, D)
   end
+  return outfiles
 end
 
 end #module

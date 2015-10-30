@@ -40,6 +40,7 @@ using RLESUtils.StringUtils
 using RLESUtils.MathUtils
 using RLESUtils.LookupCallbacks
 using CSVFeatures
+using DataFrameFeatures
 using ClusterResults
 using Iterators
 using DataFrames
@@ -54,9 +55,9 @@ const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.ownInput.psi"),
   LookupCallback("ra_detailed.intruderInput[1].sr"),
   LookupCallback("ra_detailed.intruderInput[1].chi"),
-  LookupCallback("ra_detailed.intruderInput[1].cvc"), #categorical size?
-  LookupCallback("ra_detailed.intruderInput[1].vrc"), #categorical size?
-  LookupCallback("ra_detailed.intruderInput[1].vsb"), #categorical size?
+  LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 0), #split categorical to 1-hot
+  LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 1), #split categorical to 1-hot
+  LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 2), #split categorical to 1-hot
   LookupCallback("ra_detailed.ownOutput.cc", x -> bin(int(x), 3)[1] == '1'), #categorical 3-bit
   LookupCallback("ra_detailed.ownOutput.cc", x -> bin(int(x), 3)[2] == '1'), #categorical 3-bit
   LookupCallback("ra_detailed.ownOutput.cc", x -> bin(int(x), 3)[3] == '1'), #categorical 3-bit
@@ -73,9 +74,9 @@ const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.ownOutput.crossing", bool),
   LookupCallback("ra_detailed.ownOutput.alarm", bool),
   LookupCallback("ra_detailed.ownOutput.alert", bool),
-  LookupCallback("ra_detailed.intruderOutput[1].cvc"), #categorical size?
-  LookupCallback("ra_detailed.intruderOutput[1].vrc"), #categorical size?
-  LookupCallback("ra_detailed.intruderOutput[1].vsb"), #categorical size?
+  LookupCallback("ra_detailed.intruderOutput[1].vrc", x -> x == 0), #split categorical to 1-hot
+  LookupCallback("ra_detailed.intruderOutput[1].vrc", x -> x == 1), #split categorical to 1-hot
+  LookupCallback("ra_detailed.intruderOutput[1].vrc", x -> x == 2), #split categorical to 1-hot
   LookupCallback("ra_detailed.intruderOutput[1].tds"),
   LookupCallback("response.state", x -> x == "none"), #split categorical to 1-hot
   LookupCallback("response.state", x -> x == "stay"), #split categorical to 1-hot
@@ -94,9 +95,9 @@ const FEATURE_NAMES = ASCIIString[
   "psi",
   "intr_sr",
   "intr_chi",
-  "intr_cvc",
-  "intr_vrc",
-  "intr_vsb",
+  "intr_vrc0",
+  "intr_vrc1",
+  "intr_vrc2",
   "cc1",
   "cc2",
   "cc3",
@@ -113,9 +114,9 @@ const FEATURE_NAMES = ASCIIString[
   "crossing",
   "alarm",
   "alert",
-  "intr_out_cvc",
-  "intr_out_vrc",
-  "intr_out_vsb",
+  "intr_out_vrc0",
+  "intr_out_vrc1",
+  "intr_out_vrc2",
   "intr_out_tds",
   "response_none",
   "response_stay",
@@ -146,6 +147,24 @@ const ADD_FEATURE_NAMES = ASCIIString[
   ]
 
 get_col_types(D::DataFrame) = [typeof(D.columns[i]).parameters[1] for i=1:length(D.columns)]
+function make_type_string(D::DataFrame)
+  Ts = get_col_types(D)
+  Ts = map(string, Ts)
+  @assert all(x->x=="Bool" || x=="Float64", Ts)
+  io = IOBuffer()
+  for id in find(x->x=="Bool", Ts)
+    print(io, id, " | ")
+  end
+  bin_string = takebuf_string(io)[1:end-3]
+  println("bin_feat_id = ", bin_string)
+  io = IOBuffer()
+  for id in find(x->x=="Float64", Ts)
+    print(io, id, " | ")
+  end
+  real_string = takebuf_string(io)[1:end-3]
+  println("real_feat_id = ", real_string)
+  return bin_string, real_string
+end
 
 include("ge/RNGWrapper.jl")
 using RNGWrapper
@@ -163,7 +182,7 @@ function create_grammar()
     and = Expr(:&&, bin, bin)
     or = Expr(:||, bin, bin)
     not = Expr(:call, :!, bin)
-    implies = Expr(:call, :Y, bin, bin) | Expr(:call, :Y, bin_vec, bin_vec)
+    implies = Expr(:call, :Y, bin_vec, bin_vec) | Expr(:call, :Y, bin, bin)
     always = Expr(:call, :G, bin_vec) #global
     eventually = Expr(:call, :F, bin_vec) #future
     until = Expr(:call, :U, bin_vec, bin_vec) #until
@@ -191,13 +210,14 @@ function create_grammar()
     #based on features
     real_feat_vec = Expr(:ref, :D, :(:), real_feat_id)
     bin_feat_vec = Expr(:ref, :D, :(:), bin_feat_id)
-    real_feat_id = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 22 | 26 | 27 | 28 | 29 | 33 | 34 | 35 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 57 | 61 | 62 | 63 | 64 | 68 | 69 | 70
-    bin_feat_id = 1 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 | 30 | 31 | 32 | 36 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 58 | 59 | 60 | 65 | 66 | 67
+    real_feat_id = real_feat_id = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 22 | 26 | 27 | 28 | 29 | 33 | 34 | 35 | 36 | 37 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 59 | 63 | 64 | 65 | 66 | 70 | 71 | 72 | 73 | 74
+    bin_feat_id = 1 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 | 30 | 31 | 32 | 38 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 60 | 61 | 62 | 67 | 68 | 69 | 75
 
     #random numbers
-    real_number = Expr(:call, :rn, expdigit, rand_)
+    real_number = Expr(:call, :rn, expdigit, rand_pos) | Expr(:call, :rn, expdigit, rand_neg)
     expdigit = -4:4
-    rand_[convert_number] =  digit + '.' + digit + digit + digit + digit
+    rand_pos[convert_number] =  digit + '.' + digit + digit + digit + digit
+    rand_neg[convert_number] =  '-' + digit + '.' + digit + digit + digit + digit
     digit = 0:9
   end
 
@@ -305,7 +325,7 @@ const W2 = 0#.001 #noise
 const GENOME_SIZE = 500
 const POP_SIZE = 10000
 const MAXWRAPS = 2
-const N_ITERATIONS = 3
+const N_ITERATIONS = 5
 
 function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, Ds::Vector{DataFrame}, labels::AbstractVector{Bool})
   predicted_labels = nothing
@@ -358,7 +378,11 @@ function learn_rule(Ds::Vector{DataFrame}, labels::AbstractVector{Bool}, n_itera
   return pop[1] #return best
 end
 
-convert2dataframes() = csv_to_dataframe(FEATURE_MAP, FEATURE_NAMES, "../data/dasc_nmacs", outdir=DF_DIR)
+function convert2dataframes()
+  csvfiles = readdir_ext("csv", "../data/dasc_nmacs")
+  df_files = csv_to_dataframe(csvfiles, FEATURE_MAP, FEATURE_NAMES, outdir=DF_DIR)
+  add_features!(df_files, ADD_FEATURE_MAP, ADD_FEATURE_NAMES, overwrite=true)
+end
 
 function fileroot_to_dataframe{T<:String}(fileroots::Vector{T}; dir::String="")
   map(fileroots) do f
@@ -440,29 +464,29 @@ function script3()
 end
 
 function samedir_firstRA!(Ds::Vector{DataFrame}, labels::AbstractVector{Bool})
-  vr1, al1, rnon1, tr1 = map(x -> Ds[1].colindex[x], [:vert_rate_1, :alarm_1, :response_none_1, :target_rate_1])
+  vert_rate1, alarm1, resp_none1, target_rate1 = map(x -> Ds[1].colindex[x], [:vert_rate_1, :alarm_1, :response_none_1, :target_rate_1])
   for i = 1:length(Ds)
     col = Ds[i].columns
-    for j = 1:length(col[vr1])
-      if col[al1][j] && col[rnon1][j] #first RA
-        s = sign(col[tr1][j])
+    for j = 1:length(col[vert_rate1])
+      if col[alarm1][j] && col[resp_none1][j] #first RA
+        s = sign(col[target_rate1][j])
         if s == 0.0
-          col[vr1][j] = labels[i] ? 0.0 : -1.0
+          col[vert_rate1][j] = labels[i] ? 0.0 : -1.0
         else #s not zero
-          z = s * abs(col[vr1][j]) #same sign as tr1
-          col[vr1][j] = labels[i] ? z : -z
+          z = s * (abs(col[vert_rate1][j]) + 1.0) #same sign as target_rate_1, avoid 0.0 on vert_rate
+          col[vert_rate1][j] = labels[i] ? z : -z
         end
       end
     end
   end
-  #should give: Y(D[:,al1] && D[:,rnon1], sn(D[:,:tr1], D[:,:vr1]))
+  #should give: Y(D[:,alarm1] && D[:,resp_none1], sn(D[:,:target_rate1], D[:,:vert_rate1]))
   #should give: Y(D[:,24] && D[:,30], sn(D[:,22], D[:,2]))
 end
 
 function script4()
-  Ds, labels = get_Ds(0,2)
+  Ds, labels = get_Ds(1,4)
   samedir_firstRA!(Ds, labels)
-  #should give: Y(D[:,al1] && D[:,rnon1], sn(D[:,:tr1], D[:,:vr1]))
+  #should give: Y(D[:,alarm1] && D[:,resp_none1], sn(D[:,:target_rate1], D[:,:vert_rate1]))
   #should give: Y(D[:,24] && D[:,30], sn(D[:,22], D[:,2]))
   (f, ind, pred) = cluster_test(Ds, labels)
 end
@@ -473,8 +497,14 @@ function script5()
   direct_sample(Ds, labels, 500, 100000)
 end
 
+function script6() #try to separate real clusters
+  Ds, labels = get_Ds(1,4)
+  #not sure what to expect
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
 
 #TODOs:
+#try to explain Mykel's clusterings?
 #inject other properties as tests
 #papers
 #survey
