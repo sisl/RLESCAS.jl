@@ -32,9 +32,14 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, "./")
-push!(LOAD_PATH, "../") #clustering folder
+push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
+push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/experiments"))
+push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/experiments/divisivetrees"))
 
+include("divisivetrees/visualize.jl")
+
+using DivisiveTrees
+using SimpleTrees
 using RLESUtils.FileUtils
 using RLESUtils.StringUtils
 using RLESUtils.MathUtils
@@ -178,10 +183,10 @@ function create_grammar()
     start = bin
 
     #produces bin
-    bin =  implies | always | eventually | until | weakuntil | release | lte | lt | and | or | not #| next #goto?
-    and = Expr(:&&, bin, bin)
-    or = Expr(:||, bin, bin)
-    not = Expr(:call, :!, bin)
+    bin =  implies | always | eventually | until | weakuntil | release | lte | lt #and | or | not | next#goto?
+    #and = Expr(:&&, bin, bin)
+    #or = Expr(:||, bin, bin)
+    #not = Expr(:call, :!, bin)
     implies = Expr(:call, :Y, bin_vec, bin_vec) | Expr(:call, :Y, bin, bin) | Expr(:call, :Yl, bin_vec, bin_vec) | Expr(:call, :Yy, bin_vec, bin_vec) | Expr(:call, :Yx, bin_vec, bin_vec)
     always = Expr(:call, :G, bin_vec) #global
     eventually = Expr(:call, :F, bin_vec) #future
@@ -299,99 +304,13 @@ Yx = implies_next
 sn = sign_ #avoid conflict with Base.sign
 ct = count_f
 
-function grammar_test(pop_size::Int64=POP_SIZE, genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
-  #rsg = RSG(2, 2)
-  #set_global(rsg)
-
-  # our grammar
-  grammar = create_grammar()
-
-  # create population
-  pop = ExamplePopulation(pop_size, genome_size)
-
-  ngood = 0
-  nbad = 0
-  ntotal = 0
-
-  for ind in pop.individuals
-    try
-      ind.code = transform(grammar, ind, maxwraps=maxwraps)
-      @show ind.code
-      ngood += 1
-      ntotal += 1
-    catch e
-      println("exception = $e")
-      ind.code = nothing
-      nbad += 1
-      ntotal += 1
-    end
-  end
-
-  @show ngood
-  @show nbad
-  @show ntotal
-  return filter(ind -> ind.code != nothing, pop)
-end
-
 const DF_DIR = "./ge"
 const GRAMMAR = create_grammar()
-const W1 = 0.0001 #code length
-const W2 = 0#.001 #noise
+const W1 = 0.001 #code length
 const GENOME_SIZE = 500
 const POP_SIZE = 10000
 const MAXWRAPS = 2
 const N_ITERATIONS = 5
-
-function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, Ds::Vector{DataFrame}, labels::AbstractVector{Bool})
-  predicted_labels = nothing
-  try
-    ind.code = transform(grammar, ind, maxwraps=MAXWRAPS)
-    @eval fn(D) = $(ind.code)
-    predicted_labels = map(fn, Ds)
-  catch e
-    if !isa(e, MaxWrapException)
-      println("exception = $e")
-      println("code: $(ind.code)")
-    end
-    ind.code = :(throw($e))
-    ind.fitness = Inf
-    return
-  end
-  @assert length(Ds) == length(labels)
-  accuracy = count(identity, predicted_labels .== labels) / length(labels)
-  if 0.0 <= accuracy < 0.5
-    ind.code = negate_expr(ind.code)
-    accuracy = 1.0 - accuracy
-  end
-  err = 1.0 - accuracy
-  #ind.fitness = err + W1*length(string(ind.code)) + W2*rand()
-  ind.fitness = err > 0.0 ? err : W1*length(string(ind.code))
-end
-
-negate_expr(ex::Expr) = parse("!($ex)")
-
-function learn_rule(Ds::Vector{DataFrame}, labels::AbstractVector{Bool}, n_iterations::Int64,
-                    grammar::Grammar=GRAMMAR, pop_size::Int64=POP_SIZE,
-                    genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
-  println("learn_rule()")
-  #rsg = RSG(2, 2)
-  #set_global(rsg)
-
-  # create population
-  pop = ExamplePopulation(pop_size, genome_size)
-
-  generation = 1
-  while generation <= n_iterations
-    # generate a new population (based off of fitness)
-    pop = generate(grammar, pop, 0.1, 0.2, 0.2, Ds, labels)
-
-    # population is sorted, so first entry it the best
-    fitness = pop[1].fitness
-    println("generation: $generation, max fitness=$fitness, code=$(pop[1].code)")
-    generation += 1
-  end
-  return pop[1] #return best
-end
 
 function convert2dataframes()
   csvfiles = readdir_ext("csv", "../data/dasc_nmacs")
@@ -409,142 +328,23 @@ function fileroot_to_dataframe(fileroot::String; dir::String="./")
   return joinpath(dir, "$(fileroot)_dataframe.csv")
 end
 
-function cluster_test(Ds::Vector{DataFrame}, labels::AbstractVector{Bool})
-  ind = learn_rule(Ds, labels, N_ITERATIONS)
-  @eval f(D) = $(ind.code)
-  pred = map(f, Ds)
-  return (f, ind, pred)
-end
-
 function get_Ds()
   files = readdir_ext("csv", DF_DIR) |> sort! #csvs
   Ds = map(readtable, files)
   return files, Ds
 end
 
-function get_Ds(cluster_neg::Int64, cluster_pos::Int64)
-  cr = load_result("./ge/cluster_results.json")
-  ids0 = find(x -> x == cluster_neg, cr.labels)
-  ids1 = find(x -> x == cluster_pos, cr.labels)
-  Ds0 = map(readtable, fileroot_to_dataframe(cr.names[ids0], dir=DF_DIR))
-  Ds1 = map(readtable, fileroot_to_dataframe(cr.names[ids0], dir=DF_DIR))
-  Ds = vcat(Ds0, Ds1)
-  labels = vcat(falses(length(Ds0)), trues(length(Ds1)))
-  return (Ds, labels)
-end
-
-function get_Ds(cluster_pos::Int64)
-  cr = load_result("./ge/cluster_results.json")
-  ids0 = find(x -> x != cluster_pos, cr.labels)
-  ids1 = find(x -> x == cluster_pos, cr.labels)
-  Ds0 = map(readtable, fileroot_to_dataframe(cr.names[ids0], dir=DF_DIR))
-  Ds1 = map(readtable, fileroot_to_dataframe(cr.names[ids0], dir=DF_DIR))
-  Ds = vcat(Ds0, Ds1)
-  labels = vcat(falses(length(Ds0)), trues(length(Ds1)))
-  return (Ds, labels)
-end
-
-function direct_sample(Ds::Vector{DataFrame}, labels::AbstractVector{Bool}, genome_size::Int64, nsamples::Int64)
-  grammar = create_grammar()
-  best_ind = ExampleIndividual(genome_size, 1000)
-  best_ind.fitness = Inf
-  for i = 1:nsamples
-    ind = ExampleIndividual(genome_size, 1000)
-    evaluate!(grammar, ind, Ds, labels)
-    s = string(ind.code)
-    l = min(length(s), 50)
-    println("$i: fitness=$(ind.fitness), best=$(best_ind.fitness), length=$(length(s)), code=$(s[1:l])")
-    if 0.0 < ind.fitness < best_ind.fitness
-      best_ind = ind
-    end
-  end
-  return best_ind
-end
-
-function fill_to_col!{T}(Ds::Vector{DataFrame}, field_id::Int64, fillvals::AbstractVector{T})
-  @assert length(Ds) == length(fillvals)
-  for i = 1:length(Ds)
-    fill!(Ds[i].columns[field_id], fillvals[i])
-  end
-end
-
-function script1()
-  Ds, labels = get_Ds(0,2)
-  fill_to_col!(Ds, 1, !labels)
-  #should give: all(!D[:,1])
-  (f, ind, pred) = cluster_test(Ds, labels)
-end
-
-function script2()
-  Ds, labels = get_Ds(0,2)
-  fill_to_col!(Ds, 2, map(x -> x ? 25.0 : -5.0, labels))
-  #should give: all(0.0 .<= D[:,2])
-  (f, ind, pred) = cluster_test(Ds, labels)
-end
-
-function script3()
-  #should give ngood close to 1000
-  grammar_test(1000, 500, 2)
-end
-
-function samedir_firstRA!(Ds::Vector{DataFrame}, labels::AbstractVector{Bool})
-  vert_rate1, alarm1, resp_none1, target_rate1 = map(x -> Ds[1].colindex[x], [:vert_rate_1, :alarm_1, :response_none_1, :target_rate_1])
-  for i = 1:length(Ds)
-    col = Ds[i].columns
-    for j = 1:length(col[vert_rate1])
-      if col[alarm1][j] && col[resp_none1][j] #first RA
-        s = sign(col[target_rate1][j])
-        if s == 0.0
-          col[vert_rate1][j] = labels[i] ? 0.0 : -1.0
-        else #s not zero
-          z = s * (abs(col[vert_rate1][j]) + 1.0) #same sign as target_rate_1, avoid 0.0 on vert_rate
-          col[vert_rate1][j] = labels[i] ? z : -z
-        end
-      end
-    end
-  end
-  #should give: Y(D[:,alarm1] && D[:,resp_none1], sn(D[:,:target_rate1], D[:,:vert_rate1]))
-  #should give: Y(D[:,24] && D[:,30], sn(D[:,22], D[:,2]))
-end
-
-function script4()
-  Ds, labels = get_Ds(1,4)
-  samedir_firstRA!(Ds, labels)
-  #should give: Y(D[:,alarm1] && D[:,resp_none1], sn(D[:,:target_rate1], D[:,:vert_rate1]))
-  #should give: Y(D[:,24] && D[:,30], sn(D[:,22], D[:,2]))
-  (f, ind, pred) = cluster_test(Ds, labels)
-end
-
-function script5()
-  Ds, labels = get_Ds(0,2)
-  samedir_firstRA!(Ds, labels)
-  direct_sample(Ds, labels, 500, 100000)
-end
-
-function script6() #try to separate real clusters
-  Ds, labels = get_Ds(0,2)
-  #not sure what to expect
-  (f, ind, pred) = cluster_test(Ds, labels)
-end
-
-function script7() #try to separate real clusters
-  Ds, labels = get_Ds(1,4)
-  #not sure what to expect
-  (f, ind, pred) = cluster_test(Ds, labels)
-end
-
-function direct_sample_spreads(Ds::Vector{DataFrame}, nsamples::Int64, genome_size::Int64=GENOME_SIZE)
-  grammar = create_grammar()
-  best_ind = ExampleIndividual(genome_size, 1000)
+function find_rule(Ds::Vector{DataFrame}, nsamples::Int64)
+  best_ind = ExampleIndividual(GENOME_SIZE, 1000)
   best_ind.fitness = Inf
   labels = "empty"
   for i = 1:nsamples
-    ind = ExampleIndividual(genome_size, 1000)
+    ind = ExampleIndividual(GENOME_SIZE, 1000)
     try
-      ind.code = transform(grammar, ind, maxwraps=MAXWRAPS)
+      ind.code = transform(GRAMMAR, ind, maxwraps=MAXWRAPS)
       @eval fn(D) = $(ind.code)
       labels = map(fn, Ds)
-      ind.fitness = cost = abs(0.5 - count(identity, labels) / length(labels)) + W1*length(string(ind.code))
+      ind.fitness = cost = (1.0 - entropy(labels)) + W1*length(string(ind.code))
     catch e
       if !isa(e, MaxWrapException)
         println("exception = $e")
@@ -556,54 +356,78 @@ function direct_sample_spreads(Ds::Vector{DataFrame}, nsamples::Int64, genome_si
     end
     s = string(ind.code)
     l = min(length(s), 50)
-    println("$i: fitness=$(ind.fitness), best=$(best_ind.fitness), length=$(length(s)), code=$(s[1:l])")
+    #println("$i: fitness=$(ind.fitness), best=$(best_ind.fitness), length=$(length(s)), code=$(s[1:l])")
     if 0.0 < ind.fitness < best_ind.fitness
       best_ind = ind
     end
   end
+  s = string(best_ind.code)
+  l = min(length(s), 50)
+  println("best: fitness=$(best_ind.fitness), length=$(length(s)), code=$(s[1:l])")
   return best_ind
 end
 
-function script8()
+function script1()
   files, Ds = get_Ds()
-  ind = direct_sample_spreads(Ds, 1000)
+  S = DataSet(Ds)
+  p = DTParams(get_rule, predict, stopcriterion)
+  dtree = build_tree(S, p)
+  stree = DT2ST(dtree, get_node_text, get_arrow_text)
+  plottree(stree, output="TEXPDF")
+  return (dtree, stree)
+end
+
+function get_rule(S::DataSet, records::Vector{Int64})
+  ind = find_rule(S.records[records], 1000)
+  return ind
+end
+
+function predict(split_rule::ExampleIndividual, S::DataSet, records::Vector{Int64})
+  ind = split_rule
   @eval f(D) = $(ind.code)
-  pred = map(f, Ds)
-  @show ind.code
-
-  Ds1 = Ds[find(x->x==true, pred)]
-  ind1 = direct_sample_spreads(Ds1, 1000)
-  @eval f1(D) = $(ind1.code)
-  pred1 = map(f1, Ds1)
-  @show pred1
-  @show ind1.code
-
-  Ds2 = Ds[find(x->x==false, pred)]
-  ind2 = direct_sample_spreads(Ds2, 1000)
-  @eval f2(D) = $(ind2.code)
-  pred2 = map(f2, Ds2)
-  @show pred2
-  @show ind2.code
-
-  return nothing
+  return pred = map(f, S.records[records])
 end
 
-function script9() #real clusters 1 vs others
-  Ds, labels = get_Ds(3)
-  #not sure what to expect
-  (f, ind, pred) = cluster_test(Ds, labels)
+function stopcriterion{T}(split_result::Vector{T}, depth::Int64, nclusters::Int64)
+  depth >= 3
 end
 
-function script10() #real clusters 1 vs others
-  Ds, labels = get_Ds(1)
-  #not sure what to expect
-  (f, ind, pred) = cluster_test(Ds, labels)
+function entropy{T}(labels::Vector{T})
+  out = 0.0
+  for l in unique(labels)
+    p = count(x -> x == l, labels) / length(labels)
+    if p != 0.0
+      out += - p * log(2, p)
+    end
+  end
+  return out
 end
 
-#TODOs:
-#try to explain Mykel's clusterings?
-#inject other properties as tests
-#framework?
-#papers
-#survey
+function get_colnames()
+  files, Ds = get_Ds()
+  return map(string, names(Ds[1]))
+end
+
+const COLNAMES = get_colnames()
+
+function get_node_text(node::DTNode)
+  if node.split_rule != nothing
+    s = "id=$(node.members)\\\\$(node.split_rule.code)"
+    r = r"D\[:,([0-9]+)\]"
+    for m in eachmatch(r, s)
+      id = m.captures[1] |> int
+      colname = COLNAMES[id]
+      s = replace(s, m.match, colname)
+    end
+    s = replace(s, "_", "\\_") #TODO: move these to a util package
+    s = replace(s, "|", "\$|\$")
+    s = replace(s, "<", "\$<\$")
+    s = replace(s, ">", "\$>\$")
+    return s
+  else
+    return "id=$(node.members)"
+  end
+end
+
+get_arrow_text(val) = string(val)
 

@@ -252,9 +252,9 @@ end
 
 function config_seeds!(cases::Cases, number_of_aircraft::Int64)
   encounter_string = get_encounter_string(number_of_aircraft)
-  add_field!(cases, "ast_params.init_seed", x -> int64(x), ["sim_params.$(encounter_string)"])
+  add_field!(cases, "ast_params.init_seed", x -> int64(0), ["sim_params.$(encounter_string)"])
   if encounter_string == "encounter_number"
-    add_field!(cases, "sim_params.encounter_seed", x -> uint64(x), ["sim_params.encounter_number"])
+    add_field!(cases, "sim_params.encounter_seed", x -> uint64(0), ["sim_params.encounter_number"])
   end
   return cases
 end

@@ -43,7 +43,7 @@ using Iterators
 
 function add_features!(df_files::Vector{ASCIIString}, feature_map::Vector{LookupCallback},
                         feature_names::Vector{ASCIIString}; overwrite::Bool=false)
-  Ds = map(readtable, dffiles)
+  Ds = map(readtable, df_files)
   add_features!(Ds, feature_map, feature_names)
   outfiles = Array(ASCIIString, length(Ds))
   for i = 1:length(Ds)

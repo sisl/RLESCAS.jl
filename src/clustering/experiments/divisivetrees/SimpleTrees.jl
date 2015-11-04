@@ -32,25 +32,72 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using SISLES
-using SISLES.GenerativeModel
-using AdaptiveStressTesting
+module SimpleTrees
 
-function defineASTParams(;
-                         max_steps::Int64 = 50,
-                         rsg_length::Int64 = 1,
-                         init_seed::Int64 = 0,
-                         reset_seed::Union(Nothing, Int64) = nothing)
-  p = ASTParams()
-  p.max_steps = max_steps
-  p.rsg_length = rsg_length
-  p.init_seed = init_seed
-  p.reset_seed = reset_seed
+export plottree, STNode
 
-  return p
+using TikzPictures
+
+type STNode
+  name::ASCIIString
+  children::Vector{STNode}
+  arrowlabels::Vector{ASCIIString} #not implemented
+end
+STNode() = STNode("", STNode[], ASCIIString[])
+
+function print_element!(io::IOBuffer, element::STNode)
+  println(io, "[.{$(element.name)}")
+  #process children
+  if !isempty(element.children)
+    for child in element.children
+      print_element!(io, child)
+    end
+  end
+  print(io, "]")
 end
 
-function defineAST(sim::AbstractGenerativeModel, p::ASTParams)
-  return AdaptiveStressTest(p, sim, GenerativeModel.initialize, GenerativeModel.step,
-                 GenerativeModel.isterminal)
+function plottree(root::STNode;
+                  siblingdist::Float64=30.0,
+                  outfileroot::String="simpletree",
+                  output::String="TEXPDF")
+  preamble = "\\usepackage{tikz-qtree}
+\\usetikzlibrary{shadows,trees}
+\\tikzset{
+edge from parent fork down,
+level distance=1.75cm,
+every node/.style=
+    {top color=white,
+    bottom color=blue!25,
+    rectangle,rounded corners,
+    minimum height=8mm,
+    draw=blue!75,
+    very thick,
+    drop shadow,
+    align=center,
+    text depth = 0pt
+    },
+edge from parent/.style=
+    {draw=blue!50,
+    thick
+    }}"
+  io = IOBuffer()
+  print(io, "\\Tree ")
+  print_element!(io, root)
+  println(io, ";")
+
+  tp = TikzPicture(takebuf_string(io), preamble=preamble)
+  if output == "TEXPDF"
+    save(PDF(outfileroot), tp)
+    save(TEX(outfileroot), tp)
+  elseif output == "PDF"
+    save(PDF(outfileroot), tp)
+  elseif output == "TEX"
+    save(TEX(outfileroot), tp)
+  else
+    error("Unrecognized output type")
+  end
+  return tp
 end
+
+end #module
+

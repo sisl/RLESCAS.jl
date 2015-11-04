@@ -61,6 +61,7 @@ function trajReplay(d::SaveDict; fileroot::String = "", case::Case=Case())
 
   reward, action_seq2 = play_sequence(ast, action_seq)
   notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
+  notifyObserver(sim, "action_seq", Any[action_seq])
 
   #Save
   sav = d #copy original

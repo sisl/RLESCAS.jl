@@ -32,25 +32,21 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using SISLES
-using SISLES.GenerativeModel
-using AdaptiveStressTesting
+using DivisiveTrees
+using SimpleTrees
 
-function defineASTParams(;
-                         max_steps::Int64 = 50,
-                         rsg_length::Int64 = 1,
-                         init_seed::Int64 = 0,
-                         reset_seed::Union(Nothing, Int64) = nothing)
-  p = ASTParams()
-  p.max_steps = max_steps
-  p.rsg_length = rsg_length
-  p.init_seed = init_seed
-  p.reset_seed = reset_seed
-
-  return p
+function DT2ST(dt::DivisiveTree, get_node_text::Function, get_arrow_text::Function)
+  stroot = STNode()
+  process_node!(stroot, dt.root, get_node_text, get_arrow_text)
+  return stroot
 end
 
-function defineAST(sim::AbstractGenerativeModel, p::ASTParams)
-  return AdaptiveStressTest(p, sim, GenerativeModel.initialize, GenerativeModel.step,
-                 GenerativeModel.isterminal)
+function process_node!(stnode::STNode, dtnode::DTNode, get_node_text::Function, get_arrow_text::Function)
+  stnode.name = get_node_text(dtnode)
+  for (val, dtchild) in dtnode.children
+    stchild = STNode()
+    push!(stnode.children, stchild)
+    push!(stnode.arrowlabels, get_arrow_text(val))
+    process_node!(stchild, dtchild, get_node_text, get_arrow_text)
+  end
 end
