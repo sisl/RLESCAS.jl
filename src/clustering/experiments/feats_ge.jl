@@ -178,7 +178,7 @@ function create_grammar()
     start = bin
 
     #produces bin
-    bin =  implies | always | eventually | until | weakuntil | release | lte | lt | and | or | not #| next #goto?
+    bin =  implies | always | eventually | until | weakuntil | release | lte | lt | and | or | not #goto?
     and = Expr(:&&, bin, bin)
     or = Expr(:||, bin, bin)
     not = Expr(:call, :!, bin)
@@ -188,7 +188,6 @@ function create_grammar()
     until = Expr(:call, :U, bin_vec, bin_vec) #until
     weakuntil = Expr(:call, :W, bin_vec, bin_vec) #weak until
     release = Expr(:call, :R, bin_vec, bin_vec) #release
-    #next = Expr(:call, :X, bin_vec) #next
     lte = Expr(:comparison, real, :<=, real_number) | Expr(:comparison, real, :<=, real) | Expr(:comparison, real_number, :<=, real)
     lt = Expr(:comparison, real, :<, real_number) | Expr(:comparison, real, :<, real) | Expr(:comparison, real_number, :<, real)
 
@@ -214,7 +213,7 @@ function create_grammar()
     bin_feat_id = 1 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 | 26 | 27 | 28 | 30 | 31 | 32 | 38 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 60 | 61 | 62 | 63 | 64 | 65 | 67 | 68 | 69 | 75
 
     #random numbers
-    real_number = Expr(:call, :rn, expdigit, rand_pos) | Expr(:call, :rn, expdigit, rand_neg)
+    real_number = Expr(:call, :rn, expdigit, rand_pos) | Expr(:call, :rn, expdigit, rand_neg) | 0.0
     expdigit = -4:4
     rand_pos[convert_number] =  digit + '.' + digit + digit + digit + digit
     rand_neg[convert_number] =  '-' + digit + '.' + digit + digit + digit + digit
@@ -260,7 +259,6 @@ function release(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
   end
 end
 
-next_(v::AbstractVector{Bool}) = length(v) >= 2 ? v[2] : false
 implies(b1::Bool, b2::Bool) = !b1 || b2
 function implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) #true at same time step
   ids = find(v1)
@@ -277,7 +275,12 @@ function implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}, op::Functio
 end
 implies_all(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = implies(v1, v2, all)
 implies_any(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = implies(v1, v2, any)
-implies_next(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = implies(v1, v2, next_)
+
+function implies_next(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
+  ids = find(v1)
+  filter!(x -> x < length(v2), ids)
+  return v2[ids+1] |> all
+end
 
 sign_(v1::RealVec, v2::RealVec) = (sign(v1) .* sign(v2)) .>= 0.0 #same sign, 0 matches any sign
 count_f(v::AbstractVector{Bool}) = count(identity, v) |> float
@@ -291,7 +294,6 @@ G = all
 U = until
 W = weak_until
 R = release
-X = next_ #avoid conflict with Base.next
 Y = implies
 Yl = implies_all
 Yy = implies_any
@@ -597,6 +599,57 @@ end
 function script10() #real clusters 1 vs others
   Ds, labels = get_Ds(1)
   #not sure what to expect
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
+
+function script11() #1 on 1
+  files, Ds_all = get_Ds()
+  Ds = Ds_all[5:6]
+  labels = [false, true]
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
+
+function get_colnames()
+  files, Ds = get_Ds()
+  return map(string, names(Ds[1]))
+end
+
+const COLNAMES = get_colnames()
+
+function sub_varnames{T<:String}(s::String, colnames::Vector{T})
+  r = r"D\[:,([0-9]+)\]"
+  for m in eachmatch(r, s)
+    id = m.captures[1] |> int
+    s = replace(s, m.match, colnames[id])
+  end
+  return s
+end
+
+function script12() #1 on others
+  files, Ds_all = get_Ds()
+  Ds = Ds_all[1:5]
+  labels = [false, true, true, true, true]
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
+
+function script13() #2 on others
+  files, Ds_all = get_Ds()
+  Ds = Ds_all[1:4]
+  labels = [false, false, true, true]
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
+
+function script14() #random clustering
+  files, Ds_all = get_Ds()
+  Ds = Ds_all[1:6]
+  labels = [false, true, false, true, false, true]
+  (f, ind, pred) = cluster_test(Ds, labels)
+end
+
+function script15() #random clustering
+  files, Ds_all = get_Ds()
+  Ds = Ds_all[1:10]
+  labels = [false, false, true, true, false, false, true, true, false, true]
   (f, ind, pred) = cluster_test(Ds, labels)
 end
 

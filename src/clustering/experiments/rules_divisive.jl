@@ -183,7 +183,7 @@ function create_grammar()
     start = bin
 
     #produces bin
-    bin =  implies | always | eventually | until | weakuntil | release | lte | lt #and | or | not | next#goto?
+    bin =  implies | always | eventually | until | weakuntil | release | lte | lt #and | or | not #goto?
     #and = Expr(:&&, bin, bin)
     #or = Expr(:||, bin, bin)
     #not = Expr(:call, :!, bin)
@@ -193,7 +193,7 @@ function create_grammar()
     until = Expr(:call, :U, bin_vec, bin_vec) #until
     weakuntil = Expr(:call, :W, bin_vec, bin_vec) #weak until
     release = Expr(:call, :R, bin_vec, bin_vec) #release
-    #next = Expr(:call, :X, bin_vec) #next
+    next = Expr(:call, :X, bin_vec, bin_vec) #next
     lte = Expr(:comparison, real, :<=, real_number) | Expr(:comparison, real, :<=, real) | Expr(:comparison, real_number, :<=, real)
     lt = Expr(:comparison, real, :<, real_number) | Expr(:comparison, real, :<, real) | Expr(:comparison, real_number, :<, real)
 
@@ -265,7 +265,6 @@ function release(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
   end
 end
 
-next_(v::AbstractVector{Bool}) = length(v) >= 2 ? v[2] : false
 implies(b1::Bool, b2::Bool) = !b1 || b2
 function implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) #true at same time step
   ids = find(v1)
@@ -282,7 +281,12 @@ function implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}, op::Functio
 end
 implies_all(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = implies(v1, v2, all)
 implies_any(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = implies(v1, v2, any)
-implies_next(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = implies(v1, v2, next_)
+
+function implies_next(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
+  ids = find(v1)
+  filter!(x -> x < length(v2), ids)
+  return v2[ids+1] |> all
+end
 
 sign_(v1::RealVec, v2::RealVec) = (sign(v1) .* sign(v2)) .>= 0.0 #same sign, 0 matches any sign
 count_f(v::AbstractVector{Bool}) = count(identity, v) |> float
@@ -296,7 +300,6 @@ G = all
 U = until
 W = weak_until
 R = release
-X = next_ #avoid conflict with Base.next
 Y = implies
 Yl = implies_all
 Yy = implies_any
@@ -413,12 +416,7 @@ const COLNAMES = get_colnames()
 function get_node_text(node::DTNode)
   if node.split_rule != nothing
     s = "id=$(node.members)\\\\$(node.split_rule.code)"
-    r = r"D\[:,([0-9]+)\]"
-    for m in eachmatch(r, s)
-      id = m.captures[1] |> int
-      colname = COLNAMES[id]
-      s = replace(s, m.match, colname)
-    end
+    s = sub_varnames(s, COLNAMES)
     s = replace(s, "_", "\\_") #TODO: move these to a util package
     s = replace(s, "|", "\$|\$")
     s = replace(s, "<", "\$<\$")
@@ -431,3 +429,11 @@ end
 
 get_arrow_text(val) = string(val)
 
+function sub_varnames{T<:String}(s::String, colnames::Vector{T})
+  r = r"D\[:,([0-9]+)\]"
+  for m in eachmatch(r, s)
+    id = m.captures[1] |> int
+    s = replace(s, m.match, colnames[id])
+  end
+  return s
+end
