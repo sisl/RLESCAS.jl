@@ -34,9 +34,14 @@
 
 module TikzTrees
 
-export plottree, TreeNode
+export plottree, TreeNode, convert
 
 using TikzPictures
+import Base.convert
+
+type TikzTree
+  root::TreeNode
+end
 
 type TreeNode
   name::ASCIIString
