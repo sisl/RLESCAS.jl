@@ -32,9 +32,6 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, "./")
-push!(LOAD_PATH, "../") #clustering folder
-
 using RLESUtils.FileUtils
 using RLESUtils.StringUtils #hamming
 using JSON2ASCII
@@ -55,12 +52,14 @@ println("Extract string: $(toq()) wall seconds")
 #compute affinity matrix
 tic()
 A = symmetric_affinity(X, levenshtein)
-#A = symmetric_affinity(X, hamming)
+#A = symmetric_affinity(X, hamming) #hamming
 println("Compute affinity matrix: $(toq()) wall seconds")
 
 tic()
 result = agglomerative_cluster(files, A, NCLUSTERS)
 println("Sklearn clustering: $(toq()) wall seconds")
 
-save_result(result, "asciicluster_leven.json") #change these for hamming
-plot_to_file(result, outfileroot="asciicluster_leven") #change these for hamming
+save_result(result, "asciicluster_hamming.json")
+plot_to_file(result, outfileroot="asciicluster_hamming")
+#save_result(result, "asciicluster_leven.json") #hamming
+#plot_to_file(result, outfileroot="asciicluster_leven") #hamming
