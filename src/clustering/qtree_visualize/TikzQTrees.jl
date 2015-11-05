@@ -32,25 +32,24 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module TikzTrees
+module TikzQTrees
 
-export plottree, TreeNode, convert
+export plottree, TikzQTree, QTreeNode, convert_tree
 
 using TikzPictures
-import Base.convert
 
-type TikzTree
-  root::TreeNode
+type TikzQTree
+  root::QTreeNode
 end
 
-type TreeNode
+type QTreeNode
   name::ASCIIString
-  children::Vector{TreeNode}
+  children::Vector{QTreeNode}
   arrowlabels::Vector{ASCIIString} #not implemented
 end
-TreeNode() = TreeNode("", TreeNode[], ASCIIString[])
+QTreeNode() = QTreeNode("", QTreeNode[], ASCIIString[])
 
-function print_element!(io::IOBuffer, element::TreeNode)
+function print_element!(io::IOBuffer, element::QTreeNode)
   println(io, "[.{$(element.name)}")
   #process children
   if !isempty(element.children)
@@ -61,7 +60,7 @@ function print_element!(io::IOBuffer, element::TreeNode)
   print(io, "]")
 end
 
-function plottree(root::TreeNode;
+function plottree(root::QTreeNode;
                   outfileroot::String="qtree",
                   output::String="TEXPDF")
   preamble = "\\usepackage{tikz-qtree}
@@ -102,6 +101,9 @@ edge from parent/.style=
   end
   return tp
 end
+
+#conversion functions
+include("convert_trees.jl")
 
 end #module
 

@@ -33,20 +33,21 @@
 # *****************************************************************************
 
 using DivisiveTrees
-using SimpleTrees
 
-function DT2ST(dt::DivisiveTree, get_node_text::Function, get_arrow_text::Function)
-  stroot = STNode()
-  process_node!(stroot, dt.root, get_node_text, get_arrow_text)
-  return stroot
+#get_node_text(dtnode::DTNode)
+#get_arrow_text(dtnode::DTNode)
+function convert_tree(dt::DivisiveTree, get_node_text::Function, get_arrow_text::Function)
+  qtroot = QTreeNode()
+  process_node!(qtroot, dt.root, get_node_text, get_arrow_text)
+  return qtroot
 end
 
-function process_node!(stnode::STNode, dtnode::DTNode, get_node_text::Function, get_arrow_text::Function)
-  stnode.name = get_node_text(dtnode)
+function process_node!(qtnode::QTreeNode, dtnode::DTNode, get_node_text::Function, get_arrow_text::Function)
+  qtnode.name = get_node_text(dtnode)
   for (val, dtchild) in dtnode.children
-    stchild = STNode()
-    push!(stnode.children, stchild)
-    push!(stnode.arrowlabels, get_arrow_text(val))
-    process_node!(stchild, dtchild, get_node_text, get_arrow_text)
+    qtchild = TreeNode()
+    push!(qtnode.children, qtchild)
+    push!(qtnode.arrowlabels, get_arrow_text(val))
+    process_node!(qtchild, dtchild, get_node_text, get_arrow_text)
   end
 end
