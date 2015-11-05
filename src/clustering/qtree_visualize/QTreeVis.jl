@@ -32,20 +32,20 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module SimpleTrees
+module TikzTrees
 
-export plottree, STNode
+export plottree, TreeNode
 
 using TikzPictures
 
-type STNode
+type TreeNode
   name::ASCIIString
-  children::Vector{STNode}
+  children::Vector{TreeNode}
   arrowlabels::Vector{ASCIIString} #not implemented
 end
-STNode() = STNode("", STNode[], ASCIIString[])
+TreeNode() = TreeNode("", TreeNode[], ASCIIString[])
 
-function print_element!(io::IOBuffer, element::STNode)
+function print_element!(io::IOBuffer, element::TreeNode)
   println(io, "[.{$(element.name)}")
   #process children
   if !isempty(element.children)
@@ -56,9 +56,8 @@ function print_element!(io::IOBuffer, element::STNode)
   print(io, "]")
 end
 
-function plottree(root::STNode;
-                  siblingdist::Float64=30.0,
-                  outfileroot::String="simpletree",
+function plottree(root::TreeNode;
+                  outfileroot::String="qtree",
                   output::String="TEXPDF")
   preamble = "\\usepackage{tikz-qtree}
 \\usetikzlibrary{shadows,trees}
