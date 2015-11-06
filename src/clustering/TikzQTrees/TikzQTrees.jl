@@ -32,22 +32,78 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using DivisiveTrees
+module TikzQTrees
 
-#get_node_text(dtnode::DTNode)
-#get_arrow_text(dtnode::DTNode)
-function convert_tree(dt::DivisiveTree, get_node_text::Function, get_arrow_text::Function)
-  qtroot = QTreeNode()
-  process_node!(qtroot, dt.root, get_node_text, get_arrow_text)
-  return qtroot
+export plottree, TikzQTree, QTreeNode, convert_tree
+
+using TikzPictures
+
+type QTreeNode
+  name::ASCIIString
+  children::Vector{QTreeNode}
+  arrowlabels::Vector{ASCIIString} #not implemented
+end
+QTreeNode() = QTreeNode("", QTreeNode[], ASCIIString[])
+
+type TikzQTree
+  root::QTreeNode
 end
 
-function process_node!(qtnode::QTreeNode, dtnode::DTNode, get_node_text::Function, get_arrow_text::Function)
-  qtnode.name = get_node_text(dtnode)
-  for (val, dtchild) in dtnode.children
-    qtchild = TreeNode()
-    push!(qtnode.children, qtchild)
-    push!(qtnode.arrowlabels, get_arrow_text(val))
-    process_node!(qtchild, dtchild, get_node_text, get_arrow_text)
+function print_element!(io::IOBuffer, element::QTreeNode)
+  println(io, "[.{$(element.name)}")
+  #process children
+  if !isempty(element.children)
+    for child in element.children
+      print_element!(io, child)
+    end
   end
+  print(io, "]")
 end
+
+function plottree(root::QTreeNode;
+                  outfileroot::String="qtree",
+                  output::String="TEXPDF")
+  preamble = "\\usepackage{tikz-qtree}
+\\usetikzlibrary{shadows,trees}
+\\tikzset{
+edge from parent fork down,
+level distance=1.75cm,
+every node/.style=
+    {top color=white,
+    bottom color=blue!25,
+    rectangle,rounded corners,
+    minimum height=8mm,
+    draw=blue!75,
+    very thick,
+    drop shadow,
+    align=center,
+    text depth = 0pt
+    },
+edge from parent/.style=
+    {draw=blue!50,
+    thick
+    }}"
+  io = IOBuffer()
+  print(io, "\\Tree ")
+  print_element!(io, root)
+  println(io, ";")
+
+  tp = TikzPicture(takebuf_string(io), preamble=preamble)
+  if output == "TEXPDF"
+    save(PDF(outfileroot), tp)
+    save(TEX(outfileroot), tp)
+  elseif output == "PDF"
+    save(PDF(outfileroot), tp)
+  elseif output == "TEX"
+    save(TEX(outfileroot), tp)
+  else
+    error("Unrecognized output type")
+  end
+  return tp
+end
+
+#conversion functions
+include("convert_trees.jl")
+
+end #module
+

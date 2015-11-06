@@ -32,41 +32,79 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module RNGWrapper
+module DataFrameSets
 
-export RSG, set_global, next, next!, set_from_seed!, hash, ==, isequal, length
+export DFSet, DFSetLabeled, get_colnames, maplabels, load_from_dir, load_from_csvs, load_from_clusterresult
+export sub, start, next, done, length
 
-using Iterators
-import Base: next, hash, ==, isequal, length
+import Base: sub, start, next, done, length
 
-type RSG #Seed generator
-  state::Vector{Uint32}
-end
-function RSG(len::Int64=1, seed::Int64=0)
-  return seed_to_state_itr(len, seed) |> collect |> RSG
-end
+using ClusterResults
+using RLESUtils.FileUtils
+using DataFrames
 
-set_from_seed!(rsg::RSG, len::Int64, seed::Int64) = copy!(rsg.state, seed_to_state_itr(len, seed))
-seed_to_state_itr(len::Int64, seed::Int64) = take(iterate(hash_uint32, seed), len)
-
-set_global(rsg::RSG) = set_gv_rng_state(rsg.state)
-function next!(rsg::RSG)
-  map!(hash_uint32, rsg.state)
-  return rsg
-end
-function next(rsg0::RSG)
-  rsg1 = deepcopy(rsg0)
-  next!(rsg1)
-  return rsg1
+type DFSet
+  records::Vector{DataFrame}
 end
 
-hash_uint32(x) = uint32(hash(x))
-set_gv_rng_state(i::Uint32) = set_gv_rng_state([i])
-set_gv_rng_state(a::Vector{Uint32}) = Base.dSFMT.dsfmt_gv_init_by_array(a) #not exported, so probably not stable
+type DFSetLabeled{T}
+  records::Vector{DataFrame}
+  labels::Vector{T}
+end
 
-length(rsg::RSG) = length(rsg.state)
-hash(rsg::RSG) = hash(rsg.state)
-==(rsg1::RSG, rsg2::RSG) = rsg1.state == rsg2.state
-isequal(rsg1::RSG, rsg2::RSG) = rsg1 == rsg2
+function DFSetLabeled{T}(Ds::DFSet, labels::Vector{T})
+  @assert length(Ds.records) == length(labels)
+  DFSetLabeled(Ds.records, labels)
+end
+
+function load_from_dir(dir::String; ext::String="csv") #directory of csvs
+  files = readdir_ext(ext, dir) |> sort!
+  Ds = load_from_csvs(files)
+  return (Ds, files)
+end
+
+function load_from_csvs(files::Vector{ASCIIString})
+  Ds = map(readtable, files) |> DFSet
+  return Ds
+end
+
+function load_from_clusterresult(file::String, name2file::Dict{ASCIIString, ASCIIString})
+  cr = load_result(file)
+  return load_from_clusterresult(cr, name2file)
+end
+
+function load_from_clusterresult(cr::ClusterResult, name2file::Dict{ASCIIString, ASCIIString})
+  files = map(cr.names) do x
+    haskey(name2file, x) ? name2file[x] : error("key not found: $x")
+  end
+  records = load_from_csvs(files)
+  return DFSetLabeled(records, cr.labels)
+end
+
+function maplabels(Dsl::DFSetLabeled, label_map::Dict)
+  ks = keys(label_map)
+  inds = find(x -> in(x, ks), Dsl.labels)
+  labels = map(x -> label_map[x], Dsl.labels[inds])
+  Dsl_ = DFSetLabeled(Dsl.records[inds], labels)
+  return Dsl_
+end
+
+get_colnames(Ds::DFSet) = map(string, names(Ds.records[1]))
+
+sub(Ds::DFSet, i::Int64) = sub(Ds, i:i)
+sub(Ds::DFSet, r::Range{Int64}) = DFSet(Ds.records[r])
+sub(Dsl::DFSetLabeled, i::Int64) = sub(Ds, i:i)
+sub(Dsl::DFSetLabeled, r::Range{Int64}) = DFSetLabeled(Dsl.records[r], Dsl.labels[r])
+sub(Dsl::DFSetLabeled, v::Vector{Int64}) = DFSetLabeled(Dsl.records[v], Dsl.labels[v])
+
+start(Ds::DFSet) = start(Ds.records)
+next(Ds::DFSet, s) = next(Ds.records, s)
+done(Ds::DFSet, s) = done(Ds.records, s)
+length(Ds::DFSet) = length(Ds.records)
+
+start(Dsl::DFSetLabeled) = start(zip(Dsl.records, Dsl.labels))
+next(Dsl::DFSetLabeled, s) = next(zip(Dsl.records, Dsl.labels), s)
+done(Dsl::DFSetLabeled, s) = done(zip(Dsl.records, Dsl.labels), s)
+length(Dsl::DFSetLabeled) = length(Dsl.records)
 
 end

@@ -32,78 +32,36 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module TikzQTrees
+include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
+include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar.jl"))
 
-export plottree, TikzQTree, QTreeNode, convert_tree
+const GENOME_SIZE = 500
+const POP_SIZE = 1000
+const MAXWRAPS = 2
 
-using TikzPictures
+function grammar_test(pop_size::Int64=POP_SIZE, genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
+  grammar = create_grammar()
+  pop = ExamplePopulation(pop_size, genome_size)
+  ngood = nbad = ntotal = 0
 
-type TikzQTree
-  root::QTreeNode
-end
-
-type QTreeNode
-  name::ASCIIString
-  children::Vector{QTreeNode}
-  arrowlabels::Vector{ASCIIString} #not implemented
-end
-QTreeNode() = QTreeNode("", QTreeNode[], ASCIIString[])
-
-function print_element!(io::IOBuffer, element::QTreeNode)
-  println(io, "[.{$(element.name)}")
-  #process children
-  if !isempty(element.children)
-    for child in element.children
-      print_element!(io, child)
+  for ind in pop.individuals
+    try
+      ind.code = transform(grammar, ind, maxwraps=maxwraps)
+      @show ind.code
+      ngood += 1
+      ntotal += 1
+    catch e
+      println("exception = $e")
+      ind.code = nothing
+      nbad += 1
+      ntotal += 1
     end
   end
-  print(io, "]")
+
+  @show ngood
+  @show nbad
+  @show ntotal
+  return filter(ind -> ind.code != nothing, pop)
 end
 
-function plottree(root::QTreeNode;
-                  outfileroot::String="qtree",
-                  output::String="TEXPDF")
-  preamble = "\\usepackage{tikz-qtree}
-\\usetikzlibrary{shadows,trees}
-\\tikzset{
-edge from parent fork down,
-level distance=1.75cm,
-every node/.style=
-    {top color=white,
-    bottom color=blue!25,
-    rectangle,rounded corners,
-    minimum height=8mm,
-    draw=blue!75,
-    very thick,
-    drop shadow,
-    align=center,
-    text depth = 0pt
-    },
-edge from parent/.style=
-    {draw=blue!50,
-    thick
-    }}"
-  io = IOBuffer()
-  print(io, "\\Tree ")
-  print_element!(io, root)
-  println(io, ";")
-
-  tp = TikzPicture(takebuf_string(io), preamble=preamble)
-  if output == "TEXPDF"
-    save(PDF(outfileroot), tp)
-    save(TEX(outfileroot), tp)
-  elseif output == "PDF"
-    save(PDF(outfileroot), tp)
-  elseif output == "TEX"
-    save(TEX(outfileroot), tp)
-  else
-    error("Unrecognized output type")
-  end
-  return tp
-end
-
-#conversion functions
-include("convert_trees.jl")
-
-end #module
-
+grammar_test();
