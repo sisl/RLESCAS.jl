@@ -41,10 +41,15 @@ convert_number(lst) = float(join(lst))
 
 function create_grammar()
   @grammar grammar begin
-    start = Expr(:call, now, bin_vec)
+    start = Expr(:call, :now, top)
+
+    top = top_and | top_or | top_not | always | eventually | until | weakuntil | release
+    top_and = Expr(:call, :&, top, top)
+    top_or = Expr(:call, :|, top, top)
+    top_not = Expr(:call, :!, top)
 
     #produces a bin_vec
-    bin_vec = bin_feat_vec | and | or | not | always | eventually | until | weakuntil | release | next | implies | eq | lt | lte | diff_eq | diff_lt | diff_lte | sign | count
+    bin_vec = bin_feat_vec | and | or | not | always | eventually | until | weakuntil | release | implies | next | eq | lt | lte | diff_eq | diff_lt | diff_lte | sign | count
     and = Expr(:call, :&, bin_vec, bin_vec)
     or = Expr(:call, :|, bin_vec, bin_vec)
     not = Expr(:call, :!, bin_vec)
@@ -53,8 +58,8 @@ function create_grammar()
     until = Expr(:call, :U, bin_vec, bin_vec) #until
     weakuntil = Expr(:call, :W, bin_vec, bin_vec) #weak until
     release = Expr(:call, :R, bin_vec, bin_vec) #release
-    next = Expr(:call, :X, bin_vec) #next
     implies = Expr(:call, :Y, bin_vec, bin_vec)
+    next = Expr(:call, :X, bin_vec) #next
     eq = Expr(:comparison, real_feat_vec, :.==, real_number) | Expr(:comparison, real_feat_vec, :.==, real_feat_vec)
     lt = Expr(:comparison, real_feat_vec, :.<, real_number) | Expr(:comparison, real_feat_vec, :.<, real_feat_vec) | Expr(:comparison, real_number, :.<, real_feat_vec)
     lte = Expr(:comparison, real_feat_vec, :.<=, real_number) | Expr(:comparison, real_feat_vec, :.<=, real_feat_vec) | Expr(:comparison, real_number, :.<=, real_feat_vec)
@@ -86,58 +91,24 @@ diff_eq(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .== b
 diff_lte(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .<= b
 diff_lt(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .< b
 
+eventually(v::AbstractVector{Bool}) = Bool[any(v[t:end]) for t = 1:endof(v)]
+globally(v::AbstractVector{Bool}) = Bool[all(v[t:end]) for t = 1:endof(v)]
+
 function until(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
-  t = findfirst(v2)
-  if t > 0
-    return all(v1[1:t-1])
-  else #true not found
-    return false
+  v = similar(v1)
+  for t = 1:endof(v)
+    t1 = findfirst(v2[t:end])
+    v[t] = t1 > 0 ? all(v1[t:t1-1]) : false
   end
+  return v
 end
 
-function weak_until(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
-  t = findfirst(v2)
-  if t > 0
-    return all(v1[1:t - 1])
-  else #true not found
-    return all(v1)
-  end
-end
-
-function release(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
-  t = findfirst(v2)
-  if t > 0
-    return all(v1[1:t])
-  else #true not found
-    return all(v1)
-  end
-end
-
-implies(b1::Bool, b2::Bool) = !b1 || b2
-function implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) #true at same time step
-  ids = find(v1)
-  return v2[ids] |> all
-end
-function implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}, op::Function) #operator true at subsequent steps
-  ts = find(v1)
-  for t in ts
-    if !op(v2[t:end])
-      return false
-    end
-  end
-  return true
-end
-implies_all(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = implies(v1, v2, all)
-implies_any(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = implies(v1, v2, any)
-
-function implies_next(v1::AbstractVector{Bool}, v2::AbstractVector{Bool})
-  ids = find(v1)
-  filter!(x -> x < length(v2), ids)
-  return v2[ids+1] |> all
-end
+weak_until(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = until(v1, v2) | globally(v1)
+release(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = weak_until(v2, v2 & v1) #v1 releases v2
+next_(v::AbstractVector{Bool}) = vcat(v[2:end], false)
+implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = !v1 | v2
 
 sign_(v1::RealVec, v2::RealVec) = (sign(v1) .* sign(v2)) .>= 0.0 #same sign, 0 matches any sign
-
 count_(v::AbstractVector{Bool}) = Float64[count(identity, v[t:end]) for t = 1:endof(v)]
 count_eq(v::AbstractVector{Bool}, b::Float64) = count_(v) .== b
 count_lt(v::AbstractVector{Bool}, b::Float64) = count_(v) .< b
@@ -156,6 +127,7 @@ G = globally
 U = until
 W = weak_until
 R = release
+X = next_ #avoid conflict with Base.next
 Y = implies
 sn = sign_ #avoid conflict with Base.sign
 ctlt = count_lt
@@ -166,8 +138,7 @@ cteq = count_eq
 
 get_col_types(D::DataFrame) = [typeof(D.columns[i]).parameters[1] for i=1:length(D.columns)]
 function make_type_string(D::DataFrame)
-  Ts = get_col_types(D)
-  Ts = map(string, Ts)
+  Ts = map(string, get_col_types(D))
   @assert all(x->x=="Bool" || x=="Float64", Ts)
   io = IOBuffer()
   for id in find(x->x=="Bool", Ts)

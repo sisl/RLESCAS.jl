@@ -142,16 +142,6 @@ const ADD_FEATURE_NAMES = ASCIIString[
   "converging"
   ]
 
-function fileroot_to_dataframe{T<:String}(fileroots::Vector{T}; dir::String="")
-  map(fileroots) do f
-    fileroot_to_dataframe(f, dir=dir)
-  end
-end
-#TODO: clean this up, make less assumptions on cr.names
-function fileroot_to_dataframe(fileroot::String; dir::String="./")
-  return joinpath(dir, "$(fileroot)_dataframe.csv")
-end
-
 function csvs2dataframes()
   csvfiles = readdir_ext("csv", IN_DIR)
   df_files = csv_to_dataframe(csvfiles, FEATURE_MAP, FEATURE_NAMES, outdir=OUT_DIR)

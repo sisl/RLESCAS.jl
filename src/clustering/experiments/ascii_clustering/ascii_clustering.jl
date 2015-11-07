@@ -32,17 +32,20 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
+
 using RLESUtils.FileUtils
 using RLESUtils.StringUtils #hamming
 using JSON2ASCII
 using ClusterResults
 using SKClustering
 using CRVisualize
+using Levenshtein
 
 const NCLUSTERS = 5
 const FIELDS = ASCIIString["sensor", "ra_detailed", "response", "adm"]
 
-files = readdir_ext("gz", "../data/dasc_nmacs")
+files = readdir_ext("gz", "../../data/dasc_nmacs/json")
 
 tic() #CPUtime doesn't work well for parallel
 X = pmap(f -> extract_string(f, FIELDS), files)
@@ -59,7 +62,8 @@ tic()
 result = agglomerative_cluster(files, A, NCLUSTERS)
 println("Sklearn clustering: $(toq()) wall seconds")
 
-save_result(result, "asciicluster_hamming.json")
-plot_to_file(result, outfileroot="asciicluster_hamming")
-#save_result(result, "asciicluster_leven.json") #hamming
-#plot_to_file(result, outfileroot="asciicluster_leven") #hamming
+save_result(result, "asciicluster_leven.json")
+plot_to_file(result, outfileroot="asciicluster_leven")
+#save_result(result, "asciicluster_hamming.json") #hamming
+#plot_to_file(result, outfileroot="asciicluster_hamming") #hamming
+

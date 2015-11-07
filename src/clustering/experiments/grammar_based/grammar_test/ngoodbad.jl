@@ -32,25 +32,36 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module JSON2ASCII
+include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
+include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar.jl"))
 
-export extract_string
+const GENOME_SIZE = 500
+const POP_SIZE = 1000
+const MAXWRAPS = 2
 
-include(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajLoad
-include(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl")) #sv_*
+function goodbad_test(pop_size::Int64=POP_SIZE, genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
+  grammar = create_grammar()
+  pop = ExamplePopulation(pop_size, genome_size)
+  ngood = nbad = ntotal = 0
 
-#TODO: consider moving to DataFrame format first
-function extract_string{T<:String}(file::T, fields::Vector{T})
-  d = trajLoad(file)
-  buf = IOBuffer()
-  for t = 1:sv_sim_steps(d)
-    for i = 1:sv_num_aircraft(d)
-      for field in fields
-        print(buf, sv_simlog_tdata(d, field, i, [t])[1])
-      end
+  for ind in pop.individuals
+    try
+      ind.code = transform(grammar, ind, maxwraps=maxwraps)
+      @show ind.code
+      ngood += 1
+      ntotal += 1
+    catch e
+      println("exception = $e")
+      ind.code = nothing
+      nbad += 1
+      ntotal += 1
     end
   end
-  return takebuf_string(buf)
+
+  @show ngood
+  @show nbad
+  @show ntotal
+  return filter(ind -> ind.code != nothing, pop)
 end
 
-end #module
+goodbad_test();

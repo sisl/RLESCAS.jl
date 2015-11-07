@@ -90,6 +90,7 @@ function maplabels(Dsl::DFSetLabeled, label_map::Dict)
 end
 
 get_colnames(Ds::DFSet) = map(string, names(Ds.records[1]))
+get_colnames(Dsl::DFSetLabeled) = map(string, names(Dsl.records[1]))
 
 sub(Ds::DFSet, i::Int64) = sub(Ds, i:i)
 sub(Ds::DFSet, r::Range{Int64}) = DFSet(Ds.records[r])

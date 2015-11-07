@@ -35,33 +35,38 @@
 include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
 include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar.jl"))
 
-const GENOME_SIZE = 500
-const POP_SIZE = 1000
-const MAXWRAPS = 2
+using Base.Test
 
-function grammar_test(pop_size::Int64=POP_SIZE, genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
-  grammar = create_grammar()
-  pop = ExamplePopulation(pop_size, genome_size)
-  ngood = nbad = ntotal = 0
+@test get_real(5, 1.2345) == 123450
+@test_approx_eq_eps get_real(-4, 1234.0) 0.1234 1e-10
 
-  for ind in pop.individuals
-    try
-      ind.code = transform(grammar, ind, maxwraps=maxwraps)
-      @show ind.code
-      ngood += 1
-      ntotal += 1
-    catch e
-      println("exception = $e")
-      ind.code = nothing
-      nbad += 1
-      ntotal += 1
-    end
-  end
+r1 = Float64[1, 2, 3, 4, 5]
+r2 = Float64[1, 0, 5, 2, 5]
+#diff=[0,2,-2,2,0]
+@test diff_eq(r1, r2, 2.0) == [false, true, false, true, false]
+@test diff_lte(r1, r2, 1.0) == [true, false, true, false, true]
+@test diff_lt(r1, r2, 0.0) == [false, false, true, false, false]
 
-  @show ngood
-  @show nbad
-  @show ntotal
-  return filter(ind -> ind.code != nothing, pop)
-end
+v1 = Bool[false, true, true, false, false]
+v2 = Bool[false, false, true, true, true]
+@test eventually(v1) = [true, true, true, false, false]
+@test globally(v2) == [false, false, true, true, true]
+@test until(v1, v2) == [false, true, true, true, true]
+@test until(v2, v1) == [false, true, true, false, false]
+@test weak_until(v1, v2) == [false, true, true, true, true]
+@test weak_until(v2, v1) == [false, true, true, true, true]
+@test release(v1, v2) == [false, true, true, true, true]
+@test release(v2, v1) == [false, true, true, false, false]
+@test next_(v1) == [true, true, false, false, false]
+@test next_(v2) == [false, true, true, true, false]
+@test implies(v1, v2) == [true, false, true, true, true]
+@test implies(v2, v1) == [true, true, true, false, false]
+@test count_eq(v1, 2.0) == [true, true, false, false, false]
+@test count_lt(v1, 2.0) == [false, false, true, true, true]
+@test count_lte(v1, 1.0) == [false, false, true, true, true]
+@test count_gt(v1, 1.0) == [true, true, false, false, false]
+@test count_gte(v1, 1.0) == [true, true, true, false, false]
 
-grammar_test();
+r1 = Float64[1, 2, -1, 0, 1, 0]
+r2 = Float64[2, 0, 1, 0, -2, -5]
+@test sign_(r1, r2) == [true, true, false, true, false, true]

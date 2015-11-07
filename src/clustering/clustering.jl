@@ -34,6 +34,7 @@
 
 push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
 push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
+push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
 push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
 push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
 push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
@@ -43,3 +44,4 @@ push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
 push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
 push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
 push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
+push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
