@@ -32,7 +32,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module DivisiveTreeVis
+
+export convert_tree #from visualize.jl
+
 using DivisiveTrees
+using TikzQTrees
 
 #get_node_text(dtnode::DTNode)
 #get_arrow_text(attr_val)
@@ -51,3 +56,5 @@ function process_node!(qtnode::QTreeNode, dtnode::DTNode, get_node_text::Functio
     process_node!(qtchild, dtchild, get_node_text, get_arrow_text)
   end
 end
+
+end #module
