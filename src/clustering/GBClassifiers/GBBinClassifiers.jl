@@ -32,7 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module GrammarTools
+#Grammar-Based Classifier
+module GBClassifers
 
 export BestSampleParams, best_sample, GeneticSearchParams, genetic_search
 
