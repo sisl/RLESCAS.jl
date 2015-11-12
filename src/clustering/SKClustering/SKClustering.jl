@@ -49,7 +49,7 @@ function agglomerative_cluster(names::Vector{ASCIIString}, affinity::Array{Float
                                             compute_full_tree=true)
   model[:fit](affinity)
   labels = model[:labels_]
-  tree = model[:children_]
+  tree = model[:children_] + 1 #start counting from 1
   return ClusterResult(names, labels, n_clusters, affinity, tree)
 end
 

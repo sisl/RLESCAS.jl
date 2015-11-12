@@ -44,7 +44,7 @@ type DTParams
   get_rule::Function #get_rule(S, records)
   predict::Function #predict(split_rule, S, records)
   stopcriterion::Function
-  nclusters::Int64
+  nclusters::Int64 #counter state, not an input
 end
 DTParams(get_rule::Function, predict::Function, stopcriterion::Function) = DTParams(get_rule, predict, stopcriterion, 0)
 

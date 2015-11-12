@@ -34,9 +34,7 @@
 
 module ClusterResults
 
-import Base.writecsv
-
-export ClusterResult, save_result, load_result, to_sorted_list, by_label
+export ClusterResult, save_result, load_result, to_sorted_list, by_label, save_csv, load_csv
 
 using JSON
 using RLESUtils.Obj2Dict
@@ -116,7 +114,7 @@ function by_label(result::ClusterResult, label)
   return result.names[inds]
 end
 
-function writecsv{T}(io::IO, result::ClusterResult; nametable::Vector{T}=[])
+function save_csv{T}(io::IO, result::ClusterResult; nametable::Vector{T}=[])
   if isempty(nametable) #use default if nametable is not provided
     nametable = result.names
   end
@@ -128,6 +126,19 @@ function writecsv{T}(io::IO, result::ClusterResult; nametable::Vector{T}=[])
     D[i, 1:length(v)] = map(x -> string(x[1]), v)
   end
   writecsv(io, D)
+end
+
+function load_csv(io::IO)
+  result = ClusterResult()
+  i = 0
+  for line in readlines(io)
+    i += 1
+    arr = split(chomp(line), ",") |> sort!
+    push!(result.names, arr...)
+    push!(result.labels, repeated(i, length(arr))...)
+  end
+  result.n_clusters = i
+  return result
 end
 
 end #module

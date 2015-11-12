@@ -32,41 +32,64 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#Grammar-Based Classifier
-module GBClassifers
+#Grammar-Based Binary Classifier
+module GBClassifiers
 
-export BestSampleParams, best_sample, GeneticSearchParams, genetic_search
+export GBParams, train, GBClassifier, BestSampleParams, best_sample, GeneticSearchParams,
+      genetic_search, classify
 
+using GrammarDef
+using DataFrameSets
 using GrammaticalEvolution
+using DataFrames
+
 import GrammaticalEvolution.evaluate!
 
-immutable BestSampleParams
+abstract GBParams
+
+immutable BestSampleParams <: GBParams
   grammar::Grammar
   genome_size::Int64
   maxvalue::Int64
   maxwraps::Int64
   default_code::Expr
-  get_fitness::Function
+  nsamples::Int64
+  verbosity::Int64
+  get_fitness::Union(Nothing, Function)
 end
 
-immutable GeneticSearchParams
+immutable GeneticSearchParams <: GBParams
   grammar::Grammar
   genome_size::Int64
   pop_size::Int64
   maxwraps::Int64
   default_code::Expr
   max_fitness::Float64
-  get_fitness::Function
+  min_iters::Int64
+  max_iters::Int64
+  verbosity::Int
+  get_fitness::Union(Nothing, Function)
 end
 
-function best_sample(p::BestSampleParams, nsamples::Int64; verbosity::Int64=0)
+type GBClassifier
+  params::GBParams
+  fitness::Float64
+  code::Expr
+end
+
+temp_function = Main.gensym() #unique in Main, to be reused
+
+train(p::BestSampleParams, Dsl::DFSetLabeled) = best_sample(p, Dsl)
+train(p::GeneticSearchParams, Dsl::DFSetLabeled) = genetic_search(p, Dsl)
+
+function best_sample(p::BestSampleParams, Dsl::DFSetLabeled)
   best_ind = ExampleIndividual(p.genome_size, p.maxvalue) #maxvalue=1000
   best_ind.fitness = Inf
   labels = "empty"
-  for i = 1:nsamples
+  for i = 1:p.nsamples
     ind = ExampleIndividual(p.genome_size, p.maxvalue)
     evaluate!(p.grammar, ind, p.maxwraps, p.get_fitness, p.default_code)
-    if verbosity > 1
+    if p.verbosity > 1
       s1 = string(best_ind.code)
       s2 = take(s1, 50) |> join
       println("$i: fitness=$(ind.fitness), best=$(best_ind.fitness), length=$(length(s1)), code=$(s2)")
@@ -75,18 +98,23 @@ function best_sample(p::BestSampleParams, nsamples::Int64; verbosity::Int64=0)
       best_ind = ind
     end
   end
-  if verbosity > 0
+  if p.verbosity > 0
     s1 = string(best_ind.code)
     s2 = take(s1, 50) |> join
     println("best: fitness=$(best_ind.fitness), length=$(length(s1)), code=$(s2)")
   end
-  return best_ind
+  return GBClassifier(p, best_ind.fitness, best_ind.code)
 end
 
-function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Function, default_code::Expr)
+function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union(Nothing, Function), default_code::Expr, Dsl::DFSetLabeled)
   try
     ind.code = transform(grammar, ind, maxwraps=maxwraps)
-    ind.fitness = get_fitness(ind.code)
+    if get_fitness != nothing
+      ind.fitness = get_fitness(ind.code, Dsl)
+    else #default: evaluate classification error
+      pred = classify(ind.code, Dsl)
+      ind.fitness = count(pred .!= Dsl.labels) / length(Dsl)
+    end
   catch e
     if !isa(e, MaxWrapException)
       s = take(string(e), 50) |> join
@@ -99,25 +127,38 @@ function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, ge
   end
 end
 
-function genetic_search(p::GeneticSearchParams, min_iters::Int64, max_iters::Int64; verbosity::Int=0)
-  if verbosity > 0
+function genetic_search(p::GeneticSearchParams, Dsl::DFSetLabeled)
+  if p.verbosity > 0
     println("Starting search...")
   end
   pop = ExamplePopulation(p.pop_size, p.genome_size)
   fitness = Inf
   iter = 1
-  while iter <= min_iters || (fitness > p.max_fitness && iter <= max_iters)
+  while iter <= p.min_iters || (fitness > p.max_fitness && iter <= p.max_iters)
     # generate a new population (based off of fitness)
-    pop = generate(p.grammar, pop, 0.1, 0.2, 0.2, p.maxwraps, p.get_fitness, p.default_code)
+    pop = generate(p.grammar, pop, 0.1, 0.2, 0.2, p.maxwraps, p.get_fitness, p.default_code, Dsl)
     fitness = pop[1].fitness #population is sorted, so first entry i the best
     s1 = string(pop[1].code)
     s2 = take(s1, 50) |> join
-    if verbosity > 0
+    if p.verbosity > 0
       println("generation: $iter, max fitness=$fitness, length=$(length(s1)) code=$(s2)")
     end
     iter += 1
   end
-  return pop[1]
+  ind = pop[1]
+  return GBClassifier(p, ind.fitness, ind.code)
+end
+
+classify(classifier::GBClassifier, D::DataFrame) = classify(classifier.code, D)
+function classify(code::Expr, D::DataFrame)
+  f = to_function(code)
+  return f(D)
+end
+
+classify(classifier::GBClassifier, Dsl::DFSetLabeled) = classify(classifier.code, Dsl)
+function classify(code::Expr, Dsl::DFSetLabeled)
+  f = to_function(code)
+  return map(f, Dsl.records)
 end
 
 end #module

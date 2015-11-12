@@ -32,18 +32,40 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRules"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/grammatical_evolution"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/GBClassifiers"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/JSON2ASCII"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
+module ClusterRules
+
+export CRParams, explain_clusters, FCParams, FCRules, start, next, done
+
+using GBClassifiers
+using DataFrameSets
+import Base: start, next, done
+
+abstract CRParams
+
+type FCParams <: CRParams
+end
+
+type FCRules{T}
+  rules::Dict{T, GBClassifier}
+end
+
+#explain flat clustering
+function explain_clusters(p::FCParams, gb_params::GBParams, Dsl::DFSetLabeled)
+  labelset = unique(Dsl.labels) |> sort!
+  classifiers = pmap(labelset) do l
+    labels = map(x -> x == l, Dsl.labels) #one vs others mapping
+    Dsl_ = setlabels(Dsl, labels) #new Dsl
+    return train(gb_params, Dsl_) #out=classifier
+  end
+  T = typeof(labelset).parameters[1]
+  rules = Dict{T, GBClassifier}(labelset, classifiers)
+  return FCRules(rules)
+end
+
+start(fcrules::FCRules) = start(fcrules.rules)
+next(fcrules::FCRules, s) = next(fcrules.rules, s)
+done(fcrules::FCRules, s) = done(fcrules.rules, s)
+
+end #module
+
+

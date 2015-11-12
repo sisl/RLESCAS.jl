@@ -34,7 +34,8 @@
 
 module DataFrameSets
 
-export DFSet, DFSetLabeled, get_colnames, maplabels, load_from_dir, load_from_csvs, load_from_clusterresult
+export DFSet, DFSetLabeled, get_colnames, setlabels, setlabels!, load_from_dir, load_from_csvs,
+        load_from_clusterresult
 export sub, start, next, done, length
 
 import Base: sub, start, next, done, length
@@ -44,68 +45,74 @@ using RLESUtils.FileUtils
 using DataFrames
 
 type DFSet
+  names::Vector{ASCIIString}
   records::Vector{DataFrame}
 end
 
 type DFSetLabeled{T}
+  names::Vector{ASCIIString}
   records::Vector{DataFrame}
   labels::Vector{T}
 end
 
 function DFSetLabeled{T}(Ds::DFSet, labels::Vector{T})
-  @assert length(Ds.records) == length(labels)
-  DFSetLabeled(Ds.records, labels)
+  @assert length(Ds.names) == length(Ds.records) == length(labels)
+  DFSetLabeled(Ds.names, Ds.records, labels)
 end
 
 function load_from_dir(dir::String; ext::String="csv") #directory of csvs
   files = readdir_ext(ext, dir) |> sort!
   Ds = load_from_csvs(files)
-  return (Ds, files)
+  return Ds
 end
 
 function load_from_csvs(files::Vector{ASCIIString})
-  Ds = map(readtable, files) |> DFSet
-  return Ds
+  records = map(readtable, files)
+  fs = map(basename, files)
+  return DFSet(fs, records)
 end
 
 function load_from_clusterresult(file::String, name2file::Dict{ASCIIString, ASCIIString})
   cr = load_result(file)
   return load_from_clusterresult(cr, name2file)
 end
-
 function load_from_clusterresult(cr::ClusterResult, name2file::Dict{ASCIIString, ASCIIString})
   files = map(cr.names) do x
     haskey(name2file, x) ? name2file[x] : error("key not found: $x")
   end
-  records = load_from_csvs(files)
-  return DFSetLabeled(records, cr.labels)
-end
-
-function maplabels(Dsl::DFSetLabeled, label_map::Dict)
-  ks = keys(label_map)
-  inds = find(x -> in(x, ks), Dsl.labels)
-  labels = map(x -> label_map[x], Dsl.labels[inds])
-  Dsl_ = DFSetLabeled(Dsl.records[inds], labels)
-  return Dsl_
+  records = map(readtable, files)
+  return DFSetLabeled(cr.names, records, cr.labels)
 end
 
 get_colnames(Ds::DFSet) = map(string, names(Ds.records[1]))
 get_colnames(Dsl::DFSetLabeled) = map(string, names(Dsl.records[1]))
 
 sub(Ds::DFSet, i::Int64) = sub(Ds, i:i)
-sub(Ds::DFSet, r::Range{Int64}) = DFSet(Ds.records[r])
-sub(Dsl::DFSetLabeled, i::Int64) = sub(Ds, i:i)
-sub(Dsl::DFSetLabeled, r::Range{Int64}) = DFSetLabeled(Dsl.records[r], Dsl.labels[r])
-sub(Dsl::DFSetLabeled, v::Vector{Int64}) = DFSetLabeled(Dsl.records[v], Dsl.labels[v])
+sub(Ds::DFSet, r::Range{Int64}) = DFSet(Ds.names[r], Ds.records[r])
+sub(Ds::DFSet, v::Vector{Int64}) = DFSet(Ds.names[v], Ds.records[v])
+sub(Dsl::DFSetLabeled, i::Int64) = sub(Dsl, i:i)
+sub(Dsl::DFSetLabeled, r::Range{Int64}) = DFSetLabeled(Dsl.names[r], Dsl.records[r], Dsl.labels[r])
+sub(Dsl::DFSetLabeled, v::Vector{Int64}) = DFSetLabeled(Dsl.names[v], Dsl.records[v], Dsl.labels[v])
 
-start(Ds::DFSet) = start(Ds.records)
-next(Ds::DFSet, s) = next(Ds.records, s)
-done(Ds::DFSet, s) = done(Ds.records, s)
+function setlabels!{T}(Dsl::DFSetLabeled{T}, labels::Vector{T})
+  @assert length(Dsl.records) == length(labels)
+  Dsl.labels = labels
+  return Dsl
+end
+
+function setlabels{T1, T2}(Dsl::DFSetLabeled{T1}, labels::Vector{T2})
+  @assert length(Dsl.records) == length(labels)
+  return DFSetLabeled{T2}(Dsl.names, Dsl.records, labels)
+end
+
+start(Ds::DFSet) = start(zip(Ds.names, Ds.records)) #TODO: don't zip every time
+next(Ds::DFSet, s) = next(zip(Ds.names, Ds.records), s)
+done(Ds::DFSet, s) = done(zip(Ds.names, Ds.records), s)
 length(Ds::DFSet) = length(Ds.records)
 
-start(Dsl::DFSetLabeled) = start(zip(Dsl.records, Dsl.labels))
-next(Dsl::DFSetLabeled, s) = next(zip(Dsl.records, Dsl.labels), s)
-done(Dsl::DFSetLabeled, s) = done(zip(Dsl.records, Dsl.labels), s)
+start(Dsl::DFSetLabeled) = start(zip(Dsl.names, Dsl.records, Dsl.labels))
+next(Dsl::DFSetLabeled, s) = next(zip(Dsl.names, Dsl.records, Dsl.labels), s)
+done(Dsl::DFSetLabeled, s) = done(zip(Dsl.names, Dsl.records, Dsl.labels), s)
 length(Dsl::DFSetLabeled) = length(Dsl.records)
 
 end

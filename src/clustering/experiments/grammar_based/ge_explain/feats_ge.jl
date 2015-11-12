@@ -33,88 +33,57 @@
 # *****************************************************************************
 
 include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
-include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar.jl"))
+include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammardef.jl"))
 
+using GrammarDef
+using ClusterRules
+using GBClassifiers
 using DataFrameSets
 using ClusterResults
+using TikzQTrees
 using RLESUtils.FileUtils
+using RLESUtils.LatexUtils
 using Iterators
 using DataFrames
 using GrammaticalEvolution
 
 const DF_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
 const GRAMMAR = create_grammar()
-const W1 = 0.0001 #code length
-const GENOME_SIZE = 500
-const POP_SIZE = 10000
+const W1 = 0.001 #code length
+const GENOME_SIZE = 400
+const POP_SIZE = 50#0
 const MAXWRAPS = 2
-const N_ITERATIONS = 5
+const MINITERATIONS = 1#5
+const MAXITERATIONS = 1#10
+const DEFAULTCODE = :(eval(false))
+const MAX_FITNESS = 0.03
+const VERBOSITY = 1
 
-function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, Dsl::DFSetLabeled)
-  predicted_labels = nothing
-  try
-    ind.code = transform(grammar, ind, maxwraps=MAXWRAPS)
-    @eval fn(D) = $(ind.code)
-    predicted_labels = map(fn, Dsl.records)
-  catch e
-    if !isa(e, MaxWrapException)
-      println("exception = $e")
-      println("code: $(ind.code)")
-    end
-    ind.code = :(throw($e))
-    ind.fitness = Inf
-    return
+function get_name2file_map() #maps encounter number to filename
+  df_files = readdir_ext("csv", DF_DIR)
+  ks = map(df_files) do f
+    s = basename(f)
+    s = replace(s, "trajSaveMCTS_ACASX_EvE_", "")
+    return replace(s, "_dataframe.csv", "")
   end
-  accuracy = count(identity, predicted_labels .== Dsl.labels) / length(Dsl)
-  if 0.0 <= accuracy < 0.5
-    ind.code = negate_expr(ind.code)
-    accuracy = 1.0 - accuracy
+  name2file_map = Dict{ASCIIString, ASCIIString}()
+  for (k, f) in zip(ks, df_files)
+    name2file_map[k] = f
   end
-  err = 1.0 - accuracy
-  #ind.fitness = err + W1*length(string(ind.code)) + W2*rand()
-  ind.fitness = err > 0.0 ? err : W1 * length(string(ind.code))
+  return name2file_map
 end
 
-negate_expr(ex::Expr) = parse("!($ex)")
+const NAME2FILE_MAP = get_name2file_map()
+const ASCII_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/ascii_clusters.json")
+const MYKEL_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/mykel.json")
+const JOSH1_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh1.json")
+const JOSH2_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh2.json")
 
-function learn_rule(Dsl::DFSetLabeled, n_iterations::Int64=N_ITERATIONS,
-                    grammar::Grammar=GRAMMAR, pop_size::Int64=POP_SIZE,
-                    genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
-  println("learn_rule...")
-  pop = ExamplePopulation(pop_size, genome_size)
-  generation = 1
-  while generation <= n_iterations
-    # generate a new population (based off of fitness)
-    pop = generate(grammar, pop, 0.1, 0.2, 0.2, Dsl)
-
-    # population is sorted, so first entry it the best
-    fitness = pop[1].fitness
-    println("generation: $generation, max fitness=$fitness, code=$(pop[1].code)")
-    generation += 1
-  end
-  ind = pop[1]
-  @eval f(D) = $(ind.code)
-  pred = map(f, Dsl.records)
-  code = sub_varnames(string(ind.code), get_colnames(Dsl))
-  println("code=$code")
-  return (f, ind, pred, code)
-end
-
-function direct_sample(Ds::DFSet, labels::Vector{Bool}, genome_size::Int64, nsamples::Int64)
-  grammar = create_grammar()
-  best_ind = ExampleIndividual(genome_size, 1000)
-  best_ind.fitness = Inf
-  for i = 1:nsamples
-    ind = ExampleIndividual(genome_size, 1000)
-    evaluate!(grammar, ind, Ds, labels)
-    s = string(ind.code)
-    l = min(length(s), 50)
-    println("$i: fitness=$(ind.fitness), best=$(best_ind.fitness), length=$(length(s)), code=$(s[1:l])")
-    if 0.0 < ind.fitness < best_ind.fitness
-      best_ind = ind
-    end
-  end
-  return best_ind
+function get_fitness{T}(code::Expr, Dsl::DFSetLabeled{T})
+  f = to_function(code)
+  predicted_labels = map(f, Dsl.records)
+  err = count(identity, predicted_labels .!= Dsl.labels) / length(Dsl)
+  return err > 0.0 ? err : W1 * length(string(code))
 end
 
 function fill_to_col!{T}(Ds::DFSet, field_id::Int64, fillvals::AbstractVector{T})
@@ -124,19 +93,89 @@ function fill_to_col!{T}(Ds::DFSet, field_id::Int64, fillvals::AbstractVector{T}
   end
 end
 
-function script1()
-  Ds, labels = get_Ds(0,2)
-  fill_to_col!(Ds, 1, !labels)
-  #should give: all(!D[:,1])
-  (f, ind, pred) = learn_rule(Ds, labels)
+get_colnames(Ds::DFSet) = get_colnames(Ds.records[1])
+get_colnames(Dsl::DFSetLabeled) = get_colnames(Dsl.records[1])
+get_colnames(D::DataFrame) = map(string, names(D))
+
+function qtreeflat{S<:String}(Dsl::DFSetLabeled, fcrules::FCRules, title::String, colnames::Vector{S})
+  root_text = "$title\\$(join(Dsl.names,","))" |> escape_latex
+  root = QTreeNode(root_text)
+  for (label, classifier) in fcrules
+    code_text = pretty_string(string(classifier.code), colnames)
+    members_text = get_members_text(Dsl, label, classifier)
+    cluster_text = "cluster=$label\\$(code_text)\\$(members_text)" |> escape_latex
+    push!(root.children, QTreeNode(cluster_text))
+  end
+  return TikzQTree(root)
 end
 
-function script2()
-  Ds, labels = get_Ds(0,2)
-  fill_to_col!(Ds, 2, map(x -> x ? 25.0 : -5.0, labels))
-  #should give: all(0.0 .<= D[:,2])
-  (f, ind, pred) = learn_rule(Ds, labels)
+function get_members_text(Dsl::DFSetLabeled, label, classifier::GBClassifier)
+  members = find(Dsl.labels .== label)
+  truth = map(l -> l == label, Dsl.labels) #one vs rest truth
+  pred = classify(classifier, Dsl)
+  mismatches = find(pred .!= truth)
+  ss = Dsl.names[members]
+  #for i in mismatches
+  #  ss[i] = "\\textunderline{$(ss[i])}"
+  #end
+  s = join(ss, ",")
+  return s
 end
+
+function checker{T}(crfile::String, labels_codes::Vector{T})
+  result = true
+  Dsl = load_from_clusterresult(crfile, NAME2FILE_MAP)
+  for (label, code) in labels_codes
+    truth = map(l -> l == label, Dsl.labels)
+    pred = classify(code, Dsl.records)
+    matched = pred == truth
+    println("pred=$pred, truth=$truth, matched=$matched")
+    if !matched
+      mismatched = count(identity, pred .!= truth)
+      warn("Not matched: label=$label, mismatched=$mismatched")
+      result = false
+    end
+  end
+  return result
+end
+
+#script1(MYKEL_CR)
+function script1(crfile::String)
+  Dsl = load_from_clusterresult(crfile, NAME2FILE_MAP)
+  p = FCParams()
+  gb_params = GeneticSearchParams(GRAMMAR, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
+                            MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
+  fcrules = explain_clusters(p, gb_params, Dsl)
+  #checker(crfile, labels_classifiers)
+  title = basename(crfile)
+  qtree = qtreeflat(Dsl, fcrules, title, get_colnames(Dsl))
+  fileroot = splitext(basename(crfile))[1]
+  plottree(qtree, outfileroot="$(fileroot)_qtree")
+  return fcrules
+end
+
+#=
+function hcluster_codes(crfile::String)
+  cr = load_result(crfile)
+  tree = cr.tree
+  nrecords = length(cr.names)
+  A = Array(QTreeNode, nrecords)
+  for i = 1:nrecords
+    A[i] = QTreeNode()
+  end
+  for i = size(tree, 1) #rows
+    c1, c2 = tree[i]
+
+  end
+end
+=#
+
+#TODOs:
+#try to explain Mykel's clusterings?
+#refactor tests
+#visualization, d3?
+#papers
+#survey
 
 #=
 function samedir_firstRA!(Ds::DFSet, labels::Vector{Bool})
@@ -174,36 +213,23 @@ function script5()
 end
 =#
 
-function get_name2file_map() #maps encounter number to filename
-  df_files = readdir_ext("csv", DF_DIR)
-  ks = map(df_files) do f
-    s = basename(f)
-    s = replace(s, "trajSaveMCTS_ACASX_EvE_", "")
-    return replace(s, "_dataframe.csv", "")
-  end
-  name2file_map = Dict{ASCIIString, ASCIIString}()
-  for (k, f) in zip(ks, df_files)
-    name2file_map[k] = f
-  end
-  return name2file_map
+#=
+function script1()
+  Ds, labels = get_Ds(0,2)
+  fill_to_col!(Ds, 1, !labels)
+  #should give: all(!D[:,1])
+  (f, ind, pred) = learn_rule(Ds, labels)
 end
 
-const NAME2FILE_MAP = get_name2file_map()
-const ASCII_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/ascii_clusters.json")
-
-function one_vs_all_labelmap(labels::Vector{Int64}, poslabel::Int64)
-  label_map = Dict{Int64, Bool}()
-  for i in unique(labels)
-    label_map[i] = false
-  end
-  label_map[poslabel] = true
-  return label_map
+function script2()
+  Ds, labels = get_Ds(0,2)
+  fill_to_col!(Ds, 2, map(x -> x ? 25.0 : -5.0, labels))
+  #should give: all(0.0 .<= D[:,2])
+  (f, ind, pred) = learn_rule(Ds, labels)
 end
+=#
 
-function one_vs_one_labelmap(labels::Vector{Int64}, poslabel::Int64, neglabel::Int64)
-  return label_map = Dict{Int64, Bool}([poslabel => true, neglabel => false])
-end
-
+#=
 function script6() #try to separate real clusters
   Dsl = load_from_clusterresult(ASCII_CR, NAME2FILE_MAP)
   label_map = one_vs_one_labelmap(Dsl.labels, 0, 2)
@@ -254,11 +280,6 @@ function script15() #random clustering
   labels = [false, false, true, true, false, false, true, true, false, true]
   (f, ind, pred) = learn_rule(Ds_, labels)
 end
+=#
 
-#TODOs:
-#try to explain Mykel's clusterings?
-#refactor tests
-#visualization, d3?
-#papers
-#survey
-
+#negate_expr(ex::Expr) = parse("!($ex)")

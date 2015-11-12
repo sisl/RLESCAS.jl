@@ -34,7 +34,7 @@
 
 module TikzQTrees
 
-export plottree, TikzQTree, QTreeNode, convert_tree
+export plottree, TikzQTree, QTreeNode
 
 using TikzPictures
 
@@ -44,6 +44,7 @@ type QTreeNode
   arrowlabels::Vector{ASCIIString} #not implemented
 end
 QTreeNode() = QTreeNode("", QTreeNode[], ASCIIString[])
+QTreeNode(name::ASCIIString) = QTreeNode(name, QTreeNode[], ASCIIString[])
 
 type TikzQTree
   root::QTreeNode
@@ -60,7 +61,7 @@ function print_element!(io::IOBuffer, element::QTreeNode)
   print(io, "]")
 end
 
-function plottree(root::QTreeNode;
+function plottree(qtree::TikzQTree;
                   outfileroot::String="qtree",
                   output::String="TEXPDF")
   preamble = "\\usepackage{tikz-qtree}
@@ -85,7 +86,7 @@ edge from parent/.style=
     }}"
   io = IOBuffer()
   print(io, "\\Tree ")
-  print_element!(io, root)
+  print_element!(io, qtree.root)
   println(io, ";")
 
   tp = TikzPicture(takebuf_string(io), preamble=preamble)
@@ -101,9 +102,6 @@ edge from parent/.style=
   end
   return tp
 end
-
-#conversion functions
-include("convert_trees.jl")
 
 end #module
 

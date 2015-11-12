@@ -32,6 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module GrammarDef
+
+export create_grammar, get_col_types, make_type_string, to_function, pretty_string
+
 using GrammaticalEvolution
 using DataFrames
 
@@ -41,15 +45,16 @@ convert_number(lst) = float(join(lst))
 
 function create_grammar()
   @grammar grammar begin
-    start = Expr(:call, :now, top)
+    start = Expr(:call, :top, top)
 
-    top = top_and | top_or | top_not | always | eventually | until | weakuntil | release
+    top = always | eventually | until | weakuntil | release | top_and | top_or | top_not
     top_and = Expr(:call, :&, top, top)
     top_or = Expr(:call, :|, top, top)
     top_not = Expr(:call, :!, top)
 
     #produces a bin_vec
-    bin_vec = bin_feat_vec | and | or | not | always | eventually | until | weakuntil | release | implies | next | eq | lt | lte | diff_eq | diff_lt | diff_lte | sign | count
+    bin_vec = bin_feat_vec | and | or | not | implies | next | eq | lt | lte | diff_eq | diff_lt | diff_lte |
+      sign | count #| always | eventually | until | weakuntil | release
     and = Expr(:call, :&, bin_vec, bin_vec)
     or = Expr(:call, :|, bin_vec, bin_vec)
     not = Expr(:call, :!, bin_vec)
@@ -61,8 +66,10 @@ function create_grammar()
     implies = Expr(:call, :Y, bin_vec, bin_vec)
     next = Expr(:call, :X, bin_vec) #next
     eq = Expr(:comparison, real_feat_vec, :.==, real_number) | Expr(:comparison, real_feat_vec, :.==, real_feat_vec)
-    lt = Expr(:comparison, real_feat_vec, :.<, real_number) | Expr(:comparison, real_feat_vec, :.<, real_feat_vec) | Expr(:comparison, real_number, :.<, real_feat_vec)
-    lte = Expr(:comparison, real_feat_vec, :.<=, real_number) | Expr(:comparison, real_feat_vec, :.<=, real_feat_vec) | Expr(:comparison, real_number, :.<=, real_feat_vec)
+    lt = Expr(:comparison, real_feat_vec, :.<, real_number) | Expr(:comparison, real_feat_vec, :.<, real_feat_vec) |
+          Expr(:comparison, real_number, :.<, real_feat_vec)
+    lte = Expr(:comparison, real_feat_vec, :.<=, real_number) | Expr(:comparison, real_feat_vec, :.<=, real_feat_vec) |
+          Expr(:comparison, real_number, :.<=, real_feat_vec)
     diff_eq = Expr(:call, :dfeq, real_feat_vec, real_feat_vec, real_number)
     diff_lt = Expr(:call, :dflt, real_feat_vec, real_feat_vec, real_number)
     diff_lte = Expr(:call, :dfle, real_feat_vec, real_feat_vec, real_number)
@@ -72,8 +79,10 @@ function create_grammar()
     #based on features
     real_feat_vec = Expr(:ref, :D, :(:), real_feat_id)
     bin_feat_vec = Expr(:ref, :D, :(:), bin_feat_id)
-    real_feat_id = 2 | 3 | 4 | 5 | 6 | 22 | 29 | 33 | 34 | 35 | 36 | 37 | 39 | 40 | 41 | 42 | 43 | 59 | 66 | 70 | 71 | 72 | 73 | 74
-    bin_feat_id = 1 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 | 26 | 27 | 28 | 30 | 31 | 32 | 38 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 60 | 61 | 62 | 63 | 64 | 65 | 67 | 68 | 69 | 75
+    real_feat_id = 2 | 3 | 4 | 5 | 6 | 22 | 29 | 33 | 34 | 35 | 36 | 37 | 39 | 40 | 41 | 42 | 43 | 59 | 66 |
+      70 | 71 | 72 | 73 | 74
+    bin_feat_id = 1 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 |
+      26 | 27 | 28 | 30 | 31 | 32 | 38 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 60 | 61 | 62 | 63 | 64 | 65 | 67 | 68 | 69 | 75
 
     #random numbers
     real_number = Expr(:call, :rn, expdigit, rand_pos) | Expr(:call, :rn, expdigit, rand_neg)
@@ -117,7 +126,7 @@ count_gt(v::AbstractVector{Bool}, b::Float64) = count_(v) .> b
 count_gte(v::AbstractVector{Bool}, b::Float64) = count_(v) .>= b
 
 #shorthands used in grammar
-now = first
+top = first
 rn = get_real
 dfeq = diff_eq
 dfle = diff_lte
@@ -140,26 +149,48 @@ get_col_types(D::DataFrame) = [typeof(D.columns[i]).parameters[1] for i=1:length
 function make_type_string(D::DataFrame)
   Ts = map(string, get_col_types(D))
   @assert all(x->x=="Bool" || x=="Float64", Ts)
-  io = IOBuffer()
-  for id in find(x->x=="Bool", Ts)
-    print(io, id, " | ")
-  end
-  bin_string = takebuf_string(io)[1:end-3]
+  bin_string = join(find(x -> x == "Bool", Ts), " | ")
   println("bin_feat_id = ", bin_string)
-  io = IOBuffer()
-  for id in find(x->x=="Float64", Ts)
-    print(io, id, " | ")
-  end
-  real_string = takebuf_string(io)[1:end-3]
+  real_string = join(find(x -> x == "Float64", Ts), " | ")
   println("real_feat_id = ", real_string)
   return bin_string, real_string
 end
 
+function to_function(code::Expr)
+  @eval f(D) = $code
+  return f
+end
+
+function pretty_string{T<:String}(code::String, colnames::Vector{T})
+  s = code
+  #remove top()
+  s = replace(s, "top(", "")[1:end-1]
+  #remove spaces
+  s = replace(s, " ", "")
+  #sub variables
+  s = sub_varnames(s, colnames)
+  #replace floats
+  s = sub_rn(s)
+  return s
+end
+
 function sub_varnames{T<:String}(s::String, colnames::Vector{T})
-  r = r"D\[:,([0-9]+)\]"
+  r = r"D\[:,(\d+)\]"
   for m in eachmatch(r, s)
     id = m.captures[1] |> int
     s = replace(s, m.match, colnames[id])
   end
   return s
 end
+
+function sub_rn(s::String)
+  r = r"rn\(([+-]?\d),([+-]?\d.\d+)\)"
+  for m in eachmatch(r, s)
+    n = int(m.captures[1])
+    x = float(m.captures[2])
+    s = replace(s, m.match, rn(n, x))
+  end
+  return s
+end
+
+end #module

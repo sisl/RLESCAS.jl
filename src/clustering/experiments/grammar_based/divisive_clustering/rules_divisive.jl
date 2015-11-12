@@ -36,7 +36,9 @@ include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
 include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar.jl"))
 
 import Base.convert
+using GrammarTools
 using DivisiveTrees
+using DivisiveTreeVis
 using TikzQTrees
 using DataFrameSets
 using Iterators
@@ -45,48 +47,25 @@ using DataFrames
 const DF_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats")
 
 const GRAMMAR = create_grammar()
-const W1 = 0.001 #code length
+const W1 = 0.001 #code length weight
+const N_SAMPLES = 1000
+const MAXDEPTH = 3
 const GENOME_SIZE = 500
-const POP_SIZE = 10000
+const MAXVALUE = 1000
 const MAXWRAPS = 2
-const N_ITERATIONS = 5
+const DEFAULTCODE = :(eval(false))
+const VERBOSITY = 1
 
-function find_rule(Ds::Vector{DataFrame}, nsamples::Int64)
-  best_ind = ExampleIndividual(GENOME_SIZE, 1000) #maxvalue=1000
-  best_ind.fitness = Inf
-  labels = "empty"
-  for i = 1:nsamples
-    ind = ExampleIndividual(GENOME_SIZE, 1000)
-    try
-      ind.code = transform(GRAMMAR, ind, maxwraps=MAXWRAPS)
-      @eval fn(D) = $(ind.code)
-      labels = map(fn, Ds)
-      ind.fitness = cost = (1.0 - entropy(labels)) + W1*length(string(ind.code))
-    catch e
-      if !isa(e, MaxWrapException)
-        println("exception = $e")
-        println("code: $(ind.code)")
-      end
-      ind.code = :(throw($e))
-      ind.fitness = Inf
-      return
-    end
-    s = string(ind.code)
-    l = min(length(s), 50)
-    #println("$i: fitness=$(ind.fitness), best=$(best_ind.fitness), length=$(length(s)), code=$(s[1:l])")
-    if 0.0 < ind.fitness < best_ind.fitness
-      best_ind = ind
-    end
-  end
-  s = string(best_ind.code)
-  l = min(length(s), 50)
-  println("best: fitness=$(best_ind.fitness), length=$(length(s)), code=$(s[1:l])")
-  return best_ind
+function get_fitness(code::Expr, Ds)
+  @eval f(D) = $(code)
+  labels = map(f, Ds)
+  return (1.0 - entropy(labels)) + W1 * length(string(code))
 end
 
 function get_rule(S::DTSet, records::Vector{Int64})
-  ind = find_rule(S.records[records], 1000)
-  return ind
+  get_fitness(code::Expr) = get_fitness(code, S.records[records])
+  grammar_params = BestSampleParams(GRAMMAR, GENOME_SIZE, MAXVALUE, MAXWRAPS, DEFAULTCODE, get_fitness)
+  return best_sample(grammar_params, N_SAMPLES, verbosity=VERBOSITY)
 end
 
 function predict(split_rule::ExampleIndividual, S::DTSet, records::Vector{Int64})
@@ -96,7 +75,7 @@ function predict(split_rule::ExampleIndividual, S::DTSet, records::Vector{Int64}
 end
 
 function stopcriterion{T}(split_result::Vector{T}, depth::Int64, nclusters::Int64)
-  depth >= 3
+  depth >= MAXDEPTH
 end
 
 function entropy{T}(labels::Vector{T})
