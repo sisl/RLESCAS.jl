@@ -42,6 +42,7 @@ using GBClassifiers
 using DataFrameSets
 using TikzQTrees
 using RLESUtils.LatexUtils
+using JSON
 
 function plot_qtree(fcrules::FCRules, Dl::DFSetLabeled, title::String; outfileroot::String="crvis-qtree")
   qtree = to_qtree(fcrules, Dl, title)
@@ -71,8 +72,8 @@ function get_members_text(Dl::DFSetLabeled, label, classifier::GBClassifier)
 end
 
 function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; outfileroot::String="crvis-d3js")
-  d = to_d3js(hcrules, Dl, title)
-  filename = join(outfileroot, ".json")
+  d = to_d3js(hcrules, Dl)
+  filename = "$(outfileroot).json"
   f = open(filename, "w")
   JSON.print(f, d)
   close(f)
@@ -80,18 +81,19 @@ function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; outfileroot::String="crv
 end
 
 function to_d3js(hcrules::HCRules, Dl::DFSetLabeled)
-  root = hcrules.rules[end]
+  root_index = length(hcrules.rules)
   d = Dict{ASCIIString,Any}() #JSON-compatible
-  process!(d, root)
+  process!(d, hcrules, root_index)
   return d
 end
 
 function process!(d::Dict{ASCIIString,Any}, hcrules::HCRules, index::Int64)
   node = hcrules.rules[index]
-  d["name"] = "$(node.members)\n$(node.classifier.code)"
+  code = node.classifier != nothing ? node.classifier.code : nothing
+  d["name"] = "$(node.members)\n$(code)"
   d["height"] = index
   d["children"] = Array(Dict{ASCIIString,Any}, 0)
-  dchild = d["children"]
+  d_child = d["children"]
   for (bool, child_index) in node.children
     push!(d_child, Dict{ASCIIString,Any}())
     process!(d_child[end], hcrules, child_index)
