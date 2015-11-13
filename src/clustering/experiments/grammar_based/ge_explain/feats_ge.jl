@@ -37,6 +37,7 @@ include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammardef.jl"
 
 using GrammarDef
 using ClusterRules
+using ClusterRulesVis
 using GBClassifiers
 using DataFrameSets
 using ClusterResults
@@ -51,12 +52,12 @@ const DF_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
 const GRAMMAR = create_grammar()
 const W1 = 0.001 #code length
 const GENOME_SIZE = 400
-const POP_SIZE = 50#0
+const POP_SIZE = 50#00
 const MAXWRAPS = 2
 const MINITERATIONS = 1#5
-const MAXITERATIONS = 1#10
+const MAXITERATIONS = 1#20
 const DEFAULTCODE = :(eval(false))
-const MAX_FITNESS = 0.03
+const MAX_FITNESS = 0.05
 const VERBOSITY = 1
 
 function get_name2file_map() #maps encounter number to filename
@@ -79,10 +80,13 @@ const MYKEL_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/mykel.json")
 const JOSH1_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh1.json")
 const JOSH2_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh2.json")
 
-function get_fitness{T}(code::Expr, Dsl::DFSetLabeled{T})
+function get_fitness{T}(code::Expr, Dl::DFSetLabeled{T})
+  #if length(string(code)) > 900 #skip evaluation if it is too long
+  #  return Inf
+  #end
   f = to_function(code)
-  predicted_labels = map(f, Dsl.records)
-  err = count(identity, predicted_labels .!= Dsl.labels) / length(Dsl)
+  predicted_labels = map(f, Dl.records)
+  err = count(identity, predicted_labels .!= Dl.labels) / length(Dl)
   return err > 0.0 ? err : W1 * length(string(code))
 end
 
@@ -93,65 +97,46 @@ function fill_to_col!{T}(Ds::DFSet, field_id::Int64, fillvals::AbstractVector{T}
   end
 end
 
-get_colnames(Ds::DFSet) = get_colnames(Ds.records[1])
-get_colnames(Dsl::DFSetLabeled) = get_colnames(Dsl.records[1])
-get_colnames(D::DataFrame) = map(string, names(D))
-
-function qtreeflat{S<:String}(Dsl::DFSetLabeled, fcrules::FCRules, title::String, colnames::Vector{S})
-  root_text = "$title\\$(join(Dsl.names,","))" |> escape_latex
-  root = QTreeNode(root_text)
-  for (label, classifier) in fcrules
-    code_text = pretty_string(string(classifier.code), colnames)
-    members_text = get_members_text(Dsl, label, classifier)
-    cluster_text = "cluster=$label\\$(code_text)\\$(members_text)" |> escape_latex
-    push!(root.children, QTreeNode(cluster_text))
-  end
-  return TikzQTree(root)
-end
-
-function get_members_text(Dsl::DFSetLabeled, label, classifier::GBClassifier)
-  members = find(Dsl.labels .== label)
-  truth = map(l -> l == label, Dsl.labels) #one vs rest truth
-  pred = classify(classifier, Dsl)
-  mismatches = find(pred .!= truth)
-  ss = Dsl.names[members]
-  #for i in mismatches
-  #  ss[i] = "\\textunderline{$(ss[i])}"
-  #end
-  s = join(ss, ",")
-  return s
-end
-
-function checker{T}(crfile::String, labels_codes::Vector{T})
-  result = true
-  Dsl = load_from_clusterresult(crfile, NAME2FILE_MAP)
-  for (label, code) in labels_codes
-    truth = map(l -> l == label, Dsl.labels)
-    pred = classify(code, Dsl.records)
-    matched = pred == truth
-    println("pred=$pred, truth=$truth, matched=$matched")
-    if !matched
-      mismatched = count(identity, pred .!= truth)
-      warn("Not matched: label=$label, mismatched=$mismatched")
-      result = false
-    end
-  end
-  return result
-end
-
+#flat clusters
 #script1(MYKEL_CR)
+#script1(JOSH1_CR)
 function script1(crfile::String)
-  Dsl = load_from_clusterresult(crfile, NAME2FILE_MAP)
+  #load data
+  Dl = load_from_clusterresult(crfile, NAME2FILE_MAP)
+  #explain
   p = FCParams()
   gb_params = GeneticSearchParams(GRAMMAR, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
-  fcrules = explain_clusters(p, gb_params, Dsl)
-  #checker(crfile, labels_classifiers)
+  fcrules = explain_clusters(p, gb_params, Dl)
+  #visualize
   title = basename(crfile)
-  qtree = qtreeflat(Dsl, fcrules, title, get_colnames(Dsl))
   fileroot = splitext(basename(crfile))[1]
-  plottree(qtree, outfileroot="$(fileroot)_qtree")
-  return fcrules
+  plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree")
+  #check
+  Dl2 = load_from_clusterresult(crfile, NAME2FILE_MAP) #reload in case Dl got changed
+  check_results = checker(fcrules, Dl2)
+  return fcrules, check_results
+end
+
+#hierarchical clusters
+#script2(ASCII_CR)
+function script2(crfile::String)
+  #load data
+  cr = load_result(crfile)
+  Dl = load_from_clusterresult(cr, NAME2FILE_MAP)
+  #explain
+  p = HCParams(cr.tree)
+  gb_params = GeneticSearchParams(GRAMMAR, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
+                            MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
+  hcrules = explain_clusters(p, gb_params, Dl)
+  #visualize
+  fileroot = splitext(basename(crfile))[1]
+  write_d3js(hcrules, Dl, outfileroot="$(fileroot)_d3js")
+  #check
+  cr2 = load_result(crfile)
+  Dl2 = load_from_clusterresult(cr2, NAME2FILE_MAP)
+  check_results = checker(hcrules, Dl2)
+  return hcrules, check_results
 end
 
 #=
@@ -231,19 +216,19 @@ end
 
 #=
 function script6() #try to separate real clusters
-  Dsl = load_from_clusterresult(ASCII_CR, NAME2FILE_MAP)
-  label_map = one_vs_one_labelmap(Dsl.labels, 0, 2)
-  Dsl = maplabels(Dsl, label_map)
+  Dl = load_from_clusterresult(ASCII_CR, NAME2FILE_MAP)
+  label_map = one_vs_one_labelmap(Dl.labels, 0, 2)
+  Dl = maplabels(Dl, label_map)
   #not sure what to expect
-  (f, ind, pred, code) = learn_rule(Dsl)
+  (f, ind, pred, code) = learn_rule(Dl)
 end
 
 function script9() #real clusters 1 vs others
-  Dsl = load_from_clusterresult(ASCII_CR, NAME2FILE_MAP)
-  label_map = one_vs_all_labelmap(Dsl.labels, 3)
-  Dsl = maplabels(Dsl, label_map)
+  Dl = load_from_clusterresult(ASCII_CR, NAME2FILE_MAP)
+  label_map = one_vs_all_labelmap(Dl.labels, 3)
+  Dl = maplabels(Dl, label_map)
   #not sure what to expect
-  (f, ind, pred, code) = learn_rule(Dsl)
+  (f, ind, pred, code) = learn_rule(Dl)
 end
 
 function script11() #1 on 1

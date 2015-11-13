@@ -32,19 +32,74 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRules"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRulesVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/grammatical_evolution"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/GBClassifiers"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/JSON2ASCII"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
+module ClusterRulesVis
+
+export to_qtree, plot_qtree, to_d3js, write_d3js
+
+using GrammarDef
+using ClusterRules
+using GBClassifiers
+using DataFrameSets
+using TikzQTrees
+using RLESUtils.LatexUtils
+
+function plot_qtree(fcrules::FCRules, Dl::DFSetLabeled, title::String; outfileroot::String="crvis-qtree")
+  qtree = to_qtree(fcrules, Dl, title)
+  plottree(qtree, outfileroot=outfileroot)
+end
+
+function to_qtree(fcrules::FCRules, Dl::DFSetLabeled, title::String)
+  colnames = get_colnames(Dl)
+  root_text = "$title\\$(join(Dl.names,","))" |> escape_latex
+  root = QTreeNode(root_text)
+  sorted_labels = keys(fcrules.rules) |> collect |> sort!
+  for label in sorted_labels
+    classifier = fcrules.rules[label]
+    code_text = pretty_string(string(classifier.code), colnames)
+    members_text = get_members_text(Dl, label, classifier)
+    cluster_text = "cluster=$label\\$(code_text)\\$(members_text)" |> escape_latex
+    push!(root.children, QTreeNode(cluster_text))
+  end
+  return TikzQTree(root)
+end
+
+function get_members_text(Dl::DFSetLabeled, label, classifier::GBClassifier)
+  members = find(Dl.labels .== label)
+  ss = Dl.names[members]
+  s = join(ss, ",") #TODO: also list mismatches
+  return s
+end
+
+function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; outfileroot::String="crvis-d3js")
+  d = to_d3js(hcrules, Dl, title)
+  filename = join(outfileroot, ".json")
+  f = open(filename, "w")
+  JSON.print(f, d)
+  close(f)
+  return filename
+end
+
+function to_d3js(hcrules::HCRules, Dl::DFSetLabeled)
+  root = hcrules.rules[end]
+  d = Dict{ASCIIString,Any}() #JSON-compatible
+  process!(d, root)
+  return d
+end
+
+function process!(d::Dict{ASCIIString,Any}, hcrules::HCRules, index::Int64)
+  node = hcrules.rules[index]
+  d["name"] = "$(node.members)\n$(node.classifier.code)"
+  d["height"] = index
+  d["children"] = Array(Dict{ASCIIString,Any}, 0)
+  dchild = d["children"]
+  for (bool, child_index) in node.children
+    push!(d_child, Dict{ASCIIString,Any}())
+    process!(d_child[end], hcrules, child_index)
+  end
+end
+
+#name, height, children::Vector{Dict{String,Any}}
+
+end #module
+
+

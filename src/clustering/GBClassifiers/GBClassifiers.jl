@@ -77,12 +77,10 @@ type GBClassifier
   code::Expr
 end
 
-temp_function = Main.gensym() #unique in Main, to be reused
+train(p::BestSampleParams, Dl::DFSetLabeled) = best_sample(p, Dl)
+train(p::GeneticSearchParams, Dl::DFSetLabeled) = genetic_search(p, Dl)
 
-train(p::BestSampleParams, Dsl::DFSetLabeled) = best_sample(p, Dsl)
-train(p::GeneticSearchParams, Dsl::DFSetLabeled) = genetic_search(p, Dsl)
-
-function best_sample(p::BestSampleParams, Dsl::DFSetLabeled)
+function best_sample(p::BestSampleParams, Dl::DFSetLabeled)
   best_ind = ExampleIndividual(p.genome_size, p.maxvalue) #maxvalue=1000
   best_ind.fitness = Inf
   labels = "empty"
@@ -106,14 +104,14 @@ function best_sample(p::BestSampleParams, Dsl::DFSetLabeled)
   return GBClassifier(p, best_ind.fitness, best_ind.code)
 end
 
-function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union(Nothing, Function), default_code::Expr, Dsl::DFSetLabeled)
+function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union(Nothing, Function), default_code::Expr, Dl::DFSetLabeled)
   try
     ind.code = transform(grammar, ind, maxwraps=maxwraps)
     if get_fitness != nothing
-      ind.fitness = get_fitness(ind.code, Dsl)
+      ind.fitness = get_fitness(ind.code, Dl)
     else #default: evaluate classification error
-      pred = classify(ind.code, Dsl)
-      ind.fitness = count(pred .!= Dsl.labels) / length(Dsl)
+      pred = classify(ind.code, Dl)
+      ind.fitness = count(pred .!= Dl.labels) / length(Dl)
     end
   catch e
     if !isa(e, MaxWrapException)
@@ -121,13 +119,16 @@ function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, ge
       println("exception = $s")
       s = take(string(ind.code), 50) |> join
       println("code: $(s)")
+      f = open("errorlog.txt", "a") #log to file
+      println(f, string(code))
+      close(f)
     end
     ind.code = default_code
     ind.fitness = Inf
   end
 end
 
-function genetic_search(p::GeneticSearchParams, Dsl::DFSetLabeled)
+function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
   if p.verbosity > 0
     println("Starting search...")
   end
@@ -136,7 +137,7 @@ function genetic_search(p::GeneticSearchParams, Dsl::DFSetLabeled)
   iter = 1
   while iter <= p.min_iters || (fitness > p.max_fitness && iter <= p.max_iters)
     # generate a new population (based off of fitness)
-    pop = generate(p.grammar, pop, 0.1, 0.2, 0.2, p.maxwraps, p.get_fitness, p.default_code, Dsl)
+    pop = generate(p.grammar, pop, 0.1, 0.2, 0.2, p.maxwraps, p.get_fitness, p.default_code, Dl)
     fitness = pop[1].fitness #population is sorted, so first entry i the best
     s1 = string(pop[1].code)
     s2 = take(s1, 50) |> join
@@ -155,10 +156,10 @@ function classify(code::Expr, D::DataFrame)
   return f(D)
 end
 
-classify(classifier::GBClassifier, Dsl::DFSetLabeled) = classify(classifier.code, Dsl)
-function classify(code::Expr, Dsl::DFSetLabeled)
+classify(classifier::GBClassifier, Dl::DFSetLabeled) = classify(classifier.code, Dl)
+function classify(code::Expr, Dl::DFSetLabeled)
   f = to_function(code)
-  return map(f, Dsl.records)
+  return map(f, Dl.records)
 end
 
 end #module

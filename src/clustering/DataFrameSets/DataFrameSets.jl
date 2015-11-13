@@ -84,25 +84,26 @@ function load_from_clusterresult(cr::ClusterResult, name2file::Dict{ASCIIString,
   return DFSetLabeled(cr.names, records, cr.labels)
 end
 
-get_colnames(Ds::DFSet) = map(string, names(Ds.records[1]))
-get_colnames(Dsl::DFSetLabeled) = map(string, names(Dsl.records[1]))
+get_colnames(Ds::DFSet) = get_colnames(Ds.records[1])
+get_colnames(Dl::DFSetLabeled) = get_colnames(Dl.records[1])
+get_colnames(D::DataFrame) = map(string, names(D))
 
 sub(Ds::DFSet, i::Int64) = sub(Ds, i:i)
 sub(Ds::DFSet, r::Range{Int64}) = DFSet(Ds.names[r], Ds.records[r])
 sub(Ds::DFSet, v::Vector{Int64}) = DFSet(Ds.names[v], Ds.records[v])
-sub(Dsl::DFSetLabeled, i::Int64) = sub(Dsl, i:i)
-sub(Dsl::DFSetLabeled, r::Range{Int64}) = DFSetLabeled(Dsl.names[r], Dsl.records[r], Dsl.labels[r])
-sub(Dsl::DFSetLabeled, v::Vector{Int64}) = DFSetLabeled(Dsl.names[v], Dsl.records[v], Dsl.labels[v])
+sub(Dl::DFSetLabeled, i::Int64) = sub(Dl, i:i)
+sub(Dl::DFSetLabeled, r::Range{Int64}) = DFSetLabeled(Dl.names[r], Dl.records[r], Dl.labels[r])
+sub(Dl::DFSetLabeled, v::Vector{Int64}) = DFSetLabeled(Dl.names[v], Dl.records[v], Dl.labels[v])
 
-function setlabels!{T}(Dsl::DFSetLabeled{T}, labels::Vector{T})
-  @assert length(Dsl.records) == length(labels)
-  Dsl.labels = labels
-  return Dsl
+function setlabels!{T}(Dl::DFSetLabeled{T}, labels::Vector{T})
+  @assert length(Dl.records) == length(labels)
+  Dl.labels = labels
+  return Dl
 end
 
-function setlabels{T1, T2}(Dsl::DFSetLabeled{T1}, labels::Vector{T2})
-  @assert length(Dsl.records) == length(labels)
-  return DFSetLabeled{T2}(Dsl.names, Dsl.records, labels)
+function setlabels{T1, T2}(Dl::DFSetLabeled{T1}, labels::Vector{T2})
+  @assert length(Dl.records) == length(labels)
+  return DFSetLabeled{T2}(Dl.names, Dl.records, labels)
 end
 
 start(Ds::DFSet) = start(zip(Ds.names, Ds.records)) #TODO: don't zip every time
@@ -110,9 +111,9 @@ next(Ds::DFSet, s) = next(zip(Ds.names, Ds.records), s)
 done(Ds::DFSet, s) = done(zip(Ds.names, Ds.records), s)
 length(Ds::DFSet) = length(Ds.records)
 
-start(Dsl::DFSetLabeled) = start(zip(Dsl.names, Dsl.records, Dsl.labels))
-next(Dsl::DFSetLabeled, s) = next(zip(Dsl.names, Dsl.records, Dsl.labels), s)
-done(Dsl::DFSetLabeled, s) = done(zip(Dsl.names, Dsl.records, Dsl.labels), s)
-length(Dsl::DFSetLabeled) = length(Dsl.records)
+start(Dl::DFSetLabeled) = start(zip(Dl.names, Dl.records, Dl.labels))
+next(Dl::DFSetLabeled, s) = next(zip(Dl.names, Dl.records, Dl.labels), s)
+done(Dl::DFSetLabeled, s) = done(zip(Dl.names, Dl.records, Dl.labels), s)
+length(Dl::DFSetLabeled) = length(Dl.records)
 
 end

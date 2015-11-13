@@ -34,8 +34,9 @@
 
 module GrammarDef
 
-export create_grammar, get_col_types, make_type_string, to_function, pretty_string
+export create_grammar, feat_type_ids, to_function, pretty_string
 
+using RLESUtils.DataFramesUtils
 using GrammaticalEvolution
 using DataFrames
 
@@ -145,8 +146,7 @@ ctgt = count_gt
 ctge = count_gte
 cteq = count_eq
 
-get_col_types(D::DataFrame) = [typeof(D.columns[i]).parameters[1] for i=1:length(D.columns)]
-function make_type_string(D::DataFrame)
+function feat_type_ids(D::DataFrame)
   Ts = map(string, get_col_types(D))
   @assert all(x->x=="Bool" || x=="Float64", Ts)
   bin_string = join(find(x -> x == "Bool", Ts), " | ")
@@ -188,7 +188,7 @@ function sub_rn(s::String)
   for m in eachmatch(r, s)
     n = int(m.captures[1])
     x = float(m.captures[2])
-    s = replace(s, m.match, rn(n, x))
+    s = replace(s, m.match, signif(rn(n, x), 5)) #round to 5 significant digits
   end
   return s
 end
