@@ -93,6 +93,15 @@ function create_grammar()
     digit = 0:9
   end
 
+  #=
+  input D
+  (bin_ids, real_ids) = feat_type_ids(D)
+  bin_terms = map(GrammaticalEvolution.Terminal, bin_ids)
+  grammar.rules[:bin_feat_id] = OrRule("bin_feat_id", bin_terms, nothing)
+  real_terms = map(GrammaticalEvolution.Terminal, real_ids)
+  grammar.rules[:real_feat_id] = OrRule("real_feat_id", real_terms, nothing)
+  =#
+
   return grammar
 end
 
@@ -149,11 +158,11 @@ cteq = count_eq
 function feat_type_ids(D::DataFrame)
   Ts = map(string, get_col_types(D))
   @assert all(x->x=="Bool" || x=="Float64", Ts)
-  bin_string = join(find(x -> x == "Bool", Ts), " | ")
-  println("bin_feat_id = ", bin_string)
-  real_string = join(find(x -> x == "Float64", Ts), " | ")
-  println("real_feat_id = ", real_string)
-  return bin_string, real_string
+  bin_ids = find(x -> x == "Bool", Ts)
+  real_ids = find(x -> x == "Float64", Ts)
+  println("bin_feat_id = $(join(bin_ids, " | "))")
+  println("real_feat_id = $(join(real_ids, " | "))")
+  return (bin_ids, real_ids)
 end
 
 function to_function(code::Expr)

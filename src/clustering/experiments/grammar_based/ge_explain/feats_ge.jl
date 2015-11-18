@@ -42,8 +42,7 @@ using GBClassifiers
 using DataFrameSets
 using ClusterResults
 using TikzQTrees
-using RLESUtils.FileUtils
-using RLESUtils.LatexUtils
+using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, LatexUtils
 using Iterators
 using DataFrames
 using GrammaticalEvolution
@@ -52,10 +51,10 @@ const DF_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
 const GRAMMAR = create_grammar()
 const W1 = 0.001 #code length
 const GENOME_SIZE = 400
-const POP_SIZE = 5000
+const POP_SIZE = 50#00
 const MAXWRAPS = 2
-const MINITERATIONS = 5
-const MAXITERATIONS = 20
+const MINITERATIONS = 1#5
+const MAXITERATIONS = 1#20
 const DEFAULTCODE = :(eval(false))
 const MAX_FITNESS = 0.05
 const VERBOSITY = 1
@@ -101,6 +100,10 @@ end
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
 function script1(crfile::String)
+  seed = 1
+  rsg = RSG(1, seed)
+  set_global(rsg)
+
   #load data
   Dl = load_from_clusterresult(crfile, NAME2FILE_MAP)
   #explain
@@ -108,19 +111,26 @@ function script1(crfile::String)
   gb_params = GeneticSearchParams(GRAMMAR, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
   fcrules = explain_clusters(p, gb_params, Dl)
-  #visualize
+  #save fcrules
   title = basename(crfile)
-  fileroot = splitext(basename(crfile))[1]
-  plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree")
+  Obj2Dict.save_obj("$(title).json", fcrules)
   #check
   Dl2 = load_from_clusterresult(crfile, NAME2FILE_MAP) #reload in case Dl got changed
   check_results = checker(fcrules, Dl2)
+  Obj2Dict.save_obj("$(title)_check.json", check_results)
+  #visualize
+  fileroot = splitext(basename(crfile))[1]
+  plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check=check_results)
   return fcrules, check_results
 end
 
 #hierarchical clusters
 #script2(ASCII_CR)
 function script2(crfile::String)
+  seed = 1
+  rsg = RSG(1, seed)
+  set_global(rsg)
+
   #load data
   cr = load_result(crfile)
   Dl = load_from_clusterresult(cr, NAME2FILE_MAP)
@@ -129,6 +139,8 @@ function script2(crfile::String)
   gb_params = GeneticSearchParams(GRAMMAR, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
   hcrules = explain_clusters(p, gb_params, Dl)
+  #save hcrules
+
   #visualize
   fileroot = splitext(basename(crfile))[1]
   write_d3js(hcrules, Dl, outfileroot="$(fileroot)_d3js")
@@ -136,8 +148,13 @@ function script2(crfile::String)
   cr2 = load_result(crfile)
   Dl2 = load_from_clusterresult(cr2, NAME2FILE_MAP)
   check_results = checker(hcrules, Dl2)
-  return hcrules, check_results
+  return Dl, hcrules, check_results
 end
+#mismatch vis
+#mismatch stats
+#save fcrules hcrules
+#tests
+#hunt down bug origin
 
 #=
 function hcluster_codes(crfile::String)

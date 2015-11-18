@@ -34,7 +34,7 @@
 
 module ClusterRules
 
-export CRParams, explain_clusters, checker, FCParams, FCRules, HCParams, HCRules
+export CRParams, explain_clusters, checker, CheckResult, FCParams, FCRules, HCParams, HCRules
 export start, next, done, length
 
 using GBClassifiers
@@ -63,9 +63,11 @@ type HCElement
 end
 
 type HCRules
+  ndata::Int64
   tree::Array{Int64,2} #as a merge matrix starting from 1, input data indexed as 1:length(Dl)
   rules::Vector{HCElement}
 end
+HCRules() = HCRules(0, Array(Int64, 0, 0), HCElement[])
 
 type CheckResult
   matched::Vector{Int64} #indices into Dl
@@ -125,7 +127,7 @@ function explain_clusters{T}(p::HCParams, gb_params::GBParams, Dl::DFSetLabeled{
     V[next_id] = HCElement(members, classifier, children)
     next_id += 1
   end
-  return HCRules(p.tree, V)
+  return HCRules(ndata, p.tree, V)
 end
 
 function check!{T}(results::Vector{CheckResult}, hcrules::HCRules,

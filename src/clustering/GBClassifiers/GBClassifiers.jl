@@ -47,7 +47,7 @@ import GrammaticalEvolution.evaluate!
 
 abstract GBParams
 
-immutable BestSampleParams <: GBParams
+type BestSampleParams <: GBParams
   grammar::Grammar
   genome_size::Int64
   maxvalue::Int64
@@ -58,7 +58,7 @@ immutable BestSampleParams <: GBParams
   get_fitness::Union(Nothing, Function)
 end
 
-immutable GeneticSearchParams <: GBParams
+type GeneticSearchParams <: GBParams
   grammar::Grammar
   genome_size::Int64
   pop_size::Int64
@@ -72,10 +72,10 @@ immutable GeneticSearchParams <: GBParams
 end
 
 type GBClassifier
-  params::GBParams
   fitness::Float64
   code::Expr
 end
+GBClassifier() = GBClassifier(0.0, :(eval(false)))
 
 train(p::BestSampleParams, Dl::DFSetLabeled) = best_sample(p, Dl)
 train(p::GeneticSearchParams, Dl::DFSetLabeled) = genetic_search(p, Dl)
@@ -118,9 +118,11 @@ function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, ge
       s = take(string(e), 50) |> join
       println("exception = $s")
       s = take(string(ind.code), 50) |> join
-      println("code: $(s)")
+      len = length(string(ind.code))
+      println("length=$len, code: $(s)")
       f = open("errorlog.txt", "a") #log to file
-      println(f, string(code))
+      println(f, typeof(e))
+      println(f, string(ind.code))
       close(f)
     end
     ind.code = default_code
@@ -147,7 +149,7 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
     iter += 1
   end
   ind = pop[1]
-  return GBClassifier(p, ind.fitness, ind.code)
+  return GBClassifier(ind.fitness, ind.code)
 end
 
 classify(classifier::GBClassifier, D::DataFrame) = classify(classifier.code, D)

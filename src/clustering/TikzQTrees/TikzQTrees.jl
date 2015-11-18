@@ -68,7 +68,7 @@ function plottree(qtree::TikzQTree;
 \\usetikzlibrary{shadows,trees}
 \\tikzset{
 edge from parent fork down,
-level distance=1.75cm,
+level distance=2.75cm,
 every node/.style=
     {top color=white,
     bottom color=blue!25,
