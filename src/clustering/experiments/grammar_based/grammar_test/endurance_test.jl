@@ -32,76 +32,53 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module TikzQTrees
+include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
+include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammardef.jl"))
 
-export plottree, TikzQTree, QTreeNode
+using GrammarDef
+using GBClassifiers
+using DataFrameSets
+using ClusterResults
+using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, LatexUtils
 
-using TikzPictures
+const SEED = 1
 
-type QTreeNode
-  name::ASCIIString
-  children::Vector{QTreeNode}
-  arrowlabels::Vector{ASCIIString} #not implemented
-end
-QTreeNode() = QTreeNode("", QTreeNode[], ASCIIString[])
-QTreeNode(name::ASCIIString) = QTreeNode(name, QTreeNode[], ASCIIString[])
+const DF_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
+const GRAMMAR = create_grammar()
+const GENOME_SIZE = 400
+const MAXVALUE = 1000
+const MAXWRAPS = 2
+const DEFAULTCODE = :(eval(false))
+const NSAMPLES = 1000000
+const VERBOSITY = 2
 
-type TikzQTree
-  root::QTreeNode
-end
-
-function print_element!(io::IOBuffer, element::QTreeNode)
-  println(io, "[.{$(element.name)}")
-  #process children
-  if !isempty(element.children)
-    for child in element.children
-      print_element!(io, child)
-    end
+function get_name2file_map() #maps encounter number to filename
+  df_files = readdir_ext("csv", DF_DIR)
+  ks = map(df_files) do f
+    s = basename(f)
+    s = replace(s, "trajSaveMCTS_ACASX_EvE_", "")
+    return replace(s, "_dataframe.csv", "")
   end
-  print(io, "]")
-end
-
-function plottree(qtree::TikzQTree;
-                  outfileroot::String="qtree",
-                  output::String="TEXPDF")
-  preamble = "\\usepackage{tikz-qtree}
-\\usetikzlibrary{shadows,trees}
-\\tikzset{
-edge from parent fork down,
-level distance=4cm,
-every node/.style=
-    {top color=white,
-    bottom color=blue!25,
-    rectangle,rounded corners,
-    minimum height=8mm,
-    draw=blue!75,
-    very thick,
-    drop shadow,
-    align=center,
-    text depth = 0pt
-    },
-edge from parent/.style=
-    {draw=blue!50,
-    thick
-    }}"
-  io = IOBuffer()
-  print(io, "\\Tree ")
-  print_element!(io, qtree.root)
-  println(io, ";")
-
-  tp = TikzPicture(takebuf_string(io), preamble=preamble)
-  if output == "TEXPDF"
-    save(PDF(outfileroot), tp)
-    save(TEX(outfileroot), tp)
-  elseif output == "PDF"
-    save(PDF(outfileroot), tp)
-  elseif output == "TEX"
-    save(TEX(outfileroot), tp)
-  else
-    error("Unrecognized output type")
+  name2file_map = Dict{ASCIIString, ASCIIString}()
+  for (k, f) in zip(ks, df_files)
+    name2file_map[k] = f
   end
-  return tp
+  return name2file_map
 end
 
-end #module
+const NAME2FILE_MAP = get_name2file_map()
+const ASCII_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/ascii_clusters.json")
+const MYKEL_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/mykel.json")
+const JOSH1_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh1.json")
+const JOSH2_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh2.json")
 
+function script1(crfile::String)
+  rsg = RSG(1, SEED) |> set_global
+  Dl = load_from_clusterresult(crfile, NAME2FILE_MAP)
+  len = length(Dl)
+  half = div(len, 2)
+  labels = vcat(fill(true, half), fill(false, len - half)) #half true, half false
+  Dl_ = setlabels(Dl, labels)
+  p = BestSampleParams(GRAMMAR, GENOME_SIZE, MAXVALUE, MAXWRAPS, DEFAULTCODE, NSAMPLES, VERBOSITY, nothing)
+  classifier = train(p, Dl_)
+end

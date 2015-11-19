@@ -51,10 +51,10 @@ const DF_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
 const GRAMMAR = create_grammar()
 const W1 = 0.001 #code length
 const GENOME_SIZE = 400
-const POP_SIZE = 50#00
+const POP_SIZE = 5000
 const MAXWRAPS = 2
-const MINITERATIONS = 1#5
-const MAXITERATIONS = 1#20
+const MINITERATIONS = 5
+const MAXITERATIONS = 20
 const DEFAULTCODE = :(eval(false))
 const MAX_FITNESS = 0.05
 const VERBOSITY = 1
@@ -116,12 +116,12 @@ function script1(crfile::String)
   Obj2Dict.save_obj("$(title).json", fcrules)
   #check
   Dl2 = load_from_clusterresult(crfile, NAME2FILE_MAP) #reload in case Dl got changed
-  check_results = checker(fcrules, Dl2)
-  Obj2Dict.save_obj("$(title)_check.json", check_results)
+  check_result = checker(fcrules, Dl2)
+  Obj2Dict.save_obj("$(title)_check.json", check_result)
   #visualize
   fileroot = splitext(basename(crfile))[1]
-  plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check=check_results)
-  return fcrules, check_results
+  plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check_result=check_result)
+  return fcrules, check_result
 end
 
 #hierarchical clusters
@@ -150,9 +150,8 @@ function script2(crfile::String)
   check_results = checker(hcrules, Dl2)
   return Dl, hcrules, check_results
 end
-#mismatch vis
+#mismatch hc vis
 #mismatch stats
-#save fcrules hcrules
 #tests
 #hunt down bug origin
 

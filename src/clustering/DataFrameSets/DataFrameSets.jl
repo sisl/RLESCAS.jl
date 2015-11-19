@@ -116,4 +116,28 @@ next(Dl::DFSetLabeled, s) = next(zip(Dl.names, Dl.records, Dl.labels), s)
 done(Dl::DFSetLabeled, s) = done(zip(Dl.names, Dl.records, Dl.labels), s)
 length(Dl::DFSetLabeled) = length(Dl.records)
 
+containsNA(Ds::DFSet) = containsNA(Ds.records)
+containsNA(Dl::DFSetLabeled) = containsNA(Dl.records)
+
+function containsNA(records::Vector{DataFrame})
+  out = false
+  i = j = 1
+  try
+    while i <= length(records)
+      while j <= length(D.columns)
+        convert(Array, records[i].columns[j]) #will fail if contains NA
+        j += 1
+      end
+      i += 1
+    end
+    out = false
+  catch e
+    println(e)
+    println("Record $i, column $j contains an NA")
+    out = true
+  end
+  println("No NAs")
+  return out
 end
+
+end #module

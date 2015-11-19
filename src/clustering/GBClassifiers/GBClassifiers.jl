@@ -80,17 +80,23 @@ GBClassifier() = GBClassifier(0.0, :(eval(false)))
 train(p::BestSampleParams, Dl::DFSetLabeled) = best_sample(p, Dl)
 train(p::GeneticSearchParams, Dl::DFSetLabeled) = genetic_search(p, Dl)
 
+#using Debug
+#@debug
 function best_sample(p::BestSampleParams, Dl::DFSetLabeled)
   best_ind = ExampleIndividual(p.genome_size, p.maxvalue) #maxvalue=1000
   best_ind.fitness = Inf
   labels = "empty"
   for i = 1:p.nsamples
+    #@bp i == 21811
     ind = ExampleIndividual(p.genome_size, p.maxvalue)
-    evaluate!(p.grammar, ind, p.maxwraps, p.get_fitness, p.default_code)
+    evaluate!(p.grammar, ind, p.maxwraps, p.get_fitness, p.default_code, Dl)
     if p.verbosity > 1
-      s1 = string(best_ind.code)
+      s1 = string(ind.code)
       s2 = take(s1, 50) |> join
-      println("$i: fitness=$(ind.fitness), best=$(best_ind.fitness), length=$(length(s1)), code=$(s2)")
+      s3 = string(best_ind.code)
+      s4 = take(s1, 50) |> join
+      println("$i: fitness=$(signif(ind.fitness,3)), length=$(length(s1)), code=$(s2)")
+      println("$i: best=$(signif(best_ind.fitness,3)), best_length=$(length(s3)), best_code=$(s4)")
     end
     if 0.0 < ind.fitness < best_ind.fitness
       best_ind = ind
@@ -101,20 +107,22 @@ function best_sample(p::BestSampleParams, Dl::DFSetLabeled)
     s2 = take(s1, 50) |> join
     println("best: fitness=$(best_ind.fitness), length=$(length(s1)), code=$(s2)")
   end
-  return GBClassifier(p, best_ind.fitness, best_ind.code)
+  return GBClassifier(best_ind.fitness, best_ind.code)
 end
 
-function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union(Nothing, Function), default_code::Expr, Dl::DFSetLabeled)
+using Debug
+@debug function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union(Nothing, Function), default_code::Expr, Dl::DFSetLabeled)
   try
     ind.code = transform(grammar, ind, maxwraps=maxwraps)
     if get_fitness != nothing
       ind.fitness = get_fitness(ind.code, Dl)
     else #default: evaluate classification error
       pred = classify(ind.code, Dl)
-      ind.fitness = count(pred .!= Dl.labels) / length(Dl)
+      ind.fitness = count(identity, pred .!= Dl.labels) / length(Dl)
     end
   catch e
     if !isa(e, MaxWrapException)
+      @bp
       s = take(string(e), 50) |> join
       println("exception = $s")
       s = take(string(ind.code), 50) |> join

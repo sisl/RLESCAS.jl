@@ -34,7 +34,8 @@
 
 module ClusterRules
 
-export CRParams, explain_clusters, checker, CheckResult, FCParams, FCRules, HCParams, HCRules
+export CRParams, explain_clusters, checker, CheckResult, FCCheckResult, HCCheckResult
+export FCParams, FCRules, HCParams, HCRules
 export start, next, done, length
 
 using GBClassifiers
@@ -75,6 +76,15 @@ type CheckResult
 end
 CheckResult() = CheckResult(Int64[], Int64[])
 
+type FCCheckResult{T}
+  result::Dict{T,CheckResult}
+end
+
+type HCCheckResult
+  ndata::Int64
+  result::Vector{CheckResult}
+end
+
 #explain flat clustering
 function explain_clusters{T}(p::FCParams, gb_params::GBParams, Dl::DFSetLabeled{T})
   labelset = unique(Dl.labels) |> sort!
@@ -88,19 +98,19 @@ function explain_clusters{T}(p::FCParams, gb_params::GBParams, Dl::DFSetLabeled{
 end
 
 function checker{T}(fcrules::FCRules, Dl::DFSetLabeled{T})
-  results = Dict{T,Any}()
+  result = Dict{T,CheckResult}()
   for (label, classifier) in fcrules
     truth = map(l -> l == label, Dl.labels)
     pred = classify(classifier, Dl)
     matched = find(pred .== truth) #indices
     mismatched = find(pred .!= truth) #indices
-    results[label] = CheckResult(matched, mismatched)
+    result[label] = CheckResult(matched, mismatched)
     println("label=$label, matched=$(length(matched)), mismatched=$(length(mismatched))")
     if length(mismatched) != 0
       warn("Not matched: label=$label, mismatched=$(Dl.names[mismatched])")
     end
   end
-  return results
+  return FCCheckResult(result)
 end
 
 function explain_clusters{T}(p::HCParams, gb_params::GBParams, Dl::DFSetLabeled{T})
@@ -130,7 +140,7 @@ function explain_clusters{T}(p::HCParams, gb_params::GBParams, Dl::DFSetLabeled{
   return HCRules(ndata, p.tree, V)
 end
 
-function check!{T}(results::Vector{CheckResult}, hcrules::HCRules,
+function check!{T}(result::Vector{CheckResult}, hcrules::HCRules,
                    index::Int64, Dl::DFSetLabeled{T})
   node = hcrules.rules[index]
   if isempty(node.children)
@@ -144,21 +154,21 @@ function check!{T}(results::Vector{CheckResult}, hcrules::HCRules,
   pred = classify(node.classifier, Dl_)
   matched = node.members[find(pred .== truth)] #indices into Dl
   mismatched = node.members[find(pred .!= truth)] #indices into Dl
-  results[index] = CheckResult(matched, mismatched)
+  result[index] = CheckResult(matched, mismatched)
   println("index=$index, matched=$(length(matched)), mismatched=$(length(mismatched))")
   if length(mismatched) != 0
     warn("Not matched: merge_of=$(node.children), mismatched=$mismatched")
   end
   for (bool, child_index) in node.children
-    check!(results, hcrules, child_index, Dl)
+    check!(result, hcrules, child_index, Dl)
   end
 end
 
 function checker{T}(hcrules::HCRules, Dl::DFSetLabeled{T})
   root_index = length(hcrules.rules)
-  results = Array(CheckResult, root_index)
-  check!(results, hcrules, root_index, Dl)
-  return results
+  result = Array(CheckResult, root_index)
+  check!(result, hcrules, root_index, Dl)
+  return HCCheckResult(hcrules.ndata, result)
 end
 
 start(fcrules::FCRules) = start(fcrules.rules)

@@ -44,25 +44,25 @@ using TikzQTrees
 using RLESUtils.LatexUtils
 using JSON
 
-function plot_qtree(fcrules::FCRules, Dl::DFSetLabeled; check_result::Union(Nothing, CheckResult)=nothing,
+function plot_qtree(fcrules::FCRules, Dl::DFSetLabeled; check_result::Union(Nothing, FCCheckResult)=nothing,
                     outfileroot::String="crvis-qtree")
   qtree = to_qtree(fcrules, Dl, check_result=check_result)
   plottree(qtree, outfileroot=outfileroot)
 end
 
-function to_qtree(fcrules::FCRules, Dl::DFSetLabeled, check_result::Union(Nothing, CheckResult)=nothing)
+function to_qtree(fcrules::FCRules, Dl::DFSetLabeled; check_result::Union(Nothing, FCCheckResult)=nothing)
   colnames = get_colnames(Dl)
   root_text = "$(join(Dl.names,","))" |> escape_latex
   root = QTreeNode(root_text)
   sorted_labels = keys(fcrules.rules) |> collect |> sort!
   for label in sorted_labels
     classifier = fcrules.rules[label]
+    label_text = "cluster=$label"
     code_text = pretty_string(string(classifier.code), colnames)
-    members_text = get_members_text(Dl, label, classifier)
+    members_text = get_members_text(Dl, label)
     checker_text = get_checker_text(Dl, label, check_result)
-    combined_text = join([label, members_text, code_text, checker_text], "\\")
-    cluster_text = "cluster=$(combined_text)" |> escape_latex
-    push!(root.children, QTreeNode(cluster_text))
+    combined_text = join([label_text, members_text, code_text, checker_text], "\\") |> escape_latex
+    push!(root.children, QTreeNode(combined_text))
   end
   return TikzQTree(root)
 end
@@ -74,13 +74,13 @@ function get_members_text{T}(Dl::DFSetLabeled{T}, label::T)
   return s
 end
 
-function get_checker_text{T}(Dl::DFSetLabeled{T}, label::T, check_result::Union(Nothing,CheckResult))
+function get_checker_text{T}(Dl::DFSetLabeled{T}, label::T, check_result::Union(Nothing,FCCheckResult))
   if check_result == nothing
     return ""
   end
-  matches = Dl.names[check_result[label].matches]
-  mismatches = Dl.names[check_result[label].mismatches]
-  return "matches=$(join(matches, ","))\\mismatches=$(join(mismatches, ","))"
+  matched = Dl.names[check_result.result[label].matched]
+  mismatched = Dl.names[check_result.result[label].mismatched]
+  return "matches=$(join(matched, ","))\\mismatches=$(join(mismatched, ","))"
 end
 
 function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; outfileroot::String="crvis-d3js")

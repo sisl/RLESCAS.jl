@@ -42,7 +42,7 @@ using DataFrames
 
 typealias RealVec Union(DataArray{Float64,1}, Vector{Float64})
 
-convert_number(lst) = float(join(lst))
+convert_number(lst) = float(join(lst))::Float64
 
 function create_grammar()
   @grammar grammar begin
@@ -86,11 +86,14 @@ function create_grammar()
       26 | 27 | 28 | 30 | 31 | 32 | 38 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 60 | 61 | 62 | 63 | 64 | 65 | 67 | 68 | 69 | 75
 
     #random numbers
-    real_number = Expr(:call, :rn, expdigit, rand_pos) | Expr(:call, :rn, expdigit, rand_neg)
-    expdigit = -4:4
-    rand_pos[convert_number] =  digit + '.' + digit + digit + digit + digit
-    rand_neg[convert_number] =  '-' + digit + '.' + digit + digit + digit + digit
+    #real_number = Expr(:call, :rn, expdigit, rand_pos) | Expr(:call, :rn, expdigit, rand_neg)
+    #rand_pos[convert_number] =  digit + '.' + digit + digit + digit + digit
+    #rand_neg[convert_number] =  '-' + digit + '.' + digit + digit + digit + digit
+    real_number = rand_pos | rand_neg
+    rand_pos[convert_number] =  digit + '.' + digit + digit + digit + digit + 'e' + expdigit
+    rand_neg[convert_number] =  '-' + digit + '.' + digit + digit + digit + digit + 'e' + expdigit
     digit = 0:9
+    expdigit = -4:4
   end
 
   #=
