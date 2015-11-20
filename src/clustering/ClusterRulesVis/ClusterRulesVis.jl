@@ -83,8 +83,18 @@ function get_checker_text{T}(Dl::DFSetLabeled{T}, label::T, check_result::Union(
   return "matches=$(join(matched, ","))\\mismatches=$(join(mismatched, ","))"
 end
 
-function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; outfileroot::String="crvis-d3js")
-  d = to_d3js(hcrules, Dl)
+function get_checker_text{T}(Dl::DFSetLabeled{T}, index::Int64, check_result::Union(Nothing,HCCheckResult))
+  if check_result == nothing
+    return ""
+  end
+  matched = Dl.names[check_result.result[index].matched]
+  mismatched = Dl.names[check_result.result[index].mismatched]
+  return "matches=$(join(matched, ","))\nmismatches=$(join(mismatched, ","))"
+end
+
+function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union(Nothing, HCCheckResult)=nothing,
+                    outfileroot::String="crvis-d3js")
+  d = to_d3js(hcrules, Dl, check_result=check_result)
   filename = "$(outfileroot).json"
   f = open(filename, "w")
   JSON.print(f, d)
@@ -92,21 +102,23 @@ function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; outfileroot::String="crv
   return filename
 end
 
-function to_d3js(hcrules::HCRules, Dl::DFSetLabeled)
+function to_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union(Nothing, HCCheckResult)=nothing)
   colnames = get_colnames(Dl)
   root_index = length(hcrules.rules)
   d = Dict{ASCIIString,Any}() #JSON-compatible
-  process!(d, hcrules, root_index, colnames)
+  process!(d, hcrules, root_index, colnames, check_result)
   return d
 end
 
 function process!(d::Dict{ASCIIString,Any}, hcrules::HCRules, index::Int64,
-                  colnames::Vector{ASCIIString})
+                  colnames::Vector{ASCIIString}, check_result::Union(Nothing, HCCheckResult)=nothing)
   node = hcrules.rules[index]
+  members_text = join(node.members, ",")
   code_text = node.classifier != nothing ?
      pretty_string(string(node.classifier.code), colnames) : ""
-  d["name"] = "$(node.members)\n$(code_text)"
-  merge_number = max(0, index - hcrules.ndata) #shift down, leaves at 0
+  checker_text = get_checker_text(Dl, index, check_result)
+  d["name"] = join([members_text, code_text, checker_text], "\n")
+  merge_number = max(0, index - hcrules.ndata) #shift down, leafs at 0
   num_merges = size(hcrules.tree, 1)
   d["height"] =  num_merges - merge_number #from root
   d["children"] = Array(Dict{ASCIIString,Any}, 0)
