@@ -110,8 +110,7 @@ function best_sample(p::BestSampleParams, Dl::DFSetLabeled)
   return GBClassifier(best_ind.fitness, best_ind.code)
 end
 
-using Debug
-@debug function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union(Nothing, Function), default_code::Expr, Dl::DFSetLabeled)
+function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union(Nothing, Function), default_code::Expr, Dl::DFSetLabeled)
   try
     ind.code = transform(grammar, ind, maxwraps=maxwraps)
     if get_fitness != nothing
@@ -122,7 +121,6 @@ using Debug
     end
   catch e
     if !isa(e, MaxWrapException)
-      @bp
       s = take(string(e), 50) |> join
       println("exception = $s")
       s = take(string(ind.code), 50) |> join

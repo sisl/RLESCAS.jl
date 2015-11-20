@@ -77,7 +77,6 @@ function init(number_of_aircraft::Int)
 
   require(Pkg.dir("RLESCAS", "src", "helpers/add_supplementary.jl")) #add label270
   require(Pkg.dir("RLESCAS", "src", "helpers/fill_to_max_time.jl"))
-
 end
 
 function check(condition::Bool, errormsg::ASCIIString="check failed")
@@ -250,11 +249,12 @@ function config_encounters!(config::Dict{ASCIIString,Vector{Any}}, number_of_air
   return config
 end
 
+#vary the encounter seed and init seed with the encounter number
 function config_seeds!(cases::Cases, number_of_aircraft::Int64)
   encounter_string = get_encounter_string(number_of_aircraft)
-  add_field!(cases, "ast_params.init_seed", x -> int64(0), ["sim_params.$(encounter_string)"])
+  add_field!(cases, "ast_params.init_seed", x -> int64(x), ["sim_params.$(encounter_string)"])
   if encounter_string == "encounter_number"
-    add_field!(cases, "sim_params.encounter_seed", x -> uint64(0), ["sim_params.encounter_number"])
+    add_field!(cases, "sim_params.encounter_seed", x -> uint64(x), ["sim_params.encounter_number"])
   end
   return cases
 end
