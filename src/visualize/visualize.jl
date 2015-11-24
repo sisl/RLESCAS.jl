@@ -34,6 +34,7 @@
 
 include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
+include("../helpers/add_supplementary.jl")
 include("../helpers/TikzUtils.jl")
 
 include("vis_captions.jl")
@@ -71,11 +72,13 @@ function pgfplotLog(sav::SaveDict)
   plotArray = vcat(pplot_line(sav, "wm", "x", "y"),
                    pplot_startpoint(sav, "wm", "x", "y", "top"), # label start point
                    pplot_aircraft_num(sav, "wm", "x", "y", startdist = 3.4)) # label aircraft numbers
+  xmin, xmax, ymin, ymax = manual_axis_equal(sav, "wm", "x", "y")
   ax = Axis(plotArray,
             xlabel = "x ($(sv_simlog_units(sav, "wm", "x")))",
             ylabel = "y ($(sv_simlog_units(sav, "wm", "y")))",
             title = "XY-Position",
-            style = "axis equal,clip mode=individual")
+            style = "xmin=$xmin,xmax=$xmax,ymin=$ymin,ymax=$ymax,enlarge x limits=true," *
+                      "enlarge y limits=true,axis equal,clip mode=individual")
   push!(g, ax)
 
   #altitude vs time
@@ -116,6 +119,45 @@ function pgfplotLog(sav::SaveDict)
   push!(tps, tp)
 
   return tps
+end
+
+function manual_axis_equal(sav, field::String, xname::String, yname::String;
+                           fx::Function = identity,
+                           fy::Function = identity)
+  d = sav
+  xind = sv_lookup_id(d, field, xname)
+  yind = sv_lookup_id(d, field, yname)
+
+  xmin = ymin = realmax(Float64)
+  xmax = ymax = -realmax(Float64)
+
+  for i = 1:sv_num_aircraft(d, field)
+    #plot trajectories
+    xvals = sv_simlog_tdata_vid_f(d, field, i, xind) |> fx
+    yvals = sv_simlog_tdata_vid_f(d, field, i, yind) |> fy
+
+    tempmin, tempmax = extrema(xvals)
+    xmin = min(xmin, tempmin)
+    xmax = max(xmax, tempmax)
+    tempmin, tempmax = extrema(yvals)
+    ymin = min(ymin, tempmin)
+    ymax = max(ymax, tempmax)
+  end
+
+  xrange = xmax - xmin
+  yrange = ymax - ymin
+  plot_range = max(xrange, yrange)
+
+  delta = abs(yrange - xrange) / 2
+  if yrange > xrange
+    xmin -= delta
+    xmax += delta
+  else
+    ymin -= delta
+    ymax += delta
+  end
+
+  return (xmin, xmax, ymin, ymax)
 end
 
 function pplot_aircraft_num(sav, field::String, xname::String, yname::String;
