@@ -96,9 +96,9 @@ include("corr_aem_save_scripts.jl")
 using JSON
 using Base.Test
 
-json_to_scripted_batch{T<:String}(filenames::Vector{T}) = map(json_to_scripted, filenames)
+json_to_scripted_batch{T<:AbstractString}(filenames::Vector{T}) = map(json_to_scripted, filenames)
 
-function json_to_scripted{T<:String}(filenames::Vector{T}; outfile::String = "scripted.dat")
+function json_to_scripted{T<:AbstractString}(filenames::Vector{T}; outfile::AbstractString = "scripted.dat")
 
   d = trajLoad(filenames[1]) #use the first one as a reference
   num_aircraft = sv_num_aircraft(d, "wm")
@@ -125,13 +125,13 @@ function json_to_scripted{T<:String}(filenames::Vector{T}; outfile::String = "sc
   return encounters
 end
 
-function j2s_initial(d::Dict{String, Any}, aircraft_number::Int64)
+function j2s_initial{T<:AbstractString}(d::Dict{T, Any}, aircraft_number::Int64)
   #d is the loaded json / encounter
   #j is aircraft number
 
   out = Array(Float64, 1, 8)
 
-  getvar(var::String) = sv_simlog_data_vid(d, "initial", aircraft_number, var)  # for local convenience
+  getvar(var::AbstractString) = sv_simlog_data_vid(d, "initial", aircraft_number, var)  # for local convenience
 
   airspeed            = getvar("v")
   pos_north           = getvar("y")
@@ -148,7 +148,7 @@ function j2s_initial(d::Dict{String, Any}, aircraft_number::Int64)
   return out
 end
 
-function j2s_update(d::Dict{String, Any}, aircraft_number::Int64)
+function j2s_update{T<:AbstractString}(d::Dict{T, Any}, aircraft_number::Int64)
   #d is the loaded json / encounter,
   #j is aircraft number
 
@@ -156,7 +156,7 @@ function j2s_update(d::Dict{String, Any}, aircraft_number::Int64)
   out = Array(Float64, t_end - 1, 4)
 
   for t = 2 : t_end #ignore init values
-    getvar(var::String) = sv_simlog_tdata_vid(d, "response", aircraft_number, var, [t])[1] # for local convenience
+    getvar(var::AbstractString) = sv_simlog_tdata_vid(d, "response", aircraft_number, var, [t])[1] # for local convenience
 
     t_     = getvar("t")
     h_d    = getvar("h_d")
@@ -169,7 +169,7 @@ function j2s_update(d::Dict{String, Any}, aircraft_number::Int64)
   return out
 end
 
-function json_to_scripted(filename::String)
+function json_to_scripted(filename::AbstractString)
 
   json_to_scripted([filename], outfile = string(getSaveFileRoot(filename), "_scripted.dat"))
 end

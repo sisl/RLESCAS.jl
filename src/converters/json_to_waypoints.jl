@@ -85,11 +85,10 @@ include("../helpers/save_helpers.jl")
 include("corr_aem_save_scripts.jl")
 
 using JSON
-using Base.Test
 
-json_to_waypoints_batch{T<:String}(filenames::Vector{T}) = pmap(f -> json_to_waypoints(f), filenames)
+json_to_waypoints_batch{T<:AbstractString}(filenames::Vector{T}) = pmap(f -> json_to_waypoints(f), filenames)
 
-function json_to_waypoints{T<:String}(filenames::Vector{T}; outfile::String = "waypoints.dat")
+function json_to_waypoints{T<:AbstractString}(filenames::Vector{T}; outfile::AbstractString = "waypoints.dat")
 
   d = trajLoad(filenames[1]) #use the first one as a reference
   num_aircraft = sv_num_aircraft(d, "wm")
@@ -102,11 +101,11 @@ function json_to_waypoints{T<:String}(filenames::Vector{T}; outfile::String = "w
     d = trajLoad(file)
 
     #make sure all of them have the same number of aircraft
-    @test num_aircraft == sv_num_aircraft(d, "wm")
+    @assert num_aircraft == sv_num_aircraft(d, "wm")
 
     #aircraft j
     for j = 1 : num_aircraft
-      encounters[j, i] = Dict{String, Array{Float64, 2}}()
+      encounters[j, i] = Dict{ASCIIString, Array{Float64, 2}}()
       encounters[j, i]["initial"] = j2w_initial(d, j)
       encounters[j, i]["update"] = j2w_update(d, j)'
     end
@@ -117,12 +116,12 @@ function json_to_waypoints{T<:String}(filenames::Vector{T}; outfile::String = "w
   return encounters
 end
 
-function j2w_initial(d::Dict{String,Any}, aircraft_number::Int64)
+function j2w_initial{T<:AbstractString}(d::Dict{T, Any}, aircraft_number::Int64)
   #d is the loaded json / encounter
 
   out = Array(Float64, 1, 3)
 
-  getvar(var::String) = sv_simlog_tdata_vid(d, "wm", aircraft_number, var, [1])[1]  # for local convenience
+  getvar(var::AbstractString) = sv_simlog_tdata_vid(d, "wm", aircraft_number, var, [1])[1]  # for local convenience
 
   pos_north     = getvar("y")
   pos_east      = getvar("x")
@@ -133,14 +132,14 @@ function j2w_initial(d::Dict{String,Any}, aircraft_number::Int64)
   return out
 end
 
-function j2w_update(d::Dict{String, Any}, aircraft_number::Int64)
+function j2w_update{T<:AbstractString}(d::Dict{T, Any}, aircraft_number::Int64)
   #d is the loaded json / encounter,
 
   t_end = length(sorted_times(d, "wm", aircraft_number))
   out = Array(Float64, t_end - 1, 4)
 
   for t = 2 : t_end #ignore init values
-    getvar(var::String) = sv_simlog_tdata_vid(d, "wm", aircraft_number, var, [t])[1]  # for local convenience
+    getvar(var::AbstractString) = sv_simlog_tdata_vid(d, "wm", aircraft_number, var, [t])[1]  # for local convenience
 
     t_         = getvar("t")
     pos_north  = getvar("y")
@@ -153,6 +152,6 @@ function j2w_update(d::Dict{String, Any}, aircraft_number::Int64)
   return out
 end
 
-function json_to_waypoints(filename::String)
+function json_to_waypoints(filename::AbstractString)
   json_to_waypoints([filename], outfile = string(getSaveFileRoot(filename), "_waypoints.dat"))
 end

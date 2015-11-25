@@ -118,7 +118,7 @@ function pgfplotLog(sav::SaveDict)
   return tps
 end
 
-function pplot_aircraft_num(sav, field::String, xname::String, yname::String;
+function pplot_aircraft_num(sav, field::AbstractString, xname::AbstractString, yname::AbstractString;
                             ind_start::Int64 = 1,
                             displaystart::Bool = true,
                             displayend::Bool = true,
@@ -174,8 +174,8 @@ function pplot_aircraft_num(sav, field::String, xname::String, yname::String;
   return plotArray
 end
 
-function pplot_startpoint(sav, field::String, xname::String, yname::String, view::String;
-                          overrideangle::Union(Nothing, Real) = nothing,
+function pplot_startpoint(sav, field::AbstractString, xname::AbstractString, yname::AbstractString, view::AbstractString;
+                          overrideangle::Union{Void, Real} = nothing,
                           ind_start::Int64 = 1,
                           minwidth::Float64 = 0.65,
                           fx::Function = identity,
@@ -183,7 +183,7 @@ function pplot_startpoint(sav, field::String, xname::String, yname::String, view
   #xname = field name of x variable
   #yname = field name of y variable
   #view = "top" or "side" view of aircraft
-  #angle = angle of aircraft in degrees.  Pointing right is 0.  Nothing = auto-determine from first and second points.
+  #angle = angle of aircraft in degrees.  Pointing right is 0.  nothing = auto-determine from first and second points.
   #minwidth = minimum width of aircraft icon in cm
 
   d = sav
@@ -292,9 +292,9 @@ function closest_is_above(sav, t::Int64, z_index::Int64, own_id::Int64)
   return minval >= 0.0
 end
 
-function pplot_line(sav, field::String,
-                         x::String,
-                         y::String;
+function pplot_line(sav, field::AbstractString,
+                         x::AbstractString,
+                         y::AbstractString;
                          mark_ra::Bool = true,
                          fx::Function = identity,
                          fy::Function = identity)
@@ -371,7 +371,7 @@ function get_ra_style(sav, aircraft_number::Int64)
     push!(t_style_array,(times, s))
   end
 
-  return t_style_array #vector of tuples.  each tuple = (times::Vector, style::String)
+  return t_style_array #vector of tuples.  each tuple = (times::Vector, style::AbstractString)
 end
 
 function get_response_style(sav,aircraft_number::Int64)
@@ -395,7 +395,7 @@ function get_response_style(sav,aircraft_number::Int64)
   #deterministic PR case
   state_index = sv_lookup_id(d, "response", "state", noerrors = true)
   if state_index != 0
-    t_style_array = (Vector{Int64}, String)[]
+    t_style_array = Tuple{Vector{Int64}, ASCIIString}[]
 
     for (f, s) in RESPONSE_STYLE_MAP
       times = find(x->f(x[state_index]), sv_simlog_tdata(d, "response", i))
@@ -406,12 +406,12 @@ function get_response_style(sav,aircraft_number::Int64)
   end
 end
 
-function trajPlot{T<:String}(savefiles::Vector{T}; format::String = "TEXPDF")
+function trajPlot{T<:AbstractString}(savefiles::Vector{T}; format::AbstractString = "TEXPDF")
 
   map(f -> trajPlot(f, format = format), savefiles)
 end
 
-function trajPlot(savefile::String; format::String = "TEXPDF")
+function trajPlot(savefile::AbstractString; format::AbstractString = "TEXPDF")
 
   # add suppl info and reload.  This avoids adding suppl info to all files
   add_supplementary(savefile)
@@ -423,7 +423,7 @@ function trajPlot(savefile::String; format::String = "TEXPDF")
   return savefile
 end
 
-function trajPlot(outfileroot::String, d::SaveDict; format::String = "TEXPDF")
+function trajPlot(outfileroot::AbstractString, d::SaveDict; format::AbstractString = "TEXPDF")
 
   td = TikzDocument()
   tps = pgfplotLog(d)

@@ -35,7 +35,7 @@
 include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
 
-function summarize(filename::String; ndecimals::Int=2)
+function summarize(filename::AbstractString; ndecimals::Int=2)
   d = trajLoad(filename)
 
   outfilename = string(getSaveFileRoot(filename), "_summary.txt")

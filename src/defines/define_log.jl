@@ -40,8 +40,8 @@ const ENABLE_ROUNDING = true
 const ROUND_NDECIMALS = 9
 
 #TODO: consider using OrderedDicts to preserve time order.  For now use sortByTime()
-typealias SimLog Dict{String, Any}
-typealias SimLogDict Dict{String, Any}
+typealias SimLog Dict{ASCIIString, Any}
+typealias SimLogDict Dict{ASCIIString, Any}
 
 function addObservers!(simLog::SimLog, ast::AdaptiveStressTest)
   addObserver(ast.sim, "action_seq", x -> log_actions!(simLog, x))
@@ -59,7 +59,7 @@ function addObservers!(simLog::SimLog, ast::AdaptiveStressTest)
   return simLog #not required, but returned for convenience
 end
 
-function check_key!(d::SimLogDict,k::String; subkey::Union(String, Nothing)=nothing)
+function check_key!(d::SimLogDict,k::AbstractString; subkey::Union{AbstractString,Void}=nothing)
   #add it if it doesn't exist
   if !haskey(d, k)
     d[k] = SimLogDict()
@@ -91,8 +91,8 @@ function log_cas_info!(simLog::SimLog, args)
 
 end
 
-extract_cas_info_names(cas::ACASX) = String["version"]
-extract_cas_info_units(cas::ACASX) = String["n/a"]
+extract_cas_info_names(cas::ACASX) = ASCIIString["version"]
+extract_cas_info_units(cas::ACASX) = ASCIIString["n/a"]
 
 extract_cas_info(cas::ACASX) = Any[cas.version]
 
@@ -123,8 +123,8 @@ function log_initial!(simLog::SimLog, args)
 
 end
 
-extract_initial_names(aem::CorrAEMDBN) = String["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
-extract_initial_units(aem::CorrAEMDBN) = String["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
+extract_initial_names(aem::CorrAEMDBN) = ASCIIString["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
+extract_initial_units(aem::CorrAEMDBN) = ASCIIString["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
 
 function extract_initial(i, aem::CorrAEMDBN)
   # initial
@@ -149,8 +149,8 @@ function extract_initial(i, aem::CorrAEMDBN)
                       enable = ENABLE_ROUNDING)
 end
 
-extract_initial_names(aem::StarDBN) = String["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
-extract_initial_units(aem::StarDBN) = String["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
+extract_initial_names(aem::StarDBN) = ASCIIString["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
+extract_initial_units(aem::StarDBN) = ASCIIString["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
 
 function extract_initial(i, aem::StarDBN)
   # initial
@@ -206,8 +206,8 @@ function log_command!(simLog::SimLog, args)
   #@assert t_index == length(d_t) + 1 #not called on initialize
 end
 
-extract_command_names(command::CorrAEMCommand) = String["h_d", "v_d", "psi_d"]
-extract_command_units(command::CorrAEMCommand) = String["ft/s", "ft/s^2", "deg/s"]
+extract_command_names(command::CorrAEMCommand) = ASCIIString["h_d", "v_d", "psi_d"]
+extract_command_units(command::CorrAEMCommand) = ASCIIString["ft/s", "ft/s^2", "deg/s"]
 
 function extract_command(command::CorrAEMCommand)
 
@@ -247,8 +247,8 @@ function log_adm!(simLog::SimLog, args)
 
 end
 
-extract_adm_names(adm::SimpleADM) = String["t", "x", "y", "h", "v", "psi"]
-extract_adm_units(adm::SimpleADM) = String["s", "ft", "ft", "ft", "ft/s", "deg"]
+extract_adm_names(adm::SimpleADM) = ASCIIString["t", "x", "y", "h", "v", "psi"]
+extract_adm_units(adm::SimpleADM) = ASCIIString["s", "ft", "ft", "ft", "ft/s", "deg"]
 
 function extract_adm(adm::SimpleADM)
 
@@ -257,8 +257,8 @@ function extract_adm(adm::SimpleADM)
   return round_floats(Any[s.t, s.x, s.y, s.h, s.v, s.psi], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
-extract_adm_names(adm::LLADM) = String["t", "v", "N", "E", "h", "psi", "theta", "phi", "a"]
-extract_adm_units(adm::LLADM) = String["s", "ft/s", "ft", "ft", "ft", "rad", "rad", "rad", "ft/s^2"]
+extract_adm_names(adm::LLADM) = ASCIIString["t", "v", "N", "E", "h", "psi", "theta", "phi", "a"]
+extract_adm_units(adm::LLADM) = ASCIIString["s", "ft/s", "ft", "ft", "ft", "rad", "rad", "rad", "ft/s^2"]
 
 function extract_adm(adm::LLADM)
 
@@ -302,8 +302,8 @@ function log_wm!(simLog::SimLog, args)
 
 end
 
-extract_wm_names(wm::AirSpace) = String["t", "x", "y", "z", "vx", "vy", "vz"]
-extract_wm_units(wm::AirSpace) = String["s", "ft", "ft", "ft", "ft/s", "ft/s", "ft/s"]
+extract_wm_names(wm::AirSpace) = ASCIIString["t", "x", "y", "z", "vx", "vy", "vz"]
+extract_wm_units(wm::AirSpace) = ASCIIString["s", "ft", "ft", "ft", "ft/s", "ft/s", "ft/s"]
 
 function extract_wm(wm::AirSpace, aircraft_number::Int)
 
@@ -345,14 +345,14 @@ function log_sensor!(simLog::SimLog, args)
 
 end
 
-extract_sensor_names(sr::Nothing) = String[]
-extract_sensor_units(sr::Nothing) = String[]
+extract_sensor_names(sr::Void) = ASCIIString[]
+extract_sensor_units(sr::Void) = ASCIIString[]
 
-extract_sensor(sr::Nothing) = Any[] #input=[empty]
+extract_sensor(sr::Void) = Any[] #input=[empty]
 
 function extract_sensor_names(sr::SimpleTCASSensor)
 
-  v = String["r", "r_d", "a", "a_d", "num_intruders"]
+  v = ASCIIString["r", "r_d", "a", "a_d", "num_intruders"]
 
   for i = 1:length(sr.output.h)
     push!(v,"h_$i", "h_d_$i")
@@ -363,7 +363,7 @@ end
 
 function extract_sensor_units(sr::SimpleTCASSensor)
 
-  v = String["ft", "ft/s", "ft", "ft/s", "integer"]
+  v = ASCIIString["ft", "ft/s", "ft", "ft/s", "integer"]
 
   for i = 1:length(sr.output.h)
     push!(v, "ft", "ft/s")
@@ -389,10 +389,10 @@ end
 
 function extract_sensor_names(sr::ACASXSensor)
 
-  v = String["dz", "z", "psi", "h", "modes", "num_intruders"]
+  v = ASCIIString["dz", "z", "psi", "h", "modes", "num_intruders"]
 
   for i=1:length(sr.outputVals.intruders)
-    v = vcat(v, String["valid_$i", "id_$i", "modes_$i", "sr_$i", "chi_$i", "z_$i", "cvc_$i", "vrc_$i", "vsb_$i"])
+    v = vcat(v, ASCIIString["valid_$i", "id_$i", "modes_$i", "sr_$i", "chi_$i", "z_$i", "cvc_$i", "vrc_$i", "vsb_$i"])
   end
 
   return v
@@ -400,7 +400,7 @@ end
 
 function extract_sensor_units(sr::ACASXSensor)
 
-  v = String["ft/s", "ft", "rad", "ft", "n/a", "integer"]
+  v = ASCIIString["ft/s", "ft", "rad", "ft", "n/a", "integer"]
 
   for i = 1:length(sr.outputVals.intruders)
     push!(v, "boolean", "integer", "n/a", "ft", "rad", "ft", "n/a", "n/a", "n/a")
@@ -463,21 +463,21 @@ function log_ra!(simLog::SimLog, args)
 
 end
 
-extract_ra_names(cas::Nothing) = String["ra_active", "target_rate"]
-extract_ra_units(cas::Nothing) = String["boolean", "ft/s"]
+extract_ra_names(cas::Void) = ASCIIString["ra_active", "target_rate"]
+extract_ra_units(cas::Void) = ASCIIString["boolean", "ft/s"]
 
-extract_ra(cas::Nothing) = Any[false, false]
+extract_ra(cas::Void) = Any[false, false]
 
-extract_ra_names(cas::Union(SimpleTCAS,CoordSimpleTCAS)) = String["ra_active", "target_rate"]
-extract_ra_units(cas::Union(SimpleTCAS,CoordSimpleTCAS)) = String["boolean", "ft/s"]
+extract_ra_names(cas::Union{SimpleTCAS,CoordSimpleTCAS}) = ASCIIString["ra_active", "target_rate"]
+extract_ra_units(cas::Union{SimpleTCAS,CoordSimpleTCAS}) = ASCIIString["boolean", "ft/s"]
 
 function extract_ra(cas::SimpleTCAS)
   return Any[cas.b_TCAS_activated, cas.b_TCAS_activated ? cas.RA.h_d : 0.0]
 end
 
-extract_ra_names(cas::ACASX) = String["ra_active", "alarm", "target_rate", "dh_min", "dh_max",
+extract_ra_names(cas::ACASX) = ASCIIString["ra_active", "alarm", "target_rate", "dh_min", "dh_max",
                                       "crossing", "cc", "vc", "ua", "da"]
-extract_ra_units(cas::ACASX) = String["boolean", "boolean", "ft/s", "ft/s", "ft/s",
+extract_ra_units(cas::ACASX) = ASCIIString["boolean", "boolean", "ft/s", "ft/s", "ft/s",
                                       "boolean", "n/a", "n/a", "n/a", "n/a"]
 
 function extract_ra(cas::ACASX)
@@ -643,8 +643,8 @@ function log_response!(simLog::SimLog, args)
 
 end
 
-extract_response_names(pr::StochasticLinearPR) = String["state", "displayRA", "response", "v_d", "h_d", "psi_d", "logProb"]
-extract_response_units(pr::StochasticLinearPR) = String["enum", "enum", "enum", "ft/s^2", "ft/s", "deg/s", "float"]
+extract_response_names(pr::StochasticLinearPR) = ASCIIString["state", "displayRA", "response", "v_d", "h_d", "psi_d", "logProb"]
+extract_response_units(pr::StochasticLinearPR) = ASCIIString["enum", "enum", "enum", "ft/s^2", "ft/s", "deg/s", "float"]
 
 function extract_response(pr::StochasticLinearPR)
 
@@ -658,8 +658,8 @@ function extract_response(pr::StochasticLinearPR)
                           pr.output.logProb], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
-extract_response_names(pr::LLDetPR) = String["state", "timer", "t", "v_d", "h_d", "psi_d", "logProb"]
-extract_response_units(pr::LLDetPR) = String["enum", "s", "s", "ft/s^2", "ft", "deg/s", "float"]
+extract_response_names(pr::LLDetPR) = ASCIIString["state", "timer", "t", "v_d", "h_d", "psi_d", "logProb"]
+extract_response_units(pr::LLDetPR) = ASCIIString["enum", "s", "s", "ft/s^2", "ft", "deg/s", "float"]
 
 function extract_response(pr::LLDetPR)
 
@@ -672,8 +672,8 @@ function extract_response(pr::LLDetPR)
                           pr.output.logProb], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
-extract_runinfo_names() = String["reward", "md_time", "hmd", "vmd", "nmac"]
-extract_runinfo_units() = String["float", "s", "ft", "ft", "boolean"]
+extract_runinfo_names() = ASCIIString["reward", "md_time", "hmd", "vmd", "nmac"]
+extract_runinfo_units() = ASCIIString["float", "s", "ft", "ft", "boolean"]
 
 function log_runinfo!(simLog::SimLog, args)
   # called only once when isEndState is true
@@ -711,13 +711,13 @@ function log_logProb!(simLog::SimLog, args)
   check_key!(simLog, "var_names")
 
   if !haskey(simLog["var_names"], "logProb")
-    simLog["var_names"]["logProb"] = String["logProb"]
+    simLog["var_names"]["logProb"] = ASCIIString["logProb"]
   end
 
   check_key!(simLog, "var_units")
 
   if !haskey(simLog["var_units"], "logProb")
-    simLog["var_units"]["logProb"] = String["float"]
+    simLog["var_units"]["logProb"] = ASCIIString["float"]
   end
 
   check_key!(simLog, "logProb", subkey = "time")
@@ -744,17 +744,17 @@ function round_floats(v::Vector{Any}, ndigits::Int64; enable::Bool=true)
   out = v
   if enable
     out = map(v) do x
-      return isa(x, FloatingPoint) ? round(x, ndigits) : x
+      return isa(x, AbstractFloat) ? round(x, ndigits) : x
     end
   end
   return out
 end
 
 #mods x to the range [-b, b]
-function to_plusminus_b(x::FloatingPoint, b::FloatingPoint)
+function to_plusminus_b(x::AbstractFloat, b::AbstractFloat)
   z = mod(x, 2 * b)
   return (z > b) ? (z - 2 * b) : z
 end
 
-to_plusminus_180(x::FloatingPoint) = to_plusminus_b(x, 180.0)
+to_plusminus_180(x::AbstractFloat) = to_plusminus_b(x, 180.0)
 sortByTime(d::SimLogDict) = sort(collect(d), by = x -> int64(x[1]))

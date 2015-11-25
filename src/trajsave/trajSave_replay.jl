@@ -37,9 +37,8 @@ using SISLES.GenerativeModel
 using RLESUtils: Obj2Dict, RunCases
 
 using CPUTime
-using Dates
 
-function trajReplay(savefile::String; fileroot::String="", case::Case=Case())
+function trajReplay(savefile::AbstractString; fileroot::AbstractString="", case::Case=Case())
   d = trajLoad(savefile)
   if isempty(fileroot)
     fileroot = string(getSaveFileRoot(savefile), "_replay")
@@ -47,7 +46,7 @@ function trajReplay(savefile::String; fileroot::String="", case::Case=Case())
   return trajReplay(d; fileroot=fileroot, case=case)
 end
 
-function trajReplay(d::SaveDict; fileroot::String = "", case::Case=Case())
+function trajReplay(d::SaveDict; fileroot::AbstractString = "", case::Case=Case())
   sim_params = extract_params!(Obj2Dict.to_obj(d["sim_params"]), case, "sim_params")
   ast_params = extract_params!(Obj2Dict.to_obj(d["ast_params"]), case, "ast_params")
   reward = sv_reward(d)

@@ -1,13 +1,10 @@
-julia 0.3
+julia 0.4
 ConfParser
 JSON
 GZip
 CPUTime
-Dates
 TikzPictures
 PGFPlots
 #SISLES
 #CCAS
-#RLESMDPs
-#Obj2Dict
-#RunCases
+#RLESUtils
