@@ -42,7 +42,7 @@ function calc_catranges(catlengths::Vector{Int64})
   return Range[cl[i] : (cl[i+1] - 1) for i = 1 : length(catlengths)]
 end
 
-function json_to_csv{T<:String}(savefile::String,
+function json_to_csv{T<:AbstractString}(savefile::AbstractString,
                                 categories::Vector{T} = ["command", "sensor", "ra", "ra_detailed", "response",
                                                        "adm", "wm"])
 

@@ -37,7 +37,7 @@ using RLESUtils: Obj2Dict, RNGWrapper
 
 include("../defines/define_save.jl")
 
-function fill_to_max_time(filename::String)
+function fill_to_max_time(filename::AbstractString)
   d = trajLoad(filename)
 
   # disable ending on nmac
@@ -64,7 +64,7 @@ function fill_to_max_time(filename::String)
   return outfilename
 end
 
-function fill_replay(filename::String; overwrite::Bool=false)
+function fill_replay(filename::AbstractString; overwrite::Bool=false)
   fillfile = fill_to_max_time(filename)
   if overwrite
     outfile = trajReplay(fillfile, fileroot=getSaveFileRoot(filename))
@@ -75,4 +75,4 @@ function fill_replay(filename::String; overwrite::Bool=false)
   return outfile
 end
 
-fill_replay{T <: String}(filenames::Vector{T}) = map(fill_replay, filenames)
+fill_replay{T<:AbstractString}(filenames::Vector{T}) = map(fill_replay, filenames)

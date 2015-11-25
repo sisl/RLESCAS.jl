@@ -35,9 +35,9 @@
 include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
 
-label270_to_text{T<:String}(infiles::Vector{T}) = pmap(label270_to_text, infiles)
+label270_to_text{T<:AbstractString}(infiles::Vector{T}) = pmap(label270_to_text, infiles)
 
-function label270_to_text(infile::String)
+function label270_to_text(infile::AbstractString)
   d = trajLoad(infile)
 
   tind = sv_lookup_id(d, "wm", "t")

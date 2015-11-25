@@ -37,7 +37,7 @@ include("../defines/define_save.jl")
 #dependencies
 include("label270.jl")
 
-function add_label270{T<:String}(files::Vector{T})
+function add_label270{T<:AbstractString}(files::Vector{T})
 
   for f in files
 
@@ -112,9 +112,9 @@ function add_label270{T<:String}(files::Vector{T})
   end
 end
 
-add_supplementary(file::String) = add_supplementary([file])
+add_supplementary(file::AbstractString) = add_supplementary([file])
 
-function add_supplementary{T<:String}(files::Vector{T})
+function add_supplementary{T<:AbstractString}(files::Vector{T})
 
   add_label270(files)
 end

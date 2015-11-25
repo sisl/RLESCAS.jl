@@ -36,9 +36,9 @@ include("../helpers/save_helpers.jl")
 
 const NMAC_STATS_ROUND_NDECIMALS = 2
 
-function nmac_stats(infiles::Vector{String}, txtfile::String = "nmac_stats.txt")
+function nmac_stats{T<:AbstractString}(infiles::Vector{T}, txtfile::AbstractString = "nmac_stats.txt")
 
-  stats = Dict{String,Any}()
+  stats = Dict{ASCIIString,Any}()
 
   for file = infiles
 
@@ -46,7 +46,7 @@ function nmac_stats(infiles::Vector{String}, txtfile::String = "nmac_stats.txt")
     run_type = d["run_type"]
 
     if !haskey(stats, run_type)
-      stats[run_type] = Dict{String,Any}()
+      stats[run_type] = Dict{ASCIIString,Any}()
       stats[run_type]["nmac_count"] = int64(0)
       stats[run_type]["nmac_encs_rewards"] = (Int64, Float64)[]
       stats[run_type]["total_count"] = int64(0)
