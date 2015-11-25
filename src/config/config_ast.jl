@@ -38,7 +38,7 @@ using AdaptiveStressTesting
 
 function defineASTParams(;
                          max_steps::Int64 = 50,
-                         rsg_length::Int64 = 1,
+                         rsg_length::Int64 = 3,
                          init_seed::Int64 = 0,
                          reset_seed::Union{Void,Int64} = nothing)
   p = ASTParams()

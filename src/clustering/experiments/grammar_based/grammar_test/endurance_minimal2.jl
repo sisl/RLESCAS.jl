@@ -1,27 +1,13 @@
-function to_function(code::Expr)
-  @eval f() = $code
-  return f
-end
 
-function get_code()
-  r1 = rand()
-  r2 = rand()
-  Expr(:comparison, r1, :<, r2)
-end
-
-using Debug
-@debug function script1()
+try
   srand(0)
   for i = 1:100000
-    code = "nothing"
-    try
-      code = get_code()
-      f = to_function(code)
-      f()
-    catch e
-      @bp
-      println(e)
-    end
+    r1, r2 = rand(2)
+    code = Expr(:comparison, r1, :<, r2)
     println("$i: code=$(string(code))")
+    @eval f() = $code
+    f()
   end
+catch e
+  println(e)
 end
