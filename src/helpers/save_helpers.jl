@@ -118,7 +118,7 @@ function sorted_times(d::SaveDict, field::AbstractString, aircraft_id::Union{Int
   end
   if haskey(dtemp, "time")
     ts = collect(keys(dtemp["time"]))
-    ts = int64(ts)
+    ts = Int64(ts)
     sort!(ts)
   else
     ts = 0 #flag for time field not found

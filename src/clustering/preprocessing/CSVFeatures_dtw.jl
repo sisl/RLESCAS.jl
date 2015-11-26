@@ -39,8 +39,8 @@ export feature_matrix
 using RLESUtils.LookupCallbacks
 using DataFrames
 
-function feature_matrix{T<:String}(csvfiles::Vector{T}, feature_map::Vector{LookupCallback})
-  f(csvfile::String) = feature_matrix(csvfile, feature_map)
+function feature_matrix{T<:AbstractString}(csvfiles::Vector{T}, feature_map::Vector{LookupCallback})
+  f(csvfile::AbstractString) = feature_matrix(csvfile, feature_map)
   return vcat(f, csvfiles)
 end
 

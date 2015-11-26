@@ -757,4 +757,4 @@ function to_plusminus_b(x::AbstractFloat, b::AbstractFloat)
 end
 
 to_plusminus_180(x::AbstractFloat) = to_plusminus_b(x, 180.0)
-sortByTime(d::SimLogDict) = sort(collect(d), by = x -> int64(x[1]))
+sortByTime(d::SimLogDict) = sort(collect(d), by = x -> Int64(x[1]))

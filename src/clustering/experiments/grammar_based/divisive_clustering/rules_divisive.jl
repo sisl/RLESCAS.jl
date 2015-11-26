@@ -105,7 +105,7 @@ end
 
 get_arrow_text(val) = string(val)
 
-function sub_varnames{T<:String}(s::String, colnames::Vector{T})
+function sub_varnames{T<:AbstractString}(s::AbstractString, colnames::Vector{T})
   r = r"D\[:,([0-9]+)\]"
   for m in eachmatch(r, s)
     id = m.captures[1] |> int

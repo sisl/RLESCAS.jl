@@ -40,9 +40,9 @@ using auxfuncs
 
 import MCTSdpw: DPW, State, StateNode
 
-plotTree(dpw::DPW,filename::String) = plotTree(dpw.s,filename)
+plotTree(dpw::DPW,filename::AbstractString) = plotTree(dpw.s,filename)
 
-function plotTree(d::Dict{State,StateNode},filename::String)
+function plotTree(d::Dict{State,StateNode},filename::AbstractString)
   println("Size of sdict: ", length(d))
   outputFile = open(filename,"w")
   write(outputFile,"digraph gvtree {\n")

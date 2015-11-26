@@ -77,7 +77,7 @@ end
 
 #TODO: implement saving these case gen dicts to/from json
 
-function cts_vis(files::Vector{String}; outfileroot::String = "cts_vis", format::String = "TEXPDF")
+function cts_vis{T<:AbstractString}(files::Vector{T}; outfileroot::AbstractString = "cts_vis", format::AbstractString = "TEXPDF")
 
   td = TikzDocument()
 
@@ -101,7 +101,7 @@ function cts_vis(files::Vector{String}; outfileroot::String = "cts_vis", format:
     push!(sems, map(x -> std(x[2]) / sqrt(length(x[2])), xyvecs))
 
     lengths = map(x -> length(x[2]), xyvecs)
-    push!(ntrials, int(median(lengths)))
+    push!(ntrials, Int(median(lengths)))
 
   end
 
@@ -125,7 +125,7 @@ function cts_vis(files::Vector{String}; outfileroot::String = "cts_vis", format:
     push!(nmacs, map(x -> sum(x[2]), xyvecs))
 
     lengths = map(x -> length(x[2]), xyvecs)
-    push!(ntrials, int(median(lengths)))
+    push!(ntrials, Int(median(lengths)))
 
   end
   pgfplotcts_nmacs!(td, names, times, nmacs, ntrials)
@@ -166,8 +166,8 @@ function gettime(d::SaveDict)
   return t
 end
 
-function pgfplotcts_reward!(td::TikzDocument,
-                            names::Vector{String},
+function pgfplotcts_reward!{T<:AbstractString}(td::TikzDocument,
+                            names::Vector{T},
                             times::Array{Vector{Float64}, 1},
                             means::Array{Vector{Float64}, 1},
                             sems::Array{Vector{Float64}, 1},
@@ -195,8 +195,8 @@ function pgfplotcts_reward!(td::TikzDocument,
 
 end
 
-function pgfplotcts_nmacs!(td::TikzDocument,
-                           names::Vector{String},
+function pgfplotcts_nmacs!{T<:AbstractString}(td::TikzDocument,
+                           names::Vector{T},
                            times::Array{Vector{Float64}, 1},
                            nmacs::Array{Vector{Float64}, 1},
                            ntrials::Vector{Int64})

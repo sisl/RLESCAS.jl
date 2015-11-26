@@ -64,7 +64,7 @@ type EditOpsVis
   EditOpsVis() = new()
 end
 
-function EditOpsVis(s1::String, s2::String)
+function EditOpsVis(s1::AbstractString, s2::AbstractString)
   vis = EditOpsVis()
 
   vis.fullstring1 = s1
@@ -89,9 +89,9 @@ function EditOpsVis(s1::String, s2::String)
   return vis
 end
 
-getops(s1::String, s2::String) = pyleven.editops(s1, s2)
+getops(s1::AbstractString, s2::AbstractString) = pyleven.editops(s1, s2)
 
-function editops_vis(s1::String, s2::String)
+function editops_vis(s1::AbstractString, s2::AbstractString)
 
   vis = EditOpsVis(s1, s2)
 

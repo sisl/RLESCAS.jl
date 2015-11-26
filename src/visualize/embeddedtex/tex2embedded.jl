@@ -32,11 +32,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using Base.Test
+function resubplot(infile::AbstractString, newcols::Int, newrows::Int, subplots::Vector{Int64})
 
-function resubplot(infile::String, newcols::Int, newrows::Int, subplots::Vector{Int64})
-
-  @test length(subplots) <= newcols * newrows
+  @assert length(subplots) <= newcols * newrows
 
   fileroot, fileext = splitext(infile)
   outfile = string(fileroot, "_resubplot", fileext)
@@ -50,8 +48,8 @@ function resubplot(infile::String, newcols::Int, newrows::Int, subplots::Vector{
     error("resubplot::Group Plot not found!")
   end
 
-  oldcols, oldrows = int(m.captures)
-  coloffset, rowoffset = int(m.offsets)
+  oldcols, oldrows = Int(m.captures)
+  coloffset, rowoffset = Int(m.offsets)
 
   part1 = string(s[1:(coloffset - 1)], newcols,
                  s[(coloffset + 1):rowoffset-1], newrows,
@@ -72,7 +70,7 @@ function resubplot(infile::String, newcols::Int, newrows::Int, subplots::Vector{
     idx = m.offsets[1] + length(m.captures[1])
   end
 
-  groupplots = String[]
+  groupplots =ASCIIString[]
   for (r1, r2) in zip(transitions[1:end - 1], transitions[2:end] - 1)
     push!(groupplots, s[r1:r2])
   end
@@ -89,7 +87,7 @@ function resubplot(infile::String, newcols::Int, newrows::Int, subplots::Vector{
   return outfile
 end
 
-function tex2embedded(infile::String; scaletext::Bool = true)
+function tex2embedded(infile::AbstractString; scaletext::Bool = true)
   #To use the embedded tikz tex, input it inside a figure
   #\begin{figure}
   #\centering

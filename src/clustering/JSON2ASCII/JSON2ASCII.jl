@@ -40,7 +40,7 @@ include(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajLoad
 include(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl")) #sv_*
 
 #TODO: consider moving to DataFrame format first
-function extract_string{T<:String}(file::T, fields::Vector{T})
+function extract_string{T<:AbstractString}(file::T, fields::Vector{T})
   d = trajLoad(file)
   buf = IOBuffer()
   for t = 1:sv_sim_steps(d)

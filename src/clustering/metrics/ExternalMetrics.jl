@@ -38,7 +38,7 @@ export filestats, pairs_classifier, rand_index, error_index
 
 using Iterators
 
-function pairs_classifier(file::String; IdType::Type=Int64)
+function pairs_classifier(file::AbstractString; IdType::Type=Int64)
   dat = readcsv(file)
   idset = filter(x -> !isempty(x), unique(dat))
   convert(Vector{IdType}, idset)
@@ -69,7 +69,7 @@ end
 
 error_index{T}(a1::Dict{(T, T), Bool}, a2::Dict{(T, T), Bool}) = 1 - rand_index(a1, a2)
 
-function filestats{T<:String}(files::Vector{T}; evalfunction::Function=pairs_classifier,
+function filestats{T<:AbstractString}(files::Vector{T}; evalfunction::Function=pairs_classifier,
                               distance::Function=error_index)
   XS = map(evalfunction, files)
   num_xs = length(XS)

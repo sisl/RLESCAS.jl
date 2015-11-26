@@ -43,16 +43,16 @@ type PhylotreeElement
   name::ASCIIString
   children::Vector{PhylotreeElement}
 end
-PhylotreeElement(level::Int64, name::String="") = PhylotreeElement(level, name, PhylotreeElement[])
-PhylotreeElement(level::Int64, name::String, children::PhylotreeElement...) =
+PhylotreeElement(level::Int64, name::AbstractString="") = PhylotreeElement(level, name, PhylotreeElement[])
+PhylotreeElement(level::Int64, name::AbstractString, children::PhylotreeElement...) =
   PhylotreeElement(level, name, [children...])
 
 #assume a scikit-learn agglomerative clustering output tree format and 0-indexing
 function vis_from_tree(nelements::Int64, tree0::Array{Int32,2};
                            nametable::Dict{Int64,ASCIIString}=Dict{Int64,ASCIIString}(),
                            show_intermediate::Bool=true,
-                           outfileroot::String="cluster_tree",
-                           output::String="TEXPDF")
+                           outfileroot::AbstractString="cluster_tree",
+                           output::AbstractString="TEXPDF")
   lastid = nelements - 1
   root_id = lastid #id of the root node, init value
   d = Dict{Int64, PhylotreeElement}()
@@ -97,8 +97,8 @@ end
 
 function vis_from_distances(affinity::Array{Float64,2}, offset_scale::Float64=0.8;
                             nametable::Vector{ASCIIString}=ASCIIString[],
-                           outfileroot::String="cluster_tree",
-                           output::String="TEXPDF")
+                           outfileroot::AbstractString="cluster_tree",
+                           output::AbstractString="TEXPDF")
   preamble = string("\\usetikzlibrary{graphs, graphdrawing}\n",
                     "\\usegdlibrary{phylogenetics}\n",
                     "\\pgfgdset{phylogenetic inner node/.style={

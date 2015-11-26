@@ -47,9 +47,9 @@ function nmac_stats{T<:AbstractString}(infiles::Vector{T}, txtfile::AbstractStri
 
     if !haskey(stats, run_type)
       stats[run_type] = Dict{ASCIIString,Any}()
-      stats[run_type]["nmac_count"] = int64(0)
+      stats[run_type]["nmac_count"] = Int64(0)
       stats[run_type]["nmac_encs_rewards"] = (Int64, Float64)[]
-      stats[run_type]["total_count"] = int64(0)
+      stats[run_type]["total_count"] = Int64(0)
     end
 
     @show file

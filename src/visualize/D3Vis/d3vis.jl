@@ -34,7 +34,7 @@
 
 include("D3Vis/D3_MCTSvis.jl")
 
-function d3vis_save(enc::Int; limit_steps::Union(Int64,Nothing)=nothing)
+function d3vis_save(enc::Int; limit_steps::Union{Int64,Void}=nothing)
   sim = defineSim(enc,:DBN)
   mdp = defineMDP(sim)
   dpw = defineMCTS(mdp)

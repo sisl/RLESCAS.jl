@@ -62,8 +62,8 @@ function print_element!(io::IOBuffer, element::QTreeNode)
 end
 
 function plottree(qtree::TikzQTree;
-                  outfileroot::String="qtree",
-                  output::String="TEXPDF")
+                  outfileroot::AbstractString="qtree",
+                  output::AbstractString="TEXPDF")
   preamble = "\\usepackage{tikz-qtree}
 \\usetikzlibrary{shadows,trees}
 \\tikzset{

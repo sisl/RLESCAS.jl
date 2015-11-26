@@ -58,7 +58,7 @@ function irs_2ac_mcts_script(encounter::Int64, iterations::Vector{Int64})
 
 end
 
-function irs_vis(files::Vector{String}; outfileroot::String="irs_vis")
+function irs_vis{T<:AbstractString}(files::Vector{T}; outfileroot::AbstractString="irs_vis")
 
   #attributes defined by callbacks
   #[encounter number, iterations, total reward, isnmac]
