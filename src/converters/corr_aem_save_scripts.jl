@@ -95,38 +95,38 @@
 #               conditions and updates (default is 'double')
 
 
-function save_encounters(filename, encounters; numupdatetype = Uint32, append = false, floattype = Float64)
+function save_encounters(filename, encounters; numupdatetype = UInt32, append = false, floattype = Float64)
 
-    num_encounters::Uint32 = size(encounters, 2)
+    num_encounters::UInt32 = size(encounters, 2)
     num_ac = size(encounters, 1)
 
     if append
         if isreadable(filename) == false
             fio = open(filename, "w")
 
-            write(fio, uint32(num_encounters))
-            write(fio, uint32(num_ac))
+            write(fio, UInt32(num_encounters))
+            write(fio, UInt32(num_ac))
         else
             fio = open(filename, "a+")
             seekstart(fio)
 
-            file_num_encounters = read(fio, Uint32)
-            file_num_ac = read(fio, Uint32)
+            file_num_encounters = read(fio, UInt32)
+            file_num_ac = read(fio, UInt32)
 
             if file_num_ac != num_ac
                 error("Must have the same number of aircraft when appending encounter files")
             end
 
             seekstart(fio)
-            write(fio, uint32(file_num_encounters + num_encounters))
+            write(fio, UInt32(file_num_encounters + num_encounters))
 
             seekend(fio)
         end
     else
         fio = open(filename, "w")
 
-        write(fio, uint32(num_encounters))
-        write(fio, uint32(num_ac))
+        write(fio, UInt32(num_encounters))
+        write(fio, UInt32(num_ac))
     end
 
     for i = 1:num_encounters
@@ -145,12 +145,12 @@ function save_encounters(filename, encounters; numupdatetype = Uint32, append = 
     close(fio)
 end
 
-function save_scripts(filename, scripts; numupdatetype = Uint8, append = false, floattype = Float64)
+function save_scripts(filename, scripts; numupdatetype = UInt8, append = false, floattype = Float64)
 
     save_encounters(filename, scripts; numupdatetype = numupdatetype, append = append, floattype = floattype)
 end
 
-function save_waypoints(filename, scripts; numupdatetype = Uint16, append = false, floattype = Float64)
+function save_waypoints(filename, scripts; numupdatetype = UInt16, append = false, floattype = Float64)
 
     save_encounters(filename, scripts; numupdatetype = numupdatetype, append = append, floattype = floattype)
 end

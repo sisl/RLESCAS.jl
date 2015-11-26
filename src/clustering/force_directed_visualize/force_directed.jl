@@ -37,12 +37,12 @@
 
 #Format:
 #top-level Dict d
-#d is Dict{String,Any} has two fields: "nodes" and "links"
-#d["nodes"] is an array of Dict{String,Any}
+#d is Dict{ASCIIString,Any} has two fields: "nodes" and "links"
+#d["nodes"] is an array of Dict{ASCIIString,Any}
 #d["nodes"][1] has two fields "name" and "group"
 #d["nodes"][1]["name"] = name of node as a string
 #d["nodes"][1]["group"] = group label as an int
-#d["links"] is an array of Dict{String,Any}
+#d["links"] is an array of Dict{ASCIIString,Any}
 #d["links"][1] has 3 fields "source", "target", "value"
 #d["links"][1]["source"] = index of array of source node (0-indexing)
 #d["links"][1]["target"] = index of array of target node (0-indexing)
@@ -55,9 +55,9 @@ using JSON
 
 force_directed(cr::ClusterResults) = force_directed(cr.files, cr.labels, cr.affinity)
 
-function force_directed{T<:String}(names::Vector{T}, labels::Vector{Int},
+function force_directed{T<:AbstractString}(names::Vector{T}, labels::Vector{Int},
                                    affinity::Array{Float64,2};
-                                       outfile::String="force_directed.json")
+                                       outfile::AbstractString="force_directed.json")
     d = Dict{ASCIIString,Any}()
     d["nodes"] = Dict{ASCIIString,Any}[]
     d["links"] = Dict{ASCIIString,Any}[]

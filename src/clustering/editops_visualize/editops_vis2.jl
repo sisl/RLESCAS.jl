@@ -40,13 +40,13 @@ using PyCall
 
 @pyimport Levenshtein as pyleven
 
-const GTK_WRAP_CHAR = int32(1)
+const GTK_WRAP_CHAR = Int32(1)
 
 #String 1 is transformed into String 2
 
-getops(s1::String, s2::String) = pyleven.editops(s1, s2)
+getops(s1::AbstractString, s2::AbstractString) = pyleven.editops(s1, s2)
 
-function editops_vis(s1::String, s2::String)
+function editops_vis(s1::AbstractString, s2::AbstractString)
 
   ops = getops(s1, s2)
 
@@ -130,7 +130,7 @@ function clear_tags!(textbuf::GtkTextBufferLeaf, start_index::Int64, end_index::
   Gtk.remove_all_tags(textbuf, Gtk.GtkTextIter(textbuf, start_index), Gtk.GtkTextIter(textbuf, end_index))
 end
 
-function editops_filevis(file1::String, file2::String)
+function editops_filevis(file1::AbstractString, file2::AbstractString)
   include("../clustering.jl") #only this function needs Clustering, so isolate it here for performance
 
   s1 = Clustering.extract_string(file1)

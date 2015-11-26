@@ -53,8 +53,8 @@ function json_to_csv{T<:AbstractString}(savefile::AbstractString,
   t_end = maximum([length(sorted_times(d, c, 1)) for c in categories])
   num_aircraft = sv_num_aircraft(d)
 
-  header = convert(Array{String}, vcat([map(s->"$c.$s", sv_simlog_names(d, c)) for c = categories]...))
-  units = convert(Array{String}, vcat([map(u->"$u", sv_simlog_units(d, c)) for c = categories]...))
+  header = convert(Array{ASCIIString}, vcat([map(s->"$c.$s", sv_simlog_names(d, c)) for c = categories]...))
+  units = convert(Array{ASCIIString}, vcat([map(u->"$u", sv_simlog_units(d, c)) for c = categories]...))
   data = Array(Any, t_end, length(header), num_aircraft)
   fill!(data, "n/a")
 

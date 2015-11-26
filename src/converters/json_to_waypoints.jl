@@ -93,7 +93,7 @@ function json_to_waypoints{T<:AbstractString}(filenames::Vector{T}; outfile::Abs
   d = trajLoad(filenames[1]) #use the first one as a reference
   num_aircraft = sv_num_aircraft(d, "wm")
   num_encounters = length(filenames) #one encounter per json file
-  encounters = Array(Dict{String, Array{Float64, 2}}, num_aircraft, num_encounters)
+  encounters = Array(Dict{ASCIIString, Array{Float64, 2}}, num_aircraft, num_encounters)
 
   #encounter i
   for (i, file) in enumerate(filenames)
@@ -111,7 +111,7 @@ function json_to_waypoints{T<:AbstractString}(filenames::Vector{T}; outfile::Abs
     end
   end
 
-  save_waypoints(outfile, encounters, numupdatetype = Uint16)
+  save_waypoints(outfile, encounters, numupdatetype = UInt16)
 
   return encounters
 end

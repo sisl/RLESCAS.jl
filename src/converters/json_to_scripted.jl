@@ -103,7 +103,7 @@ function json_to_scripted{T<:AbstractString}(filenames::Vector{T}; outfile::Abst
   d = trajLoad(filenames[1]) #use the first one as a reference
   num_aircraft = sv_num_aircraft(d, "wm")
   num_encounters = length(filenames) #one encounter per json file
-  encounters = Array(Dict{String, Array{Float64, 2}}, num_aircraft, num_encounters)
+  encounters = Array(Dict{ASCIIString, Array{Float64, 2}}, num_aircraft, num_encounters)
 
   #encounter i
   for (i, file) in enumerate(filenames)
@@ -114,13 +114,13 @@ function json_to_scripted{T<:AbstractString}(filenames::Vector{T}; outfile::Abst
 
     #aircraft j
     for j = 1 : num_aircraft
-      encounters[j, i] = Dict{String,Array{Float64, 2}}()
+      encounters[j, i] = Dict{ASCIIString,Array{Float64, 2}}()
       encounters[j, i]["initial"] = j2s_initial(d, j)
       encounters[j, i]["update"] = j2s_update(d, j)'
     end
   end
 
-  save_scripts(outfile, encounters, numupdatetype=Uint8)
+  save_scripts(outfile, encounters, numupdatetype=UInt8)
 
   return encounters
 end

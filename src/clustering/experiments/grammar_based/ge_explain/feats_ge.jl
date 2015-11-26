@@ -99,7 +99,7 @@ end
 #flat clusters
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script1(crfile::String)
+function script1(crfile::AbstractString)
   seed = 1
   rsg = RSG(1, seed)
   set_global(rsg)
@@ -126,7 +126,7 @@ end
 
 #hierarchical clusters
 #script2(ASCII_CR)
-function script2(crfile::String)
+function script2(crfile::AbstractString)
   seed = 1
   rsg = RSG(1, seed)
   set_global(rsg)
@@ -156,7 +156,7 @@ end
 #hunt down bug origin
 
 #=
-function hcluster_codes(crfile::String)
+function hcluster_codes(crfile::AbstractString)
   cr = load_result(crfile)
   tree = cr.tree
   nrecords = length(cr.names)

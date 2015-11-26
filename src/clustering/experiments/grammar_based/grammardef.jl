@@ -40,7 +40,7 @@ using RLESUtils.DataFramesUtils
 using GrammaticalEvolution
 using DataFrames
 
-typealias RealVec Union(DataArray{Float64,1}, Vector{Float64})
+typealias RealVec Union{DataArray{Float64,1}, Vector{Float64}}
 
 convert_number(lst) = float(join(lst))::Float64
 
@@ -173,7 +173,7 @@ function to_function(code::Expr)
   return f
 end
 
-function pretty_string{T<:String}(code::String, colnames::Vector{T})
+function pretty_string{T<:AbstractString}(code::AbstractString, colnames::Vector{T})
   s = code
   #remove top()
   s = replace(s, "top(", "")[1:end-1]
@@ -186,7 +186,7 @@ function pretty_string{T<:String}(code::String, colnames::Vector{T})
   return s
 end
 
-function sub_varnames{T<:String}(s::String, colnames::Vector{T})
+function sub_varnames{T<:AbstractString}(s::AbstractString, colnames::Vector{T})
   r = r"D\[:,(\d+)\]"
   for m in eachmatch(r, s)
     id = m.captures[1] |> int
@@ -195,10 +195,10 @@ function sub_varnames{T<:String}(s::String, colnames::Vector{T})
   return s
 end
 
-function sub_rn(s::String)
+function sub_rn(s::AbstractString)
   r = r"rn\(([+-]?\d),([+-]?\d.\d+)\)"
   for m in eachmatch(r, s)
-    n = int(m.captures[1])
+    n = Int(m.captures[1])
     x = float(m.captures[2])
     s = replace(s, m.match, signif(rn(n, x), 5)) #round to 5 significant digits
   end

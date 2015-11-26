@@ -59,7 +59,7 @@ function ==(x1::ClusterResult, x2::ClusterResult)
   return true #all fields must match to return true
 end
 
-function save_result(result::ClusterResult, outfile::String="cluster_result.json")
+function save_result(result::ClusterResult, outfile::AbstractString="cluster_result.json")
   f = open(outfile, "w")
   d = Obj2Dict.to_dict(result)
   JSON.print(f, d)
@@ -67,7 +67,7 @@ function save_result(result::ClusterResult, outfile::String="cluster_result.json
   return outfile
 end
 
-function load_result(file::String="cluster_result.json")
+function load_result(file::AbstractString="cluster_result.json")
   f = open(file)
   d = JSON.parse(f)
   close(f)
@@ -76,7 +76,7 @@ end
 
 function to_sorted_list(affinity_matrix::Array{Float64, 2},
                         nametable::Vector{ASCIIString}=ASCIIString[];
-                        outfile::String="sorted.txt")
+                        outfile::AbstractString="sorted.txt")
   A = affinity_matrix
   nrows, ncols = size(A)
   @assert nrows == ncols
@@ -105,7 +105,7 @@ function to_sorted_list(affinity_matrix::Array{Float64, 2},
   return out
 end
 
-function to_sorted_list(result::ClusterResult; outfile::String="sorted.txt")
+function to_sorted_list(result::ClusterResult; outfile::AbstractString="sorted.txt")
   to_sorted_list(result.affinity, convert(Vector{ASCIIString}, result.names), outfile)
 end
 

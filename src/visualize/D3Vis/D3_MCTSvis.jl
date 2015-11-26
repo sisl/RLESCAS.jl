@@ -38,7 +38,7 @@ push!(LOAD_PATH,joinpath(pwd(),"/../"))
 using MDP
 import MCTSdpw: DPW, State, Action, StateNode, StateActionNode, StateActionStateNode
 
-function saveSimTree(dpw::DPW,s::State,outfile::String)
+function saveSimTree(dpw::DPW,s::State,outfile::AbstractString)
 
   function process(sn::StateNode,Tout)
     for (a,san) in sn.a

@@ -60,7 +60,7 @@ function DFSetLabeled{T}(Ds::DFSet, labels::Vector{T})
   DFSetLabeled(Ds.names, Ds.records, labels)
 end
 
-function load_from_dir(dir::String; ext::String="csv") #directory of csvs
+function load_from_dir(dir::AbstractString; ext::AbstractString="csv") #directory of csvs
   files = readdir_ext(ext, dir) |> sort!
   Ds = load_from_csvs(files)
   return Ds
@@ -72,7 +72,7 @@ function load_from_csvs(files::Vector{ASCIIString})
   return DFSet(fs, records)
 end
 
-function load_from_clusterresult(file::String, name2file::Dict{ASCIIString, ASCIIString})
+function load_from_clusterresult(file::AbstractString, name2file::Dict{ASCIIString, ASCIIString})
   cr = load_result(file)
   return load_from_clusterresult(cr, name2file)
 end

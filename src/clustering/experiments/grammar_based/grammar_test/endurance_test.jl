@@ -72,7 +72,7 @@ const MYKEL_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/mykel.json")
 const JOSH1_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh1.json")
 const JOSH2_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh2.json")
 
-function script1(crfile::String)
+function script1(crfile::AbstractString)
   rsg = RSG(1, SEED) |> set_global
   Dl = load_from_clusterresult(crfile, NAME2FILE_MAP)
   len = length(Dl)

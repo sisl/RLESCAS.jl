@@ -59,7 +59,7 @@ end
 
 type HCElement
   members::Vector{Int64}
-  classifier::Union(GBClassifier, Nothing)
+  classifier::Union{GBClassifier,Void}
   children::Dict{Bool,Int64}
 end
 

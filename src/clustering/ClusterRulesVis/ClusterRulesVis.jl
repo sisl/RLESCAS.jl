@@ -44,13 +44,13 @@ using TikzQTrees
 using RLESUtils.LatexUtils
 using JSON
 
-function plot_qtree(fcrules::FCRules, Dl::DFSetLabeled; check_result::Union(Nothing, FCCheckResult)=nothing,
-                    outfileroot::String="crvis-qtree")
+function plot_qtree(fcrules::FCRules, Dl::DFSetLabeled; check_result::Union{Void, FCCheckResult}=nothing,
+                    outfileroot::AbstractString="crvis-qtree")
   qtree = to_qtree(fcrules, Dl, check_result=check_result)
   plottree(qtree, outfileroot=outfileroot)
 end
 
-function to_qtree(fcrules::FCRules, Dl::DFSetLabeled; check_result::Union(Nothing, FCCheckResult)=nothing)
+function to_qtree(fcrules::FCRules, Dl::DFSetLabeled; check_result::Union{Void, FCCheckResult}=nothing)
   colnames = get_colnames(Dl)
   root_text = "$(join(Dl.names,","))" |> escape_latex
   root = QTreeNode(root_text)
@@ -74,7 +74,7 @@ function get_members_text{T}(Dl::DFSetLabeled{T}, label::T)
   return s
 end
 
-function get_checker_text{T}(Dl::DFSetLabeled{T}, label::T, check_result::Union(Nothing,FCCheckResult))
+function get_checker_text{T}(Dl::DFSetLabeled{T}, label::T, check_result::Union{Void,FCCheckResult})
   if check_result == nothing
     return ""
   end
@@ -83,7 +83,7 @@ function get_checker_text{T}(Dl::DFSetLabeled{T}, label::T, check_result::Union(
   return "matches=$(join(matched, ","))\\mismatches=$(join(mismatched, ","))"
 end
 
-function get_checker_text{T}(Dl::DFSetLabeled{T}, index::Int64, check_result::Union(Nothing,HCCheckResult))
+function get_checker_text{T}(Dl::DFSetLabeled{T}, index::Int64, check_result::Union{Void,HCCheckResult})
   if check_result == nothing
     return ""
   end
@@ -92,8 +92,8 @@ function get_checker_text{T}(Dl::DFSetLabeled{T}, index::Int64, check_result::Un
   return "matches=$(join(matched, ","))\nmismatches=$(join(mismatched, ","))"
 end
 
-function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union(Nothing, HCCheckResult)=nothing,
-                    outfileroot::String="crvis-d3js")
+function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union{Void, HCCheckResult}=nothing,
+                    outfileroot::AbstractString="crvis-d3js")
   d = to_d3js(hcrules, Dl, check_result=check_result)
   filename = "$(outfileroot).json"
   f = open(filename, "w")
@@ -102,7 +102,7 @@ function write_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union(Noth
   return filename
 end
 
-function to_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union(Nothing, HCCheckResult)=nothing)
+function to_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union{Void, HCCheckResult}=nothing)
   colnames = get_colnames(Dl)
   root_index = length(hcrules.rules)
   d = Dict{ASCIIString,Any}() #JSON-compatible
@@ -111,7 +111,7 @@ function to_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union(Nothing
 end
 
 function process!(d::Dict{ASCIIString,Any}, hcrules::HCRules, index::Int64,
-                  colnames::Vector{ASCIIString}, check_result::Union(Nothing, HCCheckResult)=nothing)
+                  colnames::Vector{ASCIIString}, check_result::Union{Void, HCCheckResult}=nothing)
   node = hcrules.rules[index]
   members_text = join(node.members, ",")
   code_text = node.classifier != nothing ?

@@ -55,7 +55,7 @@ type BestSampleParams <: GBParams
   default_code::Expr
   nsamples::Int64
   verbosity::Int64
-  get_fitness::Union(Nothing, Function)
+  get_fitness::Union{Void, Function}
 end
 
 type GeneticSearchParams <: GBParams
@@ -68,7 +68,7 @@ type GeneticSearchParams <: GBParams
   min_iters::Int64
   max_iters::Int64
   verbosity::Int
-  get_fitness::Union(Nothing, Function)
+  get_fitness::Union{Void, Function}
 end
 
 type GBClassifier
@@ -110,7 +110,7 @@ function best_sample(p::BestSampleParams, Dl::DFSetLabeled)
   return GBClassifier(best_ind.fitness, best_ind.code)
 end
 
-function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union(Nothing, Function), default_code::Expr, Dl::DFSetLabeled)
+function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, get_fitness::Union{Void, Function}, default_code::Expr, Dl::DFSetLabeled)
   try
     ind.code = transform(grammar, ind, maxwraps=maxwraps)
     if get_fitness != nothing

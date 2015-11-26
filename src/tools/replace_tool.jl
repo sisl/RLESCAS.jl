@@ -34,7 +34,7 @@
 
 using GZip
 
-function search_replace{T<:String}(files::Vector{T}, src::String, dst::String; outdir::String="./converted")
+function search_replace{T<:AbstractString}(files::Vector{T}, src::AbstractString, dst::AbstractString; outdir::AbstractString="./converted")
   mkpath(outdir)
   for file in files
     fileroot, fileext = splitext(file)
@@ -46,7 +46,7 @@ function search_replace{T<:String}(files::Vector{T}, src::String, dst::String; o
   end
 end
 
-function replace_text(file::String, src::String, dst::String, outdir::String; fopen::Function=open)
+function replace_text(file::AbstractString, src::AbstractString, dst::AbstractString, outdir::AbstractString; fopen::Function=open)
   text = fopen(readall, file)
   text = replace(text, src, dst)
 

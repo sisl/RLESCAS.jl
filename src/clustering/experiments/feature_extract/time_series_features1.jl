@@ -54,18 +54,18 @@ const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 0), #split categorical to 1-hot
   LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 1), #split categorical to 1-hot
   LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 2), #split categorical to 1-hot
-  LookupCallback("ra_detailed.ownOutput.cc", x -> bin(int(x), 3)[1] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.cc", x -> bin(int(x), 3)[2] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.cc", x -> bin(int(x), 3)[3] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.vc", x -> bin(int(x), 3)[1] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.vc", x -> bin(int(x), 3)[2] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.vc", x -> bin(int(x), 3)[3] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.ua", x -> bin(int(x), 3)[1] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.ua", x -> bin(int(x), 3)[2] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.ua", x -> bin(int(x), 3)[3] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.da", x -> bin(int(x), 3)[1] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.da", x -> bin(int(x), 3)[2] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.da", x -> bin(int(x), 3)[3] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.cc", x -> bin(Int(x), 3)[1] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.cc", x -> bin(Int(x), 3)[2] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.cc", x -> bin(Int(x), 3)[3] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.vc", x -> bin(Int(x), 3)[1] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.vc", x -> bin(Int(x), 3)[2] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.vc", x -> bin(Int(x), 3)[3] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.ua", x -> bin(Int(x), 3)[1] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.ua", x -> bin(Int(x), 3)[2] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.ua", x -> bin(Int(x), 3)[3] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.da", x -> bin(Int(x), 3)[1] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.da", x -> bin(Int(x), 3)[2] == '1'), #categorical 3-bit
+  LookupCallback("ra_detailed.ownOutput.da", x -> bin(Int(x), 3)[3] == '1'), #categorical 3-bit
   LookupCallback("ra_detailed.ownOutput.target_rate"),
   LookupCallback("ra_detailed.ownOutput.crossing", bool),
   LookupCallback("ra_detailed.ownOutput.alarm", bool),

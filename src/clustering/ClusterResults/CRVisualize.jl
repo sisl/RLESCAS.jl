@@ -44,7 +44,7 @@ using TikzPictures
 using PGFPlots
 using ClusterResults
 
-function plot_to_file(result::ClusterResult; outfileroot::String="cluster_vis")
+function plot_to_file(result::ClusterResult; outfileroot::AbstractString="cluster_vis")
   labelset = unique(result.labels)
   for label in labelset
     td = TikzDocument()

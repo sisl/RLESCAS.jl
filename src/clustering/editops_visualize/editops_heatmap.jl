@@ -42,11 +42,11 @@ using PyCall
 
 #String 1 is transformed into String 2
 
-getops(s1::String, s2::String) = pyleven.editops(s1, s2)
+getops(s1::AbstractString, s2::AbstractString) = pyleven.editops(s1, s2)
 
 fields = ["sensor", "ra_detailed", "response", "adm"]
 
-function extract_string_tracked(file::String)
+function extract_string_tracked(file::AbstractString)
 
   #initialize trackers, k=char position, v=(aircraft id, field)
   tags = Dict{Int64, (Int64, ASCIIString)}()
@@ -82,8 +82,8 @@ function groupby(X::Vector{Any})
   return out
 end
 
-function editops_heatmap(file1::String, file2::String;
-                         outfile::String="editops_heatmap.txt")
+function editops_heatmap(file1::AbstractString, file2::AbstractString;
+                         outfile::AbstractString="editops_heatmap.txt")
 
   s1, tags1 = extract_string_tracked(file1)
   s2, tags2 = extract_string_tracked(file2)

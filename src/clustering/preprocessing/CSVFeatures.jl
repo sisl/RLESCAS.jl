@@ -66,7 +66,7 @@ function feature_frame(csvfile::ASCIIString, feature_map::Vector{LookupCallback}
   return DataFrame(V, colnames)
 end
 
-append(V::Vector{ASCIIString}, s::String) = map(x -> "$(x)$(s)", V)
+append(V::Vector{ASCIIString}, s::AbstractString) = map(x -> "$(x)$(s)", V)
 
 #map a directory of trajSave_aircraft.csv files to trajSave_dataframe.csv file
 function csv_to_dataframe(files::Vector{ASCIIString}, feature_map::Vector{LookupCallback}, feature_names::Vector{ASCIIString}; outdir::ASCIIString="./")
