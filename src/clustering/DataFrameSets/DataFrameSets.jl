@@ -72,11 +72,11 @@ function load_from_csvs(files::Vector{ASCIIString})
   return DFSet(fs, records)
 end
 
-function load_from_clusterresult(file::AbstractString, name2file::Dict{ASCIIString, ASCIIString})
+function load_from_clusterresult{T1<:AbstractString,T2}(file::AbstractString, name2file::Dict{T1, T2})
   cr = load_result(file)
   return load_from_clusterresult(cr, name2file)
 end
-function load_from_clusterresult(cr::ClusterResult, name2file::Dict{ASCIIString, ASCIIString})
+function load_from_clusterresult{T1<:AbstractString,T2}(cr::ClusterResult, name2file::Dict{T1, T2})
   files = map(cr.names) do x
     haskey(name2file, x) ? name2file[x] : error("key not found: $x")
   end

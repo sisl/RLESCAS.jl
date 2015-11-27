@@ -46,7 +46,7 @@ include("defines/define_log.jl") #SimLog
 include("defines/define_save.jl") #trajSave, trajLoad and helpers
 include("defines/save_types.jl") #ComputeInfo
 include("helpers/save_helpers.jl")
-help
+
 include("visualize/visualize.jl") #pgfplotLog
 
 include("trajsave/trajSave_common.jl")

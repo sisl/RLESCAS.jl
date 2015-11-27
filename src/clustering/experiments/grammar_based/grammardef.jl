@@ -186,7 +186,7 @@ end
 function sub_varnames{T<:AbstractString}(s::AbstractString, colnames::Vector{T})
   r = r"D\[:,(\d+)\]"
   for m in eachmatch(r, s)
-    id = m.captures[1] |> int
+    id = parse(Int, m.captures[1])
     s = replace(s, m.match, colnames[id])
   end
   return s
@@ -196,8 +196,8 @@ function sub_reals(s::AbstractString)
   r = r"r([pn])\(([+-]?\d),([,\d]+)\)"
   for m in eachmatch(r, s)
     pos = m.captures[1] == "p"
-    n = int(m.captures[2]) #exponent
-    ds = map(int, split(m.captures[3], ",")) #digits
+    n = parse(Int, m.captures[2]) #exponent
+    ds = map(x->parse(Int,x), split(m.captures[3], ",")) #digits
     real_number = pos ? rp(n, ds...) : rn(n, ds...)
     s = replace(s, m.match, signif(real_number, 5)) #round to 5 significant digits
   end

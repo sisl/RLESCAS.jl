@@ -93,7 +93,8 @@ function explain_clusters{T}(p::FCParams, gb_params::GBParams, Dl::DFSetLabeled{
     Dl_ = setlabels(Dl, truth) #new Dl
     return train(gb_params, Dl_) #out=classifier
   end
-  rules = Dict{T, GBClassifier}(labelset, classifiers)
+  classifiers = convert(Vector{GBClassifier}, classifiers)
+  rules = Dict{T, GBClassifier}(zip(labelset, classifiers))
   return FCRules(rules)
 end
 
@@ -146,7 +147,7 @@ function explain_clusters{T}(p::HCParams, gb_params::GBParams, Dl::DFSetLabeled{
   for row = 1:num_merges #each merge
     c1, c2 = p.tree[row, :] #cluster indices in V
     members = vcat(R[c1].members, R[c2].members)
-    children = Dict{Bool, Int64}([true => c1, false => c2])
+    children = Dict{Bool, Int64}(true => c1, false => c2)
     R[i] = HCElement(members, nothing, children) #set classifier to nothing for now
     i += 1
   end

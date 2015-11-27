@@ -36,6 +36,7 @@ module ClusterResults
 
 export ClusterResult, save_result, load_result, to_sorted_list, by_label, save_csv, load_csv
 
+import Base.==
 using JSON
 using RLESUtils.Obj2Dict
 using Iterators
