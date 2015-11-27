@@ -35,8 +35,7 @@
 module ClusterRules
 
 export CRParams, explain_clusters, checker, CheckResult, FCCheckResult, HCCheckResult
-export FCParams, FCRules, HCParams, HCRules
-export start, next, done, length
+export FCParams, FCRules, HCParams, HCRules, HCElement
 
 using GBClassifiers
 using DataFrameSets
@@ -62,6 +61,7 @@ type HCElement
   classifier::Union(GBClassifier, Nothing)
   children::Dict{Bool,Int64}
 end
+HCElement() = HCElement(Int64[], nothing, Dict{Bool,Int64}())
 
 type HCRules
   ndata::Int64
@@ -89,8 +89,8 @@ end
 function explain_clusters{T}(p::FCParams, gb_params::GBParams, Dl::DFSetLabeled{T})
   labelset = unique(Dl.labels) |> sort!
   classifiers = pmap(labelset) do l
-    labels = map(x -> x == l, Dl.labels) #one vs others mapping
-    Dl_ = setlabels(Dl, labels) #new Dl
+    truth = map(x -> x == l, Dl.labels) #one vs others mapping
+    Dl_ = setlabels(Dl, truth) #new Dl
     return train(gb_params, Dl_) #out=classifier
   end
   rules = Dict{T, GBClassifier}(labelset, classifiers)
@@ -117,58 +117,80 @@ function explain_clusters{T}(p::HCParams, gb_params::GBParams, Dl::DFSetLabeled{
   @assert size(p.tree, 2) == 2 #should have exactly 2 columns for the clusters to be merged
   @assert all(p.tree .> 0) #should be 1-indexed
   ndata = length(Dl)
-  top_index = maximum(p.tree) + 1
-  V = Array(HCElement, top_index)
-  for i = 1:ndata
+  first_merge = ndata + 1 #index in V
+  last_merge = maximum(p.tree) + 1 #index in V
+  num_merges = size(p.tree, 1)
+
+  R = Array(HCElement, last_merge)
+  for i = 1:ndata #init data into own clusters
     members = Int64[i]
     classifier = nothing
     children = Dict{Bool, Int64}()
-    V[i] = HCElement(members, classifier, children)
+    R[i] = HCElement(members, classifier, children)
   end
-  next_id = ndata + 1
-  for row = 1:size(p.tree, 1) #each merge
-    c1, c2 = p.tree[row, :]
-    members = vcat(V[c1].members, V[c2].members)
-    Dl_ = sub(Dl, members)
-    labels = map(x -> x in c1, Dl_.labels) #one vs one, c1=true, c2=false
-    Dl_ = setlabels(Dl_, labels) #new Dl
-    classifier = train(gb_params, Dl_) #find rule
+  i = first_merge
+  #bottom up (agglomerative) construction
+  for row = 1:num_merges #each merge
+    c1, c2 = p.tree[row, :] #cluster indices in V
+    members = vcat(R[c1].members, R[c2].members)
     children = Dict{Bool, Int64}([true => c1, false => c2])
-    V[next_id] = HCElement(members, classifier, children)
-    next_id += 1
+    R[i] = HCElement(members, nothing, children) #set classifier to nothing for now
+    i += 1
   end
-  return HCRules(ndata, p.tree, V)
+  #this construction allows parallel train
+  classifiers = pmap(first_merge:last_merge) do i
+    @assert !isempty(R[i].children) #non-leafs, should never trip
+    truth = get_truth(R, i)
+    Dl_sub = sub(Dl, R[i].members)
+    Dl_sub = setlabels(Dl_sub, truth) #new Dl with true/false labels
+    classifier = train(gb_params, Dl_sub) #find rule
+  end
+  for (i, mi) = enumerate(first_merge:last_merge)
+    R[mi].classifier = classifiers[i]
+  end
+  return HCRules(ndata, p.tree, R)
 end
 
-function check!{T}(result::Vector{CheckResult}, hcrules::HCRules,
-                   index::Int64, Dl::DFSetLabeled{T})
-  node = hcrules.rules[index]
-  if isempty(node.children)
-    results[index] = CheckResult()
-    return
+#for an HC element
+function get_truth(rules::Vector{HCElement}, index::Int64)
+  R, i = rules, index
+  c1 = R[i].children[true]
+  c1_members = R[c1].members
+  c2 = R[i].children[false]
+  c2_members = R[c2].members
+  truth = map(R[i].members) do member #one vs one, c1=true, c2=false
+    if member in c1_members
+      return true
+    elseif member in c2_members
+      return false
+    else
+      error("Member not in children: $member")
+    end
   end
-  Dl_ = sub(Dl, node.members)
-  c1 = node.children[true]
-  c2 = node.children[false]
-  truth = map(x -> x in c1, Dl_.labels)
-  pred = classify(node.classifier, Dl_)
-  matched = node.members[find(pred .== truth)] #indices into Dl
-  mismatched = node.members[find(pred .!= truth)] #indices into Dl
-  result[index] = CheckResult(matched, mismatched)
-  println("index=$index, matched=$(length(matched)), mismatched=$(length(mismatched))")
-  if length(mismatched) != 0
-    warn("Not matched: merge_of=$(node.children), mismatched=$mismatched")
-  end
-  for (bool, child_index) in node.children
-    check!(result, hcrules, child_index, Dl)
-  end
+  return truth
 end
 
 function checker{T}(hcrules::HCRules, Dl::DFSetLabeled{T})
-  root_index = length(hcrules.rules)
-  result = Array(CheckResult, root_index)
-  check!(result, hcrules, root_index, Dl)
-  return HCCheckResult(hcrules.ndata, result)
+  ndata = hcrules.ndata
+  first_merge = ndata + 1
+  last_merge = length(hcrules.rules)
+  R = hcrules.rules
+  result_singles = [CheckResult() for i = 1:ndata] #leafs
+  result_merges = pmap(first_merge:last_merge) do i
+    @assert !isempty(R[i].children) #non-leafs, should never trip
+    truth = get_truth(R, i)
+    Dl_sub = sub(Dl, R[i].members)
+    pred = classify(R[i].classifier, Dl_sub)
+    matched = R[i].members[find(pred .== truth)] #indices into Dl
+    mismatched = R[i].members[find(pred .!= truth)] #indices into Dl
+    println("index=$i, matched=$(length(matched)), mismatched=$(length(mismatched))")
+    if length(mismatched) != 0
+      warn("mismatched=$mismatched")
+    end
+    return CheckResult(matched, mismatched)
+  end
+  result = vcat(result_singles, result_merges)
+  return HCCheckResult(ndata, result)
 end
 
 start(fcrules::FCRules) = start(fcrules.rules)

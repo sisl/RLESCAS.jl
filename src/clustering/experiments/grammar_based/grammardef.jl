@@ -42,8 +42,6 @@ using DataFrames
 
 typealias RealVec Union(DataArray{Float64,1}, Vector{Float64})
 
-convert_number(lst) = float(join(lst))::Float64
-
 function create_grammar()
   @grammar grammar begin
     start = Expr(:call, :top, top)
@@ -90,10 +88,10 @@ function create_grammar()
     #rand_pos[convert_number] =  digit + '.' + digit + digit + digit + digit
     #rand_neg[convert_number] =  '-' + digit + '.' + digit + digit + digit + digit
     real_number = rand_pos | rand_neg
-    rand_pos[convert_number] =  digit + '.' + digit + digit + digit + digit + 'e' + expdigit
-    rand_neg[convert_number] =  '-' + digit + '.' + digit + digit + digit + digit + 'e' + expdigit
+    rand_pos =  Expr(:call, :rp, expdigit, digit, digit, digit, digit, digit)
+    rand_neg =  Expr(:call, :rn, expdigit, digit, digit, digit, digit, digit)
     digit = 0:9
-    expdigit = -4:4
+    expdigit = -8:0
   end
 
   #=
@@ -108,7 +106,8 @@ function create_grammar()
   return grammar
 end
 
-get_real(n::Int64, x::Float64) = x * 10.0^n #compose_real
+get_real_pos(n::Int64, ds::Int64...) = float(join(ds)) * 10.0^n #compose_real
+get_real_neg(n::Int64, ds::Int64...) = -float(join(ds)) * 10.0^n #compose_real
 diff_eq(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .== b
 diff_lte(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .<= b
 diff_lt(v1::RealVec, v2::RealVec, b::Float64) = (v1 - v2) .< b
@@ -140,7 +139,8 @@ count_gte(v::AbstractVector{Bool}, b::Float64) = count_(v) .>= b
 
 #shorthands used in grammar
 top = first
-rn = get_real
+rp = get_real_pos
+rn = get_real_neg
 dfeq = diff_eq
 dfle = diff_lte
 dflt = diff_lt
@@ -182,7 +182,7 @@ function pretty_string{T<:String}(code::String, colnames::Vector{T})
   #sub variables
   s = sub_varnames(s, colnames)
   #replace floats
-  s = sub_rn(s)
+  s = sub_reals(s)
   return s
 end
 
@@ -195,12 +195,14 @@ function sub_varnames{T<:String}(s::String, colnames::Vector{T})
   return s
 end
 
-function sub_rn(s::String)
-  r = r"rn\(([+-]?\d),([+-]?\d.\d+)\)"
+function sub_reals(s::String)
+  r = r"r([pn])\(([+-]?\d),([,\d]+)\)"
   for m in eachmatch(r, s)
-    n = int(m.captures[1])
-    x = float(m.captures[2])
-    s = replace(s, m.match, signif(rn(n, x), 5)) #round to 5 significant digits
+    pos = m.captures[1] == "p"
+    n = int(m.captures[2]) #exponent
+    ds = map(int, split(m.captures[3], ",")) #digits
+    real_number = pos ? rp(n, ds...) : rn(n, ds...)
+    s = replace(s, m.match, signif(real_number, 5)) #round to 5 significant digits
   end
   return s
 end

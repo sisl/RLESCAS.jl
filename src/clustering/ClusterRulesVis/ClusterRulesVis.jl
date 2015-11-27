@@ -106,11 +106,11 @@ function to_d3js(hcrules::HCRules, Dl::DFSetLabeled; check_result::Union(Nothing
   colnames = get_colnames(Dl)
   root_index = length(hcrules.rules)
   d = Dict{ASCIIString,Any}() #JSON-compatible
-  process!(d, hcrules, root_index, colnames, check_result)
+  process!(d, Dl, hcrules, root_index, colnames, check_result)
   return d
 end
 
-function process!(d::Dict{ASCIIString,Any}, hcrules::HCRules, index::Int64,
+function process!(d::Dict{ASCIIString,Any}, Dl::DFSetLabeled, hcrules::HCRules, index::Int64,
                   colnames::Vector{ASCIIString}, check_result::Union(Nothing, HCCheckResult)=nothing)
   node = hcrules.rules[index]
   members_text = join(node.members, ",")
@@ -125,7 +125,7 @@ function process!(d::Dict{ASCIIString,Any}, hcrules::HCRules, index::Int64,
   d_child = d["children"]
   for (bool, child_index) in node.children
     push!(d_child, Dict{ASCIIString,Any}())
-    process!(d_child[end], hcrules, child_index, colnames)
+    process!(d_child[end], Dl, hcrules, child_index, colnames)
   end
 end
 

@@ -112,16 +112,15 @@ function script1(crfile::String)
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
   fcrules = explain_clusters(p, gb_params, Dl)
   #save fcrules
-  title = basename(crfile)
-  Obj2Dict.save_obj("$(title).json", fcrules)
+  fileroot = splitext(basename(crfile))[1]
+  Obj2Dict.save_obj("$(fileroot)_fc.json", fcrules)
   #check
   Dl2 = load_from_clusterresult(crfile, NAME2FILE_MAP) #reload in case Dl got changed
   check_result = checker(fcrules, Dl2)
-  Obj2Dict.save_obj("$(title)_check.json", check_result)
+  Obj2Dict.save_obj("$(fileroot)_fccheck.json", check_result)
   #visualize
-  fileroot = splitext(basename(crfile))[1]
   plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check_result=check_result)
-  return fcrules, check_result
+  return Dl, fcrules, check_result
 end
 
 #hierarchical clusters
@@ -140,15 +139,16 @@ function script2(crfile::String)
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
   hcrules = explain_clusters(p, gb_params, Dl)
   #save hcrules
-
-  #visualize
   fileroot = splitext(basename(crfile))[1]
-  write_d3js(hcrules, Dl, outfileroot="$(fileroot)_d3js")
+  Obj2Dict.save_obj("$(fileroot)_hc.json", hcrules)
   #check
   cr2 = load_result(crfile)
   Dl2 = load_from_clusterresult(cr2, NAME2FILE_MAP)
-  check_results = checker(hcrules, Dl2)
-  return Dl, hcrules, check_results
+  check_result = checker(hcrules, Dl2)
+  Obj2Dict.save_obj("$(fileroot)_hccheck.json", check_result)
+  #visualize
+  write_d3js(hcrules, Dl, outfileroot="$(fileroot)_d3js", check_result=check_result)
+  return Dl, hcrules, check_result
 end
 #mismatch hc vis
 #mismatch stats
