@@ -48,16 +48,17 @@ using DataFrames
 using GrammaticalEvolution
 
 const DF_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
-const GRAMMAR = create_grammar()
 const W1 = 0.001 #code length
 const GENOME_SIZE = 400
-const POP_SIZE = 5000
 const MAXWRAPS = 2
-const MINITERATIONS = 5
-const MAXITERATIONS = 20
 const DEFAULTCODE = :(eval(false))
 const MAX_FITNESS = 0.05
 const VERBOSITY = 1
+
+const TESTMODE = true
+const POP_SIZE = TESTMODE ? 50 : 5000
+const MINITERATIONS = TESTMODE ? 1 : 5
+const MAXITERATIONS = TESTMODE ? 1 : 20
 
 function get_name2file_map() #maps encounter number to filename
   df_files = readdir_ext("csv", DF_DIR)
@@ -108,7 +109,8 @@ function script1(crfile::String)
   Dl = load_from_clusterresult(crfile, NAME2FILE_MAP)
   #explain
   p = FCParams()
-  gb_params = GeneticSearchParams(GRAMMAR, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
+  grammar = create_grammar(Dl.records[1])
+  gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
   fcrules = explain_clusters(p, gb_params, Dl)
   #save fcrules
@@ -135,7 +137,8 @@ function script2(crfile::String)
   Dl = load_from_clusterresult(cr, NAME2FILE_MAP)
   #explain
   p = HCParams(cr.tree)
-  gb_params = GeneticSearchParams(GRAMMAR, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
+  grammar = create_grammar(Dl.records[1])
+  gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
   hcrules = explain_clusters(p, gb_params, Dl)
   #save hcrules

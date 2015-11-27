@@ -42,7 +42,7 @@ using DataFrames
 
 typealias RealVec Union(DataArray{Float64,1}, Vector{Float64})
 
-function create_grammar()
+function create_grammar(D::DataFrame)
   @grammar grammar begin
     start = Expr(:call, :top, top)
 
@@ -78,15 +78,12 @@ function create_grammar()
     #based on features
     real_feat_vec = Expr(:ref, :D, :(:), real_feat_id)
     bin_feat_vec = Expr(:ref, :D, :(:), bin_feat_id)
-    real_feat_id = 2 | 3 | 4 | 5 | 6 | 22 | 29 | 33 | 34 | 35 | 36 | 37 | 39 | 40 | 41 | 42 | 43 | 59 | 66 |
-      70 | 71 | 72 | 73 | 74
-    bin_feat_id = 1 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 |
-      26 | 27 | 28 | 30 | 31 | 32 | 38 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 60 | 61 | 62 | 63 | 64 | 65 | 67 | 68 | 69 | 75
+    #real_feat_id = 2 | 3 | 4 | 5 | 6 | 22 | 29 | 33 | 34 | 35 | 36 | 37 | 39 | 40 | 41 | 42 | 43 | 59 | 66 |
+    #  70 | 71 | 72 | 73 | 74
+    #bin_feat_id = 1 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 |
+    #  26 | 27 | 28 | 30 | 31 | 32 | 38 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 60 | 61 | 62 | 63 | 64 | 65 | 67 | 68 | 69 | 75
 
     #random numbers
-    #real_number = Expr(:call, :rn, expdigit, rand_pos) | Expr(:call, :rn, expdigit, rand_neg)
-    #rand_pos[convert_number] =  digit + '.' + digit + digit + digit + digit
-    #rand_neg[convert_number] =  '-' + digit + '.' + digit + digit + digit + digit
     real_number = rand_pos | rand_neg
     rand_pos =  Expr(:call, :rp, expdigit, digit, digit, digit, digit, digit)
     rand_neg =  Expr(:call, :rn, expdigit, digit, digit, digit, digit, digit)
@@ -94,14 +91,12 @@ function create_grammar()
     expdigit = -8:0
   end
 
-  #=
-  input D
+  #automatically determine real vs bool columns from DataFrame
   (bin_ids, real_ids) = feat_type_ids(D)
   bin_terms = map(GrammaticalEvolution.Terminal, bin_ids)
   grammar.rules[:bin_feat_id] = OrRule("bin_feat_id", bin_terms, nothing)
   real_terms = map(GrammaticalEvolution.Terminal, real_ids)
   grammar.rules[:real_feat_id] = OrRule("real_feat_id", real_terms, nothing)
-  =#
 
   return grammar
 end
@@ -158,13 +153,15 @@ ctgt = count_gt
 ctge = count_gte
 cteq = count_eq
 
-function feat_type_ids(D::DataFrame)
+function feat_type_ids(D::DataFrame; verbose::Bool=false)
   Ts = map(string, get_col_types(D))
   @assert all(x->x=="Bool" || x=="Float64", Ts)
   bin_ids = find(x -> x == "Bool", Ts)
   real_ids = find(x -> x == "Float64", Ts)
-  println("bin_feat_id = $(join(bin_ids, " | "))")
-  println("real_feat_id = $(join(real_ids, " | "))")
+  if verbose
+    println("bin_feat_id = $(join(bin_ids, " | "))")
+    println("real_feat_id = $(join(real_ids, " | "))")
+  end
   return (bin_ids, real_ids)
 end
 

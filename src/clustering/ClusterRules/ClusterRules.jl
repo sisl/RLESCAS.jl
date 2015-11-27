@@ -34,8 +34,8 @@
 
 module ClusterRules
 
-export CRParams, explain_clusters, checker, CheckResult, FCCheckResult, HCCheckResult
-export FCParams, FCRules, HCParams, HCRules, HCElement
+export CRParams, explain_clusters, checker, CheckResult, FCCheckResult, HCCheckResult, show_check
+export FCParams, FCRules, HCParams, HCRules, HCElement, get_truth
 
 using GBClassifiers
 using DataFrameSets
@@ -113,6 +113,19 @@ function checker{T}(fcrules::FCRules, Dl::DFSetLabeled{T})
   return FCCheckResult(result)
 end
 
+function show_check{T}(fcrules::FCRules, Dl::DFSetLabeled{T}, label::T)
+  classifier = fcrules.rules[label]
+  pred = classify(classifier, Dl)
+  truth = map(l -> l == label, Dl.labels)
+  correct = pred .== truth
+  D = DataFrame()
+  D[:name] = Dl.names
+  D[:pred] = pred
+  D[:truth] = truth
+  D[:correct] = correct
+  return D
+end
+
 function explain_clusters{T}(p::HCParams, gb_params::GBParams, Dl::DFSetLabeled{T})
   @assert size(p.tree, 2) == 2 #should have exactly 2 columns for the clusters to be merged
   @assert all(p.tree .> 0) #should be 1-indexed
@@ -168,6 +181,26 @@ function get_truth(rules::Vector{HCElement}, index::Int64)
     end
   end
   return truth
+end
+
+function show_check{T}(hcrules::HCRules, Dl::DFSetLabeled{T}, index::Int64)
+  if index <= hcrules.ndata
+    println("Not a merge node. index should be > ndata")
+    return
+  end
+  R = hcrules.rules
+  members = R[index].members
+  classifier = R[index].classifier
+  Dl_sub = sub(Dl, R[index].members)
+  pred = classify(classifier, Dl_sub)
+  truth = get_truth(hcrules.rules, index)
+  correct = pred .== truth
+  D = DataFrame()
+  D[:name] = Dl.names[members]
+  D[:pred] = pred
+  D[:truth] = truth
+  D[:correct] = correct
+  return D
 end
 
 function checker{T}(hcrules::HCRules, Dl::DFSetLabeled{T})
