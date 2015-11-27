@@ -121,7 +121,7 @@ function pgfplotLog(sav::SaveDict)
   return tps
 end
 
-function manual_axis_equal(sav, field::String, xname::String, yname::String;
+function manual_axis_equal(sav, field::AbstractString, xname::AbstractString, yname::AbstractString;
                            fx::Function = identity,
                            fy::Function = identity)
   d = sav
@@ -405,7 +405,7 @@ function get_ra_style(sav, aircraft_number::Int64)
   active_ind = sv_lookup_id(d, "ra", "ra_active")
   rate_ind = sv_lookup_id(d, "ra", "target_rate")
 
-  t_style_array = (Vector{Int64}, String)[]
+  t_style_array = Tuple{Vector{Int64}, ASCIIString}[]
 
   for (f, s) in RA_STYLE_MAP
     #find times where f is valid and tag it with style s
