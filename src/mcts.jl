@@ -51,32 +51,32 @@ end
 
 function init(number_of_aircraft::Int)
   if number_of_aircraft == 2
-    require(Pkg.dir("RLESCAS", "src", "config/config_ACASX_EvE.jl")) #defineSim
+    require(Pkg.dir("RLESCAS/src/config/config_ACASX_EvE.jl")) #defineSim
   elseif number_of_aircraft == 3
-    require(Pkg.dir("RLESCAS", "src", "config/config_ACASX_Multi.jl")) #defineSim
+    require(Pkg.dir("RLESCAS/src/config/config_ACASX_Multi.jl")) #defineSim
   else
     error("invalid number_of_aircraft")
   end
 
   #Config AdaptiveStressTest
-  require(Pkg.dir("RLESCAS", "src", "config/config_ast.jl")) #defineAST
+  require(Pkg.dir("RLESCAS/src/config/config_ast.jl")) #defineAST
 
   #Config MCTS solver
-  require(Pkg.dir("RLESCAS", "src", "config/config_mcts.jl")) #defineMCTS
+  require(Pkg.dir("RLESCAS/src/config/config_mcts.jl")) #defineMCTS
 
-  require(Pkg.dir("RLESCAS", "src", "defines/define_log.jl")) #SimLog
-  require(Pkg.dir("RLESCAS", "src", "defines/define_save.jl")) #trajSave, trajLoad and helpers
-  require(Pkg.dir("RLESCAS", "src", "defines/save_types.jl")) #ComputeInfo
-  require(Pkg.dir("RLESCAS", "src", "helpers/save_helpers.jl"))
+  require(Pkg.dir("RLESCAS/src/defines/define_log.jl")) #SimLog
+  require(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajSave, trajLoad and helpers
+  require(Pkg.dir("RLESCAS/src/defines/save_types.jl")) #ComputeInfo
+  require(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl"))
 
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_common.jl"))
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_once.jl"))
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_mcbest.jl"))
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_mcts.jl"))
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_replay.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_common.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_once.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcbest.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcts.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_replay.jl"))
 
-  require(Pkg.dir("RLESCAS", "src", "helpers/add_supplementary.jl")) #add label270
-  require(Pkg.dir("RLESCAS", "src", "helpers/fill_to_max_time.jl"))
+  require(Pkg.dir("RLESCAS/src/helpers/add_supplementary.jl")) #add label270
+  require(Pkg.dir("RLESCAS/src/helpers/fill_to_max_time.jl"))
 end
 
 function check(condition::Bool, errormsg::ASCIIString="check failed")
@@ -85,7 +85,8 @@ function check(condition::Bool, errormsg::ASCIIString="check failed")
   end
 end
 
-function mcts_main()
+using Debug
+@debug function mcts_main()
   configfile = parseargs(ARGS)
   conf = ConfParse(configfile)
   parse_conf!(conf)
@@ -175,31 +176,32 @@ function mcts_main()
 
     for o in outputs
       if o == "pdf"
-        include(Pkg.dir("RLESCAS", "src", "visualize/visualize.jl"))
+        include(Pkg.dir("RLESCAS/src/visualize/visualize.jl"))
         trajPlot(filename, format="PDF")
       elseif o == "tex"
-        include(Pkg.dir("RLESCAS", "src", "visualize/visualize.jl"))
+        include(Pkg.dir("RLESCAS/src/visualize/visualize.jl"))
         trajPlot(filename, format="TEX")
       elseif o == "scripted"
-        include(Pkg.dir("RLESCAS", "src", "converters/json_to_scripted.jl"))
+        include(Pkg.dir("RLESCAS/src/converters/json_to_scripted.jl"))
         json_to_scripted(filename)
       elseif o == "waypoints"
-        include(Pkg.dir("RLESCAS", "src", "converters/json_to_waypoints.jl"))
+        include(Pkg.dir("RLESCAS/src/converters/json_to_waypoints.jl"))
         json_to_waypoints(filename)
       elseif o == "csv"
-        include(Pkg.dir("RLESCAS", "src", "converters/json_to_csv.jl"))
+        include(Pkg.dir("RLESCAS/src/converters/json_to_csv.jl"))
         json_to_csv(filename)
       elseif o == "label270_text"
-        include(Pkg.dir("RLESCAS", "src", "tools/label270_to_text.jl"))
+        include(Pkg.dir("RLESCAS/src/tools/label270_to_text.jl"))
         label270_to_text(filename)
       elseif o == "summary"
-        include(Pkg.dir("RLESCAS", "src", "tools/summarize.jl"))
+        include(Pkg.dir("RLESCAS/src/tools/summarize.jl"))
         summarize(filename)
       else
         warn("config: unrecognized output")
       end
     end
   end
+  @bp
   return rewards = trajSave(MCTSStudy(), cases, postproc=postproc, outdir=output_dir)
 end
 

@@ -53,7 +53,7 @@ function groupattributes{T<:AbstractString}(files::Vector{T}, getlabel::Function
     xyvecs = map(groupbycol(Mx, 2)) do tup #vector of (x, yvec)
       x, xinds = tup
 
-      return (float64(x), float64(Mx[xinds, 3])) #convert to float for plotting
+      return (Float64(x), Float64(Mx[xinds, 3])) #convert to float for plotting
     end
 
     sort!(xyvecs, by = v -> v[1]) #sort the x's of easier plotting
