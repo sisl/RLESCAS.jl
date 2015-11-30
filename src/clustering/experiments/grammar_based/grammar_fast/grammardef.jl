@@ -46,14 +46,14 @@ function create_grammar(D::DataFrame)
   @grammar grammar begin
     start = Expr(:call, :top, top)
 
-    top = always | eventually | until | weakuntil | release | top_and | top_or | top_not
+    top = always | eventually | top_and | top_or | top_not #until | weakuntil | release |
     top_and = Expr(:call, :&, top, top)
     top_or = Expr(:call, :|, top, top)
     top_not = Expr(:call, :!, top)
 
     #produces a bin_vec
-    bin_vec = bin_feat_vec | and | or | not | implies | next | eq | lt | lte | diff_eq | diff_lt | diff_lte |
-      sign | count #| always | eventually | until | weakuntil | release
+    bin_vec = bin_feat_vec | and | or | not | implies | eq | lt | lte | diff_eq | diff_lt | diff_lte |
+      sign | count #| always | eventually | until | weakuntil | release #next
     and = Expr(:call, :&, bin_vec, bin_vec)
     or = Expr(:call, :|, bin_vec, bin_vec)
     not = Expr(:call, :!, bin_vec)
