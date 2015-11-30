@@ -85,8 +85,7 @@ function check(condition::Bool, errormsg::ASCIIString="check failed")
   end
 end
 
-using Debug
-@debug function mcts_main()
+function mcts_main()
   configfile = parseargs(ARGS)
   conf = ConfParse(configfile)
   parse_conf!(conf)
@@ -201,7 +200,6 @@ using Debug
       end
     end
   end
-  @bp
   return rewards = trajSave(MCTSStudy(), cases, postproc=postproc, outdir=output_dir)
 end
 
