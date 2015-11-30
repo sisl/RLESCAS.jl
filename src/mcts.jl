@@ -51,32 +51,32 @@ end
 
 function init(number_of_aircraft::Int)
   if number_of_aircraft == 2
-    require(Pkg.dir("RLESCAS/src/config/config_ACASX_EvE.jl")) #defineSim
+    @everywhere include(Pkg.dir("RLESCAS/src/config/config_ACASX_EvE.jl")) #defineSim
   elseif number_of_aircraft == 3
-    require(Pkg.dir("RLESCAS/src/config/config_ACASX_Multi.jl")) #defineSim
+    @everywhere include(Pkg.dir("RLESCAS/src/config/config_ACASX_Multi.jl")) #defineSim
   else
     error("invalid number_of_aircraft")
   end
 
   #Config AdaptiveStressTest
-  require(Pkg.dir("RLESCAS/src/config/config_ast.jl")) #defineAST
+  @everywhere include(Pkg.dir("RLESCAS/src/config/config_ast.jl")) #defineAST
 
   #Config MCTS solver
-  require(Pkg.dir("RLESCAS/src/config/config_mcts.jl")) #defineMCTS
+  @everywhere include(Pkg.dir("RLESCAS/src/config/config_mcts.jl")) #defineMCTS
 
-  require(Pkg.dir("RLESCAS/src/defines/define_log.jl")) #SimLog
-  require(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajSave, trajLoad and helpers
-  require(Pkg.dir("RLESCAS/src/defines/save_types.jl")) #ComputeInfo
-  require(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl"))
+  @everywhere include(Pkg.dir("RLESCAS/src/defines/define_log.jl")) #SimLog
+  @everywhere include(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajSave, trajLoad and helpers
+  @everywhere include(Pkg.dir("RLESCAS/src/defines/save_types.jl")) #ComputeInfo
+  @everywhere include(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl"))
 
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_common.jl"))
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_once.jl"))
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcbest.jl"))
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcts.jl"))
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_replay.jl"))
+  @everywhere include(Pkg.dir("RLESCAS/src/trajsave/trajSave_common.jl"))
+  @everywhere include(Pkg.dir("RLESCAS/src/trajsave/trajSave_once.jl"))
+  @everywhere include(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcbest.jl"))
+  @everywhere include(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcts.jl"))
+  @everywhere include(Pkg.dir("RLESCAS/src/trajsave/trajSave_replay.jl"))
 
-  require(Pkg.dir("RLESCAS/src/helpers/add_supplementary.jl")) #add label270
-  require(Pkg.dir("RLESCAS/src/helpers/fill_to_max_time.jl"))
+  @everywhere include(Pkg.dir("RLESCAS/src/helpers/add_supplementary.jl")) #add label270
+  @everywhere include(Pkg.dir("RLESCAS/src/helpers/fill_to_max_time.jl"))
 end
 
 function check(condition::Bool, errormsg::ASCIIString="check failed")
