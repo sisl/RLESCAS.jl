@@ -58,7 +58,7 @@ function fill_to_max_time(filename::AbstractString)
   action_seq = vcat(action_seq, actions_to_append)
 
   d["sim_log"]["action_seq"] = Obj2Dict.to_dict(action_seq)
-  outfilename = trajSave(string(getSaveFileRoot(filename), "_filled"), d, compress = isCompressedSave(filename))
+  outfilename = trajSave(string(getSaveFileRoot(filename), "_filled"), d, compress=isCompressedSave(filename))
   println("File: ", filename, "; Steps appended: ", steps_to_append)
 
   return outfilename

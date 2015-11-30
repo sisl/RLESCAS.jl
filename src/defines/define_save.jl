@@ -35,14 +35,14 @@
 using JSON
 using GZip
 
-typealias SaveDict Dict{ASCIIString, Any}
+typealias SaveDict Dict{AbstractString, Any}
 
 function trajSave(fileroot::AbstractString, d::SaveDict; compress::Bool=true)
   if compress
-    outfile = string(fileroot, ".json.gz")
+    outfile = "$(fileroot).json.gz"
     f = GZip.open(outfile, "w")
   else
-    outfile = string(fileroot, ".json")
+    outfile = "$(fileroot).json"
     f = open(outfile, "w")
   end
   JSON.print(f, d)

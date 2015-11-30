@@ -126,7 +126,6 @@ function get_code(cc::Int,vc::Int,ua::Int,da::Int)
 
   @assert length(dcc) == length(dvc) == length(dua) == length(dda) == 1
 
-  code = Int64(string(dcc[1],dvc[1],dua[1],dda[1]))
-
-  return code
+  s = string(dcc[1],dvc[1],dua[1],dda[1])
+  return code = parse(Int64, s)
 end
