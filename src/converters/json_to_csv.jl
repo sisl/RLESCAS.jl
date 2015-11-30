@@ -36,10 +36,8 @@ include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
 
 function calc_catranges(catlengths::Vector{Int64})
-
-  cl = [1, cumsum(catlengths) + 1]
-
-  return Range[cl[i] : (cl[i+1] - 1) for i = 1 : length(catlengths)]
+  cl = [1; cumsum(catlengths) + 1]
+  return Range[cl[i]:(cl[i+1] - 1) for i = 1:length(catlengths)]
 end
 
 function json_to_csv{T<:AbstractString}(savefile::AbstractString,
