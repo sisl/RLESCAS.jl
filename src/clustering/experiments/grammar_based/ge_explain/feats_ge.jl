@@ -33,7 +33,7 @@
 # *****************************************************************************
 
 include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
-include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammardef.jl"))
+include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_fast/GrammarDef.jl"))
 
 using GrammarDef
 using ClusterRules
@@ -48,14 +48,17 @@ using DataFrames
 using GrammaticalEvolution
 
 const DF_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
-const W1 = 0.001 #code length
+const W_FPR = 100 #heavy weight on penalizing trues incorrect (intrcluster)
+const W_FNR = 1 #normal weight on penalizing falses incorrect (extracluster)
+const W_LEN = 0.001 #W_LEN x 50 chars = W_FNR * 0.05 tnr (50 characters equiv to 5% fnr increase)
+
 const GENOME_SIZE = 400
 const MAXWRAPS = 2
 const DEFAULTCODE = :(eval(false))
-const MAX_FITNESS = 0.05
 const VERBOSITY = 1
 
-const TESTMODE = true
+const TESTMODE = false
+const MAX_FITNESS = 0.05
 const POP_SIZE = TESTMODE ? 50 : 5000
 const MINITERATIONS = TESTMODE ? 1 : 5
 const MAXITERATIONS = TESTMODE ? 1 : 20
@@ -81,13 +84,14 @@ const JOSH1_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh1.json")
 const JOSH2_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh2.json")
 
 function get_fitness{T}(code::Expr, Dl::DFSetLabeled{T})
-  #if length(string(code)) > 900 #skip evaluation if it is too long
-  #  return Inf
-  #end
   f = to_function(code)
-  predicted_labels = map(f, Dl.records)
-  err = count(identity, predicted_labels .!= Dl.labels) / length(Dl)
-  return err > 0.0 ? err : W1 * length(string(code))
+  predicts = map(f, Dl.records)
+  truth = Dl.labels
+  true_ids = find(truth)
+  false_ids = find(!truth)
+  fpr = count(i -> predicts[i] != truth[i], true_ids) / length(true_ids) #frac of trues correctly classified
+  fnr = count(i -> predicts[i] != truth[i], false_ids) / length(false_ids) #frac of falses correctly classified
+  return W_FPR * fpr + W_FNR * fnr + W_LEN * length(string(code))
 end
 
 function fill_to_col!{T}(Ds::DFSet, field_id::Int64, fillvals::AbstractVector{T})
@@ -125,6 +129,7 @@ function script1(crfile::AbstractString)
   return Dl, fcrules, check_result
 end
 
+#=
 #hierarchical clusters
 #script2(ASCII_CR)
 function script2(crfile::AbstractString)
@@ -153,137 +158,4 @@ function script2(crfile::AbstractString)
   write_d3js(hcrules, Dl, outfileroot="$(fileroot)_d3js", check_result=check_result)
   return Dl, hcrules, check_result
 end
-#mismatch hc vis
-#mismatch stats
-#tests
-#hunt down bug origin
-
-#=
-function hcluster_codes(crfile::AbstractString)
-  cr = load_result(crfile)
-  tree = cr.tree
-  nrecords = length(cr.names)
-  A = Array(QTreeNode, nrecords)
-  for i = 1:nrecords
-    A[i] = QTreeNode()
-  end
-  for i = size(tree, 1) #rows
-    c1, c2 = tree[i]
-
-  end
-end
 =#
-
-#TODOs:
-#try to explain Mykel's clusterings?
-#refactor tests
-#visualization, d3?
-#papers
-#survey
-
-#=
-function samedir_firstRA!(Ds::DFSet, labels::Vector{Bool})
-  vert_rate1, alarm1, resp_none1, target_rate1 = map(x -> Ds[1].colindex[x], [:vert_rate_1, :alarm_1, :response_none_1, :target_rate_1])
-  for i = 1:length(Ds)
-    col = Ds[i].columns
-    for j = 1:length(col[vert_rate1])
-      if col[alarm1][j] && col[resp_none1][j] #first RA
-        s = sign(col[target_rate1][j])
-        if s == 0.0
-          col[vert_rate1][j] = labels[i] ? 0.0 : -1.0
-        else #s not zero
-          z = s * (abs(col[vert_rate1][j]) + 1.0) #same sign as target_rate_1, avoid 0.0 on vert_rate
-          col[vert_rate1][j] = labels[i] ? z : -z
-        end
-      end
-    end
-  end
-  #should give: Y(D[:,alarm1] && D[:,resp_none1], sn(D[:,:target_rate1], D[:,:vert_rate1]))
-  #should give: Y(D[:,24] && D[:,30], sn(D[:,22], D[:,2]))
-end
-
-function script4()
-  Ds, labels = get_Ds(1, 4)
-  samedir_firstRA!(Ds, labels)
-  #should give: Y(D[:,alarm1] && D[:,resp_none1], sn(D[:,:target_rate1], D[:,:vert_rate1]))
-  #should give: Y(D[:,24] && D[:,30], sn(D[:,22], D[:,2]))
-  (f, ind, pred) = learn_rule(Ds, labels)
-end
-
-function script5()
-  Ds, labels = get_Ds(0, 2)
-  samedir_firstRA!(Ds, labels)
-  direct_sample(Ds, labels, 500, 100000)
-end
-=#
-
-#=
-function script1()
-  Ds, labels = get_Ds(0,2)
-  fill_to_col!(Ds, 1, !labels)
-  #should give: all(!D[:,1])
-  (f, ind, pred) = learn_rule(Ds, labels)
-end
-
-function script2()
-  Ds, labels = get_Ds(0,2)
-  fill_to_col!(Ds, 2, map(x -> x ? 25.0 : -5.0, labels))
-  #should give: all(0.0 .<= D[:,2])
-  (f, ind, pred) = learn_rule(Ds, labels)
-end
-=#
-
-#=
-function script6() #try to separate real clusters
-  Dl = load_from_clusterresult(ASCII_CR, NAME2FILE_MAP)
-  label_map = one_vs_one_labelmap(Dl.labels, 0, 2)
-  Dl = maplabels(Dl, label_map)
-  #not sure what to expect
-  (f, ind, pred, code) = learn_rule(Dl)
-end
-
-function script9() #real clusters 1 vs others
-  Dl = load_from_clusterresult(ASCII_CR, NAME2FILE_MAP)
-  label_map = one_vs_all_labelmap(Dl.labels, 3)
-  Dl = maplabels(Dl, label_map)
-  #not sure what to expect
-  (f, ind, pred, code) = learn_rule(Dl)
-end
-
-function script11() #1 on 1
-  Ds, files = load_from_dir(DF_DIR)
-  Ds_ = sub(Ds, 5:6)
-  labels = [false, true]
-  (f, ind, pred) = learn_rule(Ds_, labels)
-end
-
-function script12() #1 on others
-  Ds, files = load_from_dir(DF_DIR)
-  Ds_ = sub(Ds, 1:5)
-  labels = [false, true, true, true, true]
-  (f, ind, pred) = learn_rule(Ds_, labels)
-end
-
-function script13() #2 on others
-  Ds, files = load_from_dir(DF_DIR)
-  Ds_ = sub(Ds, 1:4)
-  labels = [false, false, true, true]
-  (f, ind, pred) = learn_rule(Ds_, labels)
-end
-
-function script14() #random clustering
-  Ds, files = load_from_dir(DF_DIR)
-  Ds_ = sub(Ds, 1:6)
-  labels = [false, true, false, true, false, true]
-  (f, ind, pred) = learn_rule(Ds_, labels)
-end
-
-function script15() #random clustering
-  Ds, files = load_from_dir(DF_DIR)
-  Ds_ = sub(Ds, 1:10)
-  labels = [false, false, true, true, false, false, true, true, false, true]
-  (f, ind, pred) = learn_rule(Ds_, labels)
-end
-=#
-
-#negate_expr(ex::Expr) = parse("!($ex)")
