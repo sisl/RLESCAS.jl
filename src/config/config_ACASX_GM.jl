@@ -41,13 +41,14 @@ function defineSimParams(;encounter_number::Int64 = 1,
                          nmac_h::Float64 = 100.0,
                          max_steps::Int64 = 50,
                          num_aircraft::Int64 = 2,
-                         response_model::Symbol = :ICAO, #:ICAO, :StochasticLinear, :ICAOVsNone
-                         cas_model::Symbol = :CCAS, #:CCAS, :ADD
+                         encounter_model::Symbol = :LLCEMDBN, #:LLCEMDBN, :StarDBN
                          encounter_equipage::Symbol = :EvE, #:EvE, :EvU
+                         response_model::Symbol = :ICAO, #:ICAO
+                         cas_model::Symbol = :CCAS, #:CCAS, :ADD
                          dynamics_model::Symbol = :LLADM, #:LLADM
                          end_on_nmac::Bool = true,
-                         command_method::Symbol = :DBN,
                          encounter_file::String = Pkg.dir("SISLES/src/Encounter/CorrAEMImpl/params/cor.txt"),
+                         command_method::Symbol = :DBN,
                          initial_sample_file::String = Pkg.dir("RLESCAS/encounters/initial.txt"),
                          transition_sample_file::String = Pkg.dir("RLESCAS/encounters/transition.txt"),
                          quant::Int64 = 25,
@@ -60,7 +61,7 @@ function defineSimParams(;encounter_number::Int64 = 1,
                          #libcas::String = Pkg.dir("CCAS/libcas0.9.3/lib/libcas"),
                          #libcas_config::String = Pkg.dir("CCAS/libcas0.9.3/parameters/0.9.3.standard.r14.xa.config.txt")
                          )
-  p = ACASX_Corr_params()
+  p = ACASX_GM_params()
 
   p.encounter_number = encounter_number
   p.encounter_seed = encounter_seed
@@ -84,4 +85,4 @@ function defineSimParams(;encounter_number::Int64 = 1,
   return p
 end
 
-defineSim(p::ACASX_Corr_params) = ACASX_Corr(p)
+defineSim(p::ACASX_GM_params) = ACASX_GM(p)

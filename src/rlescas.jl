@@ -33,8 +33,7 @@
 # *****************************************************************************
 
 #Pick a scenario:
-include("config/config_ACASX_EvE.jl") #defineSim
-#include("config/config_ACASX_Multi.jl") #defineSim
+include("config/config_ACASX_GM.jl") #defineSim
 
 #Config AdaptiveStressTest
 include("config/config_ast.jl") #defineAST

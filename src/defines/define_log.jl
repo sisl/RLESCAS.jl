@@ -91,10 +91,10 @@ function log_cas_info!(simLog::SimLog, args)
 
 end
 
-extract_cas_info_names(cas::ACASX) = String["version"]
-extract_cas_info_units(cas::ACASX) = String["n/a"]
+extract_cas_info_names(cas::Union(ACASX_CCAS,ACASX_ADD)) = String["version"]
+extract_cas_info_units(cas::Union(ACASX_CCAS,ACASX_ADD)) = String["n/a"]
 
-extract_cas_info(cas::ACASX) = Any[cas.version]
+extract_cas_info(cas::Union(ACASX_CCAS,ACASX_ADD)) = Any[cas.version]
 
 function log_initial!(simLog::SimLog, args)
 
@@ -391,7 +391,7 @@ function extract_sensor_names(sr::ACASXSensor)
 
   v = String["dz", "z", "psi", "h", "modes", "num_intruders"]
 
-  for i=1:length(sr.outputVals.intruders)
+  for i=1:length(sr.output.intruders)
     v = vcat(v, String["valid_$i", "id_$i", "modes_$i", "sr_$i", "chi_$i", "z_$i", "cvc_$i", "vrc_$i", "vsb_$i"])
   end
 
@@ -402,7 +402,7 @@ function extract_sensor_units(sr::ACASXSensor)
 
   v = String["ft/s", "ft", "rad", "ft", "n/a", "integer"]
 
-  for i = 1:length(sr.outputVals.intruders)
+  for i = 1:length(sr.output.intruders)
     push!(v, "boolean", "integer", "n/a", "ft", "rad", "ft", "n/a", "n/a", "n/a")
   end
 
@@ -412,7 +412,7 @@ end
 function extract_sensor(sr::ACASXSensor)
 
   #input=[dz,z,psi,h,modes],[num_intruders],[valid,id,modes, sr,chi,z,cvc,vrc,vsb for each intruder]
-  out = sr.outputVals
+  out = sr.output
   own = out.ownInput
   num_intruders = length(out.intruders)
 
@@ -475,24 +475,24 @@ function extract_ra(cas::SimpleTCAS)
   return Any[cas.b_TCAS_activated, cas.b_TCAS_activated ? cas.RA.h_d : 0.0]
 end
 
-extract_ra_names(cas::ACASX) = String["ra_active", "alarm", "target_rate", "dh_min", "dh_max",
+extract_ra_names(cas::Union(ACASX_CCAS,ACASX_ADD)) = String["ra_active", "alarm", "target_rate", "dh_min", "dh_max",
                                       "crossing", "cc", "vc", "ua", "da"]
-extract_ra_units(cas::ACASX) = String["boolean", "boolean", "ft/s", "ft/s", "ft/s",
+extract_ra_units(cas::Union(ACASX_CCAS,ACASX_ADD)) = String["boolean", "boolean", "ft/s", "ft/s", "ft/s",
                                       "boolean", "n/a", "n/a", "n/a", "n/a"]
 
-function extract_ra(cas::ACASX)
+function extract_ra(cas::Union(ACASX_CCAS,ACASX_ADD))
 
-  ra_active = (cas.outputVals.dh_min > -9999.0 || cas.outputVals.dh_max < 9999.0)::Bool
+  ra_active = (cas.output.dh_min > -9999.0 || cas.output.dh_max < 9999.0)::Bool
   return round_floats(Any[ra_active,
-                          cas.outputVals.alarm,
-                          cas.outputVals.target_rate,
-                          cas.outputVals.dh_min,
-                          cas.outputVals.dh_max,
-                          cas.outputVals.crossing,
-                          cas.outputVals.cc,
-                          cas.outputVals.vc,
-                          cas.outputVals.ua,
-                          cas.outputVals.da], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
+                          cas.output.alarm,
+                          cas.output.target_rate,
+                          cas.output.dh_min,
+                          cas.output.dh_max,
+                          cas.output.crossing,
+                          cas.output.cc,
+                          cas.output.vc,
+                          cas.output.ua,
+                          cas.output.da], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
 function log_ra_detailed!(simLog::SimLog, args)
@@ -529,7 +529,7 @@ function log_ra_detailed!(simLog::SimLog, args)
 
 end
 
-function extract_ra_detailed_names(cas::ACASX)
+function extract_ra_detailed_names(cas::Union(ACASX_CCAS,ACASX_ADD))
 
   vcat(["ra_active"], ["ownInput.dz", "ownInput.z", "ownInput.psi", "ownInput.h", "ownInput.modes"],
          [["intruderInput[$i].valid", "intruderInput[$i].id", "intruderInput[$i].modes",
@@ -545,7 +545,7 @@ function extract_ra_detailed_names(cas::ACASX)
           for i = 1:cas.max_intruders]...)
 end
 
-function extract_ra_detailed_units(cas::ACASX)
+function extract_ra_detailed_units(cas::Union(ACASX_CCAS,ACASX_ADD))
 
   vcat(["boolean"], ["ft/s", "ft", "rad", "ft/s", "integer"],
          [["boolean", "integer", "integer", "ft", "rad", "ft", "n/a", "n/a", "n/a", "enum",
@@ -556,52 +556,52 @@ function extract_ra_detailed_units(cas::ACASX)
           for i = 1:cas.max_intruders]...)
 end
 
-function extract_ra_detailed(cas::ACASX) #log everything
+function extract_ra_detailed(cas::Union(ACASX_CCAS,ACASX_ADD)) #log everything
 
-  ra_active = (cas.outputVals.dh_min > -9999.0 || cas.outputVals.dh_max < 9999.0)::Bool
+  ra_active = (cas.output.dh_min > -9999.0 || cas.output.dh_max < 9999.0)::Bool
 
-  ownInput = Any[cas.inputVals.ownInput.dz,
-             cas.inputVals.ownInput.z,
-             cas.inputVals.ownInput.psi,
-             cas.inputVals.ownInput.h,
-             cas.inputVals.ownInput.modes]
+  ownInput = Any[cas.input.ownInput.dz,
+             cas.input.ownInput.z,
+             cas.input.ownInput.psi,
+             cas.input.ownInput.h,
+             cas.input.ownInput.modes]
 
-  intruderInputs = vcat([Any[cas.inputVals.intruders[i].valid,
-                             cas.inputVals.intruders[i].id,
-                             cas.inputVals.intruders[i].modes,
-                             cas.inputVals.intruders[i].sr,
-                             cas.inputVals.intruders[i].chi,
-                             cas.inputVals.intruders[i].z,
-                             cas.inputVals.intruders[i].cvc,
-                             cas.inputVals.intruders[i].vrc,
-                             cas.inputVals.intruders[i].vsb,
-                             cas.inputVals.intruders[i].equipage,
-                             cas.inputVals.intruders[i].quant,
-                             cas.inputVals.intruders[i].sensitivity_index,
-                             cas.inputVals.intruders[i].protection_mode]
-                          for i=1:length(cas.inputVals.intruders)]...)
+  intruderInputs = vcat([Any[cas.input.intruders[i].valid,
+                             cas.input.intruders[i].id,
+                             cas.input.intruders[i].modes,
+                             cas.input.intruders[i].sr,
+                             cas.input.intruders[i].chi,
+                             cas.input.intruders[i].z,
+                             cas.input.intruders[i].cvc,
+                             cas.input.intruders[i].vrc,
+                             cas.input.intruders[i].vsb,
+                             cas.input.intruders[i].equipage,
+                             cas.input.intruders[i].quant,
+                             cas.input.intruders[i].sensitivity_index,
+                             cas.input.intruders[i].protection_mode]
+                          for i=1:length(cas.input.intruders)]...)
 
-  ownOutput = Any[cas.outputVals.cc,
-                   cas.outputVals.vc,
-                   cas.outputVals.ua,
-                   cas.outputVals.da,
-                   cas.outputVals.target_rate,
-                   cas.outputVals.turn_off_aurals,
-                   cas.outputVals.crossing,
-                   cas.outputVals.alarm,
-                   cas.outputVals.alert,
-                   cas.outputVals.dh_min,
-                   cas.outputVals.dh_max,
-                   cas.outputVals.sensitivity_index,
-                   cas.outputVals.ddh]
+  ownOutput = Any[cas.output.cc,
+                   cas.output.vc,
+                   cas.output.ua,
+                   cas.output.da,
+                   cas.output.target_rate,
+                   cas.output.turn_off_aurals,
+                   cas.output.crossing,
+                   cas.output.alarm,
+                   cas.output.alert,
+                   cas.output.dh_min,
+                   cas.output.dh_max,
+                   cas.output.sensitivity_index,
+                   cas.output.ddh]
 
-  intruderOutputs = vcat([Any[cas.outputVals.intruders[i].id,
-                              cas.outputVals.intruders[i].cvc,
-                              cas.outputVals.intruders[i].vrc,
-                              cas.outputVals.intruders[i].vsb,
-                              cas.outputVals.intruders[i].tds,
-                              cas.outputVals.intruders[i].code]
-                          for i=1:length(cas.outputVals.intruders)]...)
+  intruderOutputs = vcat([Any[cas.output.intruders[i].id,
+                              cas.output.intruders[i].cvc,
+                              cas.output.intruders[i].vrc,
+                              cas.output.intruders[i].vsb,
+                              cas.output.intruders[i].tds,
+                              cas.output.intruders[i].code]
+                          for i=1:length(cas.output.intruders)]...)
 
   return round_floats(vcat(ra_active,
                            ownInput,

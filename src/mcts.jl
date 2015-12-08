@@ -49,34 +49,28 @@ function retrieve_block(s::ConfParse, block::ASCIIString)
   haskey(s._data, block) ? s._data[block] : []
 end
 
-function init(number_of_aircraft::Int)
-  if number_of_aircraft == 2
-    require(Pkg.dir("RLESCAS", "src", "config/config_ACASX_EvE.jl")) #defineSim
-  elseif number_of_aircraft == 3
-    require(Pkg.dir("RLESCAS", "src", "config/config_ACASX_Multi.jl")) #defineSim
-  else
-    error("invalid number_of_aircraft")
-  end
+function init()
+  require(Pkg.dir("RLESCAS/src/config/config_ACASX_GM.jl")) #defineSim
 
   #Config AdaptiveStressTest
-  require(Pkg.dir("RLESCAS", "src", "config/config_ast.jl")) #defineAST
+  require(Pkg.dir("RLESCAS/src/config/config_ast.jl")) #defineAST
 
   #Config MCTS solver
-  require(Pkg.dir("RLESCAS", "src", "config/config_mcts.jl")) #defineMCTS
+  require(Pkg.dir("RLESCAS/src/config/config_mcts.jl")) #defineMCTS
 
-  require(Pkg.dir("RLESCAS", "src", "defines/define_log.jl")) #SimLog
-  require(Pkg.dir("RLESCAS", "src", "defines/define_save.jl")) #trajSave, trajLoad and helpers
-  require(Pkg.dir("RLESCAS", "src", "defines/save_types.jl")) #ComputeInfo
-  require(Pkg.dir("RLESCAS", "src", "helpers/save_helpers.jl"))
+  require(Pkg.dir("RLESCAS/src/defines/define_log.jl")) #SimLog
+  require(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajSave, trajLoad and helpers
+  require(Pkg.dir("RLESCAS/src/defines/save_types.jl")) #ComputeInfo
+  require(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl"))
 
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_common.jl"))
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_once.jl"))
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_mcbest.jl"))
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_mcts.jl"))
-  require(Pkg.dir("RLESCAS", "src", "trajsave/trajSave_replay.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_common.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_once.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcbest.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcts.jl"))
+  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_replay.jl"))
 
-  require(Pkg.dir("RLESCAS", "src", "helpers/add_supplementary.jl")) #add label270
-  require(Pkg.dir("RLESCAS", "src", "helpers/fill_to_max_time.jl"))
+  require(Pkg.dir("RLESCAS/src/helpers/add_supplementary.jl")) #add label270
+  require(Pkg.dir("RLESCAS/src/helpers/fill_to_max_time.jl"))
 end
 
 function check(condition::Bool, errormsg::ASCIIString="check failed")
@@ -98,6 +92,8 @@ function mcts_main()
   output_dir = "./"
   quiet = false
 
+  init()
+
   #Process default block
   for (k, v) in retrieve_block(conf, "default")
     #Obj2Dict doesn't work well with UTF8String and substring
@@ -105,11 +101,26 @@ function mcts_main()
     v = convert(Array{ASCIIString}, v)
     if k == "number_of_aircraft"
       check(length(v) == 1, "config: number_of_aircraft: invalid number of parameters ($(length(v)))")
-      number_of_aircraft = int(v[1])
-      init(number_of_aircraft)
+      config["sim_params.num_aircraft"] = [int(v[1])]
+    elseif k == "encounter_equipage"
+      check(length(v) == 1)
+      config["sim_params.encounter_equipage"] = [symbol(v[1])]
+    elseif k == "encounter_model"
+      check(length(v) == 1)
+      config["sim_params.encounter_model"] = [symbol(v[1])]
+    elseif k == "response_model"
+      check(length(v) == 1)
+      config["sim_params.response_model"] = [symbol(v[1])]
+    elseif k == "cas_model"
+      check(length(v) == 1)
+      config["sim_params.cas_model"] = [symbol(v[1])]
+    elseif k == "dynamics_model"
+      check(length(v) == 1)
+      config["sim_params.dynamics_model"] = [symbol(v[1])]
     elseif k == "encounters"
       check(length(v) >= 1, "config: encounters: invalid number of parameters ($(length(v)))")
-      encounter_ranges = v
+      encounters = parse_ranges(v)
+      config["sim_params.encounter_number"] = encounters
     elseif k == "initial"
       check(length(v) == 1, "config: initial: invalid number of parameters ($(length(v)))")
       initial = v[1]
@@ -154,9 +165,8 @@ function mcts_main()
   map_block!(config, conf, "manual", "", separator = "") #don't prefix, directly apply, # Process manual block
 
   # Create the final config
-  config_encounters!(config, number_of_aircraft, encounter_ranges)
   cases = generate_cases(collect(config)...)
-  config_seeds!(cases, number_of_aircraft) #seed each encounter with a different init_seed
+  config_seeds!(cases) #seed each encounter with a different init_seed
 
   function postproc(filename::String)
     #fill and add supplementary to all files
@@ -175,25 +185,25 @@ function mcts_main()
 
     for o in outputs
       if o == "pdf"
-        include(Pkg.dir("RLESCAS", "src", "visualize/visualize.jl"))
+        include(Pkg.dir("RLESCAS/src/visualize/visualize.jl"))
         trajPlot(filename, format="PDF")
       elseif o == "tex"
-        include(Pkg.dir("RLESCAS", "src", "visualize/visualize.jl"))
+        include(Pkg.dir("RLESCAS/src/visualize/visualize.jl"))
         trajPlot(filename, format="TEX")
       elseif o == "scripted"
-        include(Pkg.dir("RLESCAS", "src", "converters/json_to_scripted.jl"))
+        include(Pkg.dir("RLESCAS/src/converters/json_to_scripted.jl"))
         json_to_scripted(filename)
       elseif o == "waypoints"
-        include(Pkg.dir("RLESCAS", "src", "converters/json_to_waypoints.jl"))
+        include(Pkg.dir("RLESCAS/src/converters/json_to_waypoints.jl"))
         json_to_waypoints(filename)
       elseif o == "csv"
-        include(Pkg.dir("RLESCAS", "src", "converters/json_to_csv.jl"))
+        include(Pkg.dir("RLESCAS/src/converters/json_to_csv.jl"))
         json_to_csv(filename)
       elseif o == "label270_text"
-        include(Pkg.dir("RLESCAS", "src", "tools/label270_to_text.jl"))
+        include(Pkg.dir("RLESCAS/src/tools/label270_to_text.jl"))
         label270_to_text(filename)
       elseif o == "summary"
-        include(Pkg.dir("RLESCAS", "src", "tools/summarize.jl"))
+        include(Pkg.dir("RLESCAS/src/tools/summarize.jl"))
         summarize(filename)
       else
         warn("config: unrecognized output")
@@ -229,33 +239,10 @@ function map_block!(config::Dict{ASCIIString,Vector{Any}}, conf::ConfParse,
   end
 end
 
-function get_encounter_string(number_of_aircraft::Int)
-  if number_of_aircraft == 2
-    return "encounter_number"
-  elseif number_of_aircraft == 3
-    return "encounter_seed"
-  elseif number_of_aicraft == -1
-    error("number_of_aircraft must be declared in config file")
-  else
-    error("invalid number_of_aircraft in config file")
-  end
-end
-
-function config_encounters!(config::Dict{ASCIIString,Vector{Any}}, number_of_aircraft::Int,
-                            encounter_ranges::Vector{ASCIIString})
-  encounters = parse_ranges(encounter_ranges)
-  encounter_string = get_encounter_string(number_of_aircraft)
-  config["sim_params.$(encounter_string)"] = [encounters]
-  return config
-end
-
 #vary the encounter seed and init seed with the encounter number
-function config_seeds!(cases::Cases, number_of_aircraft::Int64)
-  encounter_string = get_encounter_string(number_of_aircraft)
-  add_field!(cases, "ast_params.init_seed", x -> int64(x), ["sim_params.$(encounter_string)"])
-  if encounter_string == "encounter_number"
-    add_field!(cases, "sim_params.encounter_seed", x -> uint64(x), ["sim_params.encounter_number"])
-  end
+function config_seeds!(cases::Cases)
+  add_field!(cases, "ast_params.init_seed", x -> int64(x), ["sim_params.encounter_number"])
+  add_field!(cases, "sim_params.encounter_seed", x -> uint64(x), ["sim_params.encounter_number"])
   return cases
 end
 
