@@ -33,7 +33,7 @@
 # *****************************************************************************
 
 include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
-include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_fast/GrammarDef.jl"))
+include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/GrammarDef.jl"))
 
 using GrammarDef
 using ClusterRules
@@ -52,7 +52,7 @@ const W_FPR = 100 #heavy weight on penalizing trues incorrect (intrcluster)
 const W_FNR = 1 #normal weight on penalizing falses incorrect (extracluster)
 const W_LEN = 0.001 #W_LEN x 50 chars = W_FNR * 0.05 tnr (50 characters equiv to 5% fnr increase)
 
-const GENOME_SIZE = 400
+const GENOME_SIZE = 500
 const MAXWRAPS = 2
 const DEFAULTCODE = :(eval(false))
 const VERBOSITY = 1
@@ -101,6 +101,11 @@ function fill_to_col!{T}(Ds::DFSet, field_id::Int64, fillvals::AbstractVector{T}
   end
 end
 
+function get_example_D()
+  Dl = load_from_clusterresult(MYKEL_CR, NAME2FILE_MAP)
+  return D = Dl.records[1]
+end
+
 #flat clusters
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
@@ -113,7 +118,7 @@ function script1(crfile::AbstractString)
   Dl = load_from_clusterresult(crfile, NAME2FILE_MAP)
   #explain
   p = FCParams()
-  grammar = create_grammar(Dl.records[1])
+  grammar = create_grammar()
   gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
   fcrules = explain_clusters(p, gb_params, Dl)

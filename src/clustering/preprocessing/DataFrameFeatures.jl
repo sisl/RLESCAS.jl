@@ -34,27 +34,27 @@
 
 module DataFrameFeatures
 
-export add_features!
+export add_features!, transform!
 
-using RLESUtils.LookupCallbacks
-using RLESUtils.FileUtils
 using DataFrames
 using Iterators
+using RLESUtils: FileUtils, LookupCallbacks
 
 function add_features!(df_files::Vector{ASCIIString}, feature_map::Vector{LookupCallback},
                         feature_names::Vector{ASCIIString}; overwrite::Bool=false)
-  Ds = map(readtable, df_files)
-  add_features!(Ds, feature_map, feature_names)
-  outfiles = Array(ASCIIString, length(Ds))
-  for i = 1:length(Ds)
-    f = df_files[i]
-    D = Ds[i]
-    fileroot, ext = splitext(f)
-    f_ = overwrite ? f : fileroot * "_addfeats" * ext
-    outfiles[i] = f_
-    writetable(f_, D)
+  map(df_files) do f
+    add_features!(f, feature_map, feature_names; overwrite=overwrite)
   end
-  return outfiles
+end
+
+function add_features!(df_file::AbstractString, feature_map::Vector{LookupCallback},
+                        feature_names::Vector{ASCIIString}; overwrite::Bool=false)
+  D = readtable(df_file)
+  add_features!(D, feature_map, feature_names)
+  fileroot, ext = splitext(df_file)
+  f = overwrite ? df_file : fileroot * "_addfeats" * ext
+  writetable(f, D)
+  return f
 end
 
 function add_features!(Ds::Vector{DataFrame}, feature_map::Vector{LookupCallback},
@@ -77,6 +77,27 @@ function add_features!(D::DataFrame, feature_map::Vector{LookupCallback},
     end
   end
   return D
+end
+
+function transform!(df_files::Vector{ASCIIString}, feat_transforms::Tuple{Symbol,Function}...; overwrite::Bool=false)
+  map(df_files) do f
+    transform!(f, feat_transforms..., overwrite=overwrite)
+  end
+end
+
+function transform!(df_file::AbstractString, feat_transforms::Tuple{Symbol,Function}...; overwrite::Bool=false)
+  D = readtable(df_file)
+  transform!(D, feat_transforms...)
+  fileroot, ext = splitext(df_file)
+  f = overwrite ? df_file : fileroot * "_transform" * ext
+  writetable(f, D)
+  return f
+end
+
+function transform!(D::DataFrame, feat_transforms::Tuple{Symbol,Function}...)
+  for (key, f) in feat_transforms
+    D[key] = map(f, D[key])
+  end
 end
 
 end #module

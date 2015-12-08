@@ -34,23 +34,20 @@
 
 include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
 
-using RLESUtils.MathUtils
-using RLESUtils.LookupCallbacks
-using RLESUtils.FileUtils
-using RLESUtils.StringUtils
 using CSVFeatures
 using DataFrameFeatures
+using RLESUtils: MathUtils, LookupCallbacks, FileUtils, StringUtils
 
 const IN_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs/csv")
 const OUT_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats") #time series feats (as opposed to static feats)
 
 const FEATURE_MAP = LookupCallback[
-  LookupCallback("ra_detailed.ra_active", bool),
-  LookupCallback("ra_detailed.ownInput.dz"),
-  LookupCallback(["ra_detailed.ownInput.z", "ra_detailed.intruderInput[1].z"], (z1, z2) -> z2 - z1),
-  LookupCallback("ra_detailed.ownInput.psi"),
-  LookupCallback("ra_detailed.intruderInput[1].sr"),
-  LookupCallback("ra_detailed.intruderInput[1].chi"),
+  LookupCallback("ra_detailed.ra_active", x -> Bool(x)),
+  LookupCallback("ra_detailed.ownInput.dz", x -> Float64(x)),
+  LookupCallback(["ra_detailed.ownInput.z", "ra_detailed.intruderInput[1].z"], (z1, z2) -> Float64(z2 - z1)),
+  LookupCallback("ra_detailed.ownInput.psi", x -> Float64(x)),
+  LookupCallback("ra_detailed.intruderInput[1].sr", x -> Float64(x)),
+  LookupCallback("ra_detailed.intruderInput[1].chi", x -> Float64(x)),
   LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 0), #split categorical to 1-hot
   LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 1), #split categorical to 1-hot
   LookupCallback("ra_detailed.intruderInput[1].vrc", x -> x == 2), #split categorical to 1-hot
@@ -66,22 +63,22 @@ const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.ownOutput.da", x -> bin(Int(x), 3)[1] == '1'), #categorical 3-bit
   LookupCallback("ra_detailed.ownOutput.da", x -> bin(Int(x), 3)[2] == '1'), #categorical 3-bit
   LookupCallback("ra_detailed.ownOutput.da", x -> bin(Int(x), 3)[3] == '1'), #categorical 3-bit
-  LookupCallback("ra_detailed.ownOutput.target_rate"),
-  LookupCallback("ra_detailed.ownOutput.crossing", bool),
-  LookupCallback("ra_detailed.ownOutput.alarm", bool),
-  LookupCallback("ra_detailed.ownOutput.alert", bool),
+  LookupCallback("ra_detailed.ownOutput.target_rate", x -> Float64(x)),
+  LookupCallback("ra_detailed.ownOutput.crossing", x -> Bool(x)),
+  LookupCallback("ra_detailed.ownOutput.alarm", x -> Bool(x)),
+  LookupCallback("ra_detailed.ownOutput.alert", x -> Bool(x)),
   LookupCallback("ra_detailed.intruderOutput[1].vrc", x -> x == 0), #split categorical to 1-hot
   LookupCallback("ra_detailed.intruderOutput[1].vrc", x -> x == 1), #split categorical to 1-hot
   LookupCallback("ra_detailed.intruderOutput[1].vrc", x -> x == 2), #split categorical to 1-hot
-  LookupCallback("ra_detailed.intruderOutput[1].tds"),
+  LookupCallback("ra_detailed.intruderOutput[1].tds", x -> Float64(x)),
   LookupCallback("response.state", x -> x == "none"), #split categorical to 1-hot
   LookupCallback("response.state", x -> x == "stay"), #split categorical to 1-hot
   LookupCallback("response.state", x -> x == "follow"), #split categorical to 1-hot
-  LookupCallback("response.timer"),
-  LookupCallback("response.h_d"),
-  LookupCallback("response.psi_d"),
-  LookupCallback("adm.v"),
-  LookupCallback("adm.h")
+  LookupCallback("response.timer", x -> Float64(x)),
+  LookupCallback("response.h_d", x -> Float64(x)),
+  LookupCallback("response.psi_d", x -> Float64(x)),
+  LookupCallback("adm.v", x -> Float64(x)),
+  LookupCallback("adm.h", x -> Float64(x))
   ]
 
 const FEATURE_NAMES = ASCIIString[
@@ -146,6 +143,7 @@ function csvs2dataframes()
   csvfiles = readdir_ext("csv", IN_DIR)
   df_files = csv_to_dataframe(csvfiles, FEATURE_MAP, FEATURE_NAMES, outdir=OUT_DIR)
   add_features!(df_files, ADD_FEATURE_MAP, ADD_FEATURE_NAMES, overwrite=true)
+  transform!(df_files, (:psi_1, rad2deg), (:psi_2, rad2deg), (:intr_chi_1, rad2deg), (:intr_chi_2, rad2deg), overwrite=true)
 end
 
 csvs2dataframes()

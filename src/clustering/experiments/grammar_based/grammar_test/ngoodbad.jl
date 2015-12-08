@@ -33,13 +33,16 @@
 # *****************************************************************************
 
 include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
-include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar.jl"))
+include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/GrammarDef.jl"))
 
 const GENOME_SIZE = 500
 const POP_SIZE = 1000
 const MAXWRAPS = 2
 
-function goodbad_test(pop_size::Int64=POP_SIZE, genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS)
+using GrammarDef
+using GrammaticalEvolution
+
+function goodbad_test(pop_size::Int64=POP_SIZE, genome_size::Int64=GENOME_SIZE, maxwraps::Int64=MAXWRAPS; verbose::Bool=true)
   grammar = create_grammar()
   pop = ExamplePopulation(pop_size, genome_size)
   ngood = nbad = ntotal = 0
@@ -47,11 +50,17 @@ function goodbad_test(pop_size::Int64=POP_SIZE, genome_size::Int64=GENOME_SIZE, 
   for ind in pop.individuals
     try
       ind.code = transform(grammar, ind, maxwraps=maxwraps)
-      @show ind.code
+      if verbose
+        @show ind.code
+      end
       ngood += 1
       ntotal += 1
     catch e
-      println("exception = $e")
+      if isa(e, MaxWrapException)
+        println("MaxWrapException")
+      else
+        println("exception = $e")
+      end
       ind.code = nothing
       nbad += 1
       ntotal += 1

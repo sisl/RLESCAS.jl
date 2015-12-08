@@ -43,7 +43,6 @@ using Iterators
 
 function feature_frame(csvfile::ASCIIString, feature_map::Vector{LookupCallback},
                         colnames::Vector{Symbol}=Symbol[])
-
   csv = readcsv(csvfile)
   headers = csv[1, :] |> vec
   units = csv[2, :] |> vec
