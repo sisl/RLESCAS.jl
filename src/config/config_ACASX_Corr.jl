@@ -36,19 +36,22 @@ using SISLES
 using SISLES.GenerativeModel
 
 function defineSimParams(;encounter_number::Int64 = 1,
-                         command_method::Symbol = :DBN, #:ENC,:DBN
+                         encounter_seed::Uint64 = uint64(0),
                          nmac_r::Float64 = 500.0,
                          nmac_h::Float64 = 100.0,
                          max_steps::Int64 = 50,
                          num_aircraft::Int64 = 2,
-                         encounter_seed::Uint64 = uint64(0),
-                         pilotResponseModel::Symbol = :ICAO_all, #:SimplePR, :StochasticLinear, :FiveVsNone, :ICAO_all
+                         response_model::Symbol = :ICAO, #:ICAO, :StochasticLinear, :ICAOVsNone
+                         cas_model::Symbol = :CCAS, #:CCAS, :ADD
+                         encounter_equipage::Symbol = :EvE, #:EvE, :EvU
+                         dynamics_model::Symbol = :LLADM, #:LLADM
                          end_on_nmac::Bool = true,
+                         command_method::Symbol = :DBN,
                          encounter_file::String = Pkg.dir("SISLES/src/Encounter/CorrAEMImpl/params/cor.txt"),
                          initial_sample_file::String = Pkg.dir("RLESCAS/encounters/initial.txt"),
                          transition_sample_file::String = Pkg.dir("RLESCAS/encounters/transition.txt"),
                          quant::Int64 = 25,
-                         libcas::String = Pkg.dir("CCAS/libcas0.8.6/lib/libcas"),
+                         libcas::String = Pkg.dir("CCAS/libcas0.8.6/lib/libcas"), #empty if using :ADD
                          libcas_config::String = Pkg.dir("CCAS/libcas0.8.6/parameters/0.8.5.standard.r13.xa.config.txt")
                          #libcas::String = Pkg.dir("CCAS/libcas0.9.0/lib/libcas"),
                          #libcas_config::String = Pkg.dir("CCAS/libcas0.9.0/parameters/0.9.0.r14.rev2_3_4candidate07_active.config.txt")
@@ -57,15 +60,18 @@ function defineSimParams(;encounter_number::Int64 = 1,
                          #libcas::String = Pkg.dir("CCAS/libcas0.9.3/lib/libcas"),
                          #libcas_config::String = Pkg.dir("CCAS/libcas0.9.3/parameters/0.9.3.standard.r14.xa.config.txt")
                          )
-  p = ACASX_EvE_params()
+  p = ACASX_Corr_params()
 
   p.encounter_number = encounter_number
+  p.encounter_seed = encounter_seed
   p.nmac_r = nmac_r
   p.nmac_h = nmac_h
   p.max_steps = max_steps
   p.num_aircraft = num_aircraft
-  p.encounter_seed = encounter_seed
-  p.pilotResponseModel = pilotResponseModel
+  p.response_model = response_model
+  p.cas_model = cas_model
+  p.encounter_equipage = encounter_equipage
+  p.dynamics_model = dynamics_model
   p.end_on_nmac = end_on_nmac
   p.command_method = command_method
   p.encounter_file = encounter_file
@@ -78,4 +84,4 @@ function defineSimParams(;encounter_number::Int64 = 1,
   return p
 end
 
-defineSim(p::ACASX_EvE_params) = ACASX_EvE(p)
+defineSim(p::ACASX_Corr_params) = ACASX_Corr(p)
