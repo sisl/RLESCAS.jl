@@ -51,7 +51,6 @@ function defineSimParams(;encounter_number::Int64 = 1,
                          command_method::Symbol = :DBN,
                          initial_sample_file::String = Pkg.dir("RLESCAS/encounters/initial.txt"),
                          transition_sample_file::String = Pkg.dir("RLESCAS/encounters/transition.txt"),
-                         quant::Int64 = 25,
                          libcas::String = Pkg.dir("CCAS/libcas0.8.6/lib/libcas"), #empty if using :ADD
                          libcas_config::String = Pkg.dir("CCAS/libcas0.8.6/parameters/0.8.5.standard.r13.xa.config.txt")
                          #libcas::String = Pkg.dir("CCAS/libcas0.9.0/lib/libcas"),
@@ -78,7 +77,6 @@ function defineSimParams(;encounter_number::Int64 = 1,
   p.encounter_file = encounter_file
   p.initial_sample_file = initial_sample_file
   p.transition_sample_file = transition_sample_file
-  p.quant = quant
   p.libcas = libcas
   p.libcas_config = libcas_config
 

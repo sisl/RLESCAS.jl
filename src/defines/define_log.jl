@@ -575,7 +575,7 @@ function extract_ra_detailed(cas::Union(ACASX_CCAS,ACASX_ADD)) #log everything
                              cas.input.intruders[i].cvc,
                              cas.input.intruders[i].vrc,
                              cas.input.intruders[i].vsb,
-                             cas.input.intruders[i].equipage,
+                             cas.input.intruders[i].equipage.val,
                              cas.input.intruders[i].quant,
                              cas.input.intruders[i].sensitivity_index,
                              cas.input.intruders[i].protection_mode]

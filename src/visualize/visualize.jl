@@ -34,7 +34,6 @@
 
 include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
-include("../helpers/add_supplementary.jl")
 include("../helpers/TikzUtils.jl")
 
 include("vis_captions.jl")
