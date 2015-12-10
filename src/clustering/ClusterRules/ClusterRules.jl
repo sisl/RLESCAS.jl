@@ -155,7 +155,7 @@ function explain_clusters{T}(p::HCParams, gb_params::GBParams, Dl::DFSetLabeled{
   classifiers = pmap(first_merge:last_merge) do i
     @assert !isempty(R[i].children) #non-leafs, should never trip
     truth = get_truth(R, i)
-    Dl_sub = sub(Dl, R[i].members)
+    Dl_sub = Dl[R[i].members]
     Dl_sub = setlabels(Dl_sub, truth) #new Dl with true/false labels
     classifier = train(gb_params, Dl_sub) #find rule
   end
@@ -192,7 +192,7 @@ function show_check{T}(hcrules::HCRules, Dl::DFSetLabeled{T}, index::Int64)
   R = hcrules.rules
   members = R[index].members
   classifier = R[index].classifier
-  Dl_sub = sub(Dl, R[index].members)
+  Dl_sub = Dl[R[index].members]
   pred = classify(classifier, Dl_sub)
   truth = get_truth(hcrules.rules, index)
   correct = pred .== truth
@@ -213,7 +213,7 @@ function checker{T}(hcrules::HCRules, Dl::DFSetLabeled{T})
   result_merges = pmap(first_merge:last_merge) do i
     @assert !isempty(R[i].children) #non-leafs, should never trip
     truth = get_truth(R, i)
-    Dl_sub = sub(Dl, R[i].members)
+    Dl_sub = Dl[R[i].members]
     pred = classify(R[i].classifier, Dl_sub)
     matched = R[i].members[find(pred .== truth)] #indices into Dl
     mismatched = R[i].members[find(pred .!= truth)] #indices into Dl

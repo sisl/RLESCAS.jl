@@ -38,8 +38,11 @@ using CSVFeatures
 using DataFrameFeatures
 using RLESUtils: MathUtils, LookupCallbacks, FileUtils, StringUtils
 
-const IN_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs/csv")
-const OUT_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats") #time series feats (as opposed to static feats)
+const DASC_NMACS = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs/csv")
+const DASC_NMACS_OUT = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats") #time series feats (as opposed to static feats)
+
+const DASC_NON_NMACS = Pkg.dir("RLESCAS/src/clustering/data/dasc_non_nmacs/csv")
+const DASC_NON_NMACS_OUT = Pkg.dir("RLESCAS/src/clustering/data/dasc_non_nmacs_ts_feats") #time series feats (as opposed to static feats)
 
 const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.ra_active", x -> Bool(x)),
@@ -139,11 +142,10 @@ const ADD_FEATURE_NAMES = ASCIIString[
   "converging"
   ]
 
-function csvs2dataframes()
-  csvfiles = readdir_ext("csv", IN_DIR)
-  df_files = csv_to_dataframe(csvfiles, FEATURE_MAP, FEATURE_NAMES, outdir=OUT_DIR)
+function csvs2dataframes(in_dir::ASCIIString, out_dir::ASCIIString)
+  csvfiles = readdir_ext("csv", in_dir)
+  df_files = csv_to_dataframe(csvfiles, FEATURE_MAP, FEATURE_NAMES, outdir=out_dir)
   add_features!(df_files, ADD_FEATURE_MAP, ADD_FEATURE_NAMES, overwrite=true)
   transform!(df_files, (:psi_1, rad2deg), (:psi_2, rad2deg), (:intr_chi_1, rad2deg), (:intr_chi_2, rad2deg), overwrite=true)
 end
 
-csvs2dataframes()

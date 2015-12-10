@@ -38,7 +38,6 @@ module GBClassifiers
 export GBParams, train, GBClassifier, classify, GBTracker
 export BestSampleParams, best_sample, CodeClassifier
 export GeneticSearchParams, genetic_search, CodeClassifier
-export IncrSearchParams, incr_search, TreeCodeClassifier
 
 using GrammarDef #don't hardcode name of module?
 using DataFrameSets
@@ -75,20 +74,6 @@ type GeneticSearchParams <: GBParams
   get_fitness::Union{Void, Function}
 end
 
-type IncrSearchParams <: GBParams
-  grammar::Grammar
-  genome_size::Int64
-  pop_size::Int64
-  maxwraps::Int64
-  default_code::Expr
-  max_fitness::Float64
-  min_iters::Int64
-  max_iters::Int64
-  verbosity::Int
-  get_fitness::Union{Void, Function}
-  max_depth::Int64
-end
-
 type GeneticSearchTracker <: GBTracker
   training_fitness::Vector{Float64}
 end
@@ -101,14 +86,8 @@ type CodeClassifier <: GBClassifier
 end
 CodeClassifier() = CodeClassifier(0.0, :(eval(false)), nothing)
 
-type TreeCodeClassifier <: GBClassifier
-
-end
-#TreeCodeClassifier() = TreeCodeClassifier()
-
 train(p::BestSampleParams, Dl::DFSetLabeled) = best_sample(p, Dl)
 train(p::GeneticSearchParams, Dl::DFSetLabeled) = genetic_search(p, Dl)
-train(p::IncrSearchParams, Dl::DFSetLabeled) = incr_search(p, Dl)
 
 function best_sample(p::BestSampleParams, Dl::DFSetLabeled)
   best_ind = ExampleIndividual(p.genome_size, p.maxvalue) #maxvalue=1000
@@ -189,24 +168,22 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled; track::Bool=tr
   return CodeClassifier(ind.fitness, ind.code, tracker)
 end
 
+#single version
 classify(classifier::CodeClassifier, D::DataFrame) = classify(classifier.code, D)
 function classify(code::Expr, D::DataFrame)
   f = to_function(code)
   return f(D)
 end
 
-classify(classifier::CodeClassifier, Dl::DFSetLabeled) = classify(classifier.code, Dl)
-function classify(code::Expr, Dl::DFSetLabeled)
+#vector version
+classify(classifier::CodeClassifier, Ds::DFSet) = classify(classifier.code, Ds.records)
+classify(classifier::CodeClassifier, Dl::DFSetLabeled) = classify(classifier.code, Dl.records)
+classify(classifier::CodeClassifier, Ds::Vector{DataFrame}) = classify(classifier.code, Ds)
+classify(code::Expr, Ds::DFSet) = classify(code, Ds.records)
+classify(code::Expr, Dl::DFSetLabeled) = classify(code, Dl.records)
+function classify(code::Expr, Ds::Vector{DataFrame})
   f = to_function(code)
   return map(f, Dl.records)
-end
-
-function incr_search(p::IncrSearchParams, Dl::DFSetLabeled; track::Bool=true)
-
-  return TreeCodeClassifier()
-end
-
-function classify(classifier::TreeCodeClassifier, Dl::DFSetLabeled)
 end
 
 end #module

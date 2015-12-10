@@ -36,9 +36,9 @@ module DataFrameSets
 
 export DFSet, DFSetLabeled, get_colnames, setlabels, setlabels!, load_from_dir, load_from_csvs,
         load_from_clusterresult
-export sub, start, next, done, length
+export start, next, done, length, vcat, getindex
 
-import Base: sub, start, next, done, length
+import Base: start, next, done, length, vcat, getindex
 
 using ClusterResults
 using RLESUtils.FileUtils
@@ -48,12 +48,14 @@ type DFSet
   names::Vector{ASCIIString}
   records::Vector{DataFrame}
 end
+DFSet(name::ASCIIString, record::DataFrame) = DFSet([name],[record])
 
 type DFSetLabeled{T}
   names::Vector{ASCIIString}
   records::Vector{DataFrame}
   labels::Vector{T}
 end
+DFSetLabeled{T}(name::ASCIIString, record::DataFrame, label::T) = DFSetLabeled{T}([name], [record], [label])
 
 function DFSetLabeled{T}(Ds::DFSet, labels::Vector{T})
   @assert length(Ds.names) == length(Ds.records) == length(labels)
@@ -68,8 +70,8 @@ end
 
 function load_from_csvs(files::Vector{ASCIIString})
   records = map(readtable, files)
-  fs = map(basename, files)
-  return DFSet(fs, records)
+  fnames = map(basename, files)
+  return DFSet(fnames, records)
 end
 
 function load_from_clusterresult{T1<:AbstractString,T2}(file::AbstractString, name2file::Dict{T1, T2})
@@ -88,12 +90,8 @@ get_colnames(Ds::DFSet) = get_colnames(Ds.records[1])
 get_colnames(Dl::DFSetLabeled) = get_colnames(Dl.records[1])
 get_colnames(D::DataFrame) = map(string, names(D))
 
-sub(Ds::DFSet, i::Int64) = sub(Ds, i:i)
-sub(Ds::DFSet, r::Range{Int64}) = DFSet(Ds.names[r], Ds.records[r])
-sub(Ds::DFSet, v::Vector{Int64}) = DFSet(Ds.names[v], Ds.records[v])
-sub(Dl::DFSetLabeled, i::Int64) = sub(Dl, i:i)
-sub(Dl::DFSetLabeled, r::Range{Int64}) = DFSetLabeled(Dl.names[r], Dl.records[r], Dl.labels[r])
-sub(Dl::DFSetLabeled, v::Vector{Int64}) = DFSetLabeled(Dl.names[v], Dl.records[v], Dl.labels[v])
+getindex(Ds::DFSet, inds) = DFSet(Ds.names[inds], Ds.records[inds])
+getindex{T}(Dl::DFSetLabeled{T}, inds) = DFSetLabeled(Dl.names[inds], Dl.records[inds], Dl.labels[inds])
 
 function setlabels!{T}(Dl::DFSetLabeled{T}, labels::Vector{T})
   @assert length(Dl.records) == length(labels)
@@ -111,10 +109,25 @@ next(Ds::DFSet, s) = next(zip(Ds.names, Ds.records), s)
 done(Ds::DFSet, s) = done(zip(Ds.names, Ds.records), s)
 length(Ds::DFSet) = length(Ds.records)
 
+function vcat(D1::DFSet, D2::DFSet)
+  DFSet(
+    vcat(D1.names, D2.names),
+    vcat(D1.records, D2.records)
+    )
+end
+
 start(Dl::DFSetLabeled) = start(zip(Dl.names, Dl.records, Dl.labels))
 next(Dl::DFSetLabeled, s) = next(zip(Dl.names, Dl.records, Dl.labels), s)
 done(Dl::DFSetLabeled, s) = done(zip(Dl.names, Dl.records, Dl.labels), s)
 length(Dl::DFSetLabeled) = length(Dl.records)
+
+function vcat{T}(Dl1::DFSetLabeled{T}, Dl2::DFSetLabeled{T})
+  DFSetLabeled(
+    vcat(Dl1.names, Dl2.names),
+    vcat(Dl1.records, Dl2.records),
+    vcat(Dl1.labels, Dl2.labels)
+    )
+end
 
 containsNA(Ds::DFSet) = containsNA(Ds.records)
 containsNA(Dl::DFSetLabeled) = containsNA(Dl.records)

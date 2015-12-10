@@ -36,22 +36,21 @@ include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
 include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/GrammarDef.jl"))
 
 using GrammarDef
-using ClusterRules
-using ClusterRulesVis
+using DecisionTrees #generic decisions trees based on callbacks
 using GBClassifiers
 using DataFrameSets
 using ClusterResults
 using TikzQTrees
 using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, LatexUtils
+using GrammaticalEvolution
 using Iterators
 using DataFrames
-using GrammaticalEvolution
+using StatsBase
 
 const NMAC_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
 const NON_NMAC_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_non_nmacs_ts_feats/")
-const W_FPR = 100 #heavy weight on penalizing trues incorrect (intrcluster)
-const W_FNR = 1 #normal weight on penalizing falses incorrect (extracluster)
-const W_LEN = 0.001 #W_LEN x 50 chars = W_FNR * 0.05 tnr (50 characters equiv to 5% fnr increase)
+const W_ENT = 100 #entropy
+const W_LEN = 0.1 #
 
 const GENOME_SIZE = 500
 const MAXWRAPS = 2
@@ -63,6 +62,7 @@ const MAX_FITNESS = 0.05
 const POP_SIZE = TESTMODE ? 50 : 5000
 const MINITERATIONS = TESTMODE ? 1 : 5
 const MAXITERATIONS = TESTMODE ? 1 : 20
+const MAXDEPTH = TESTMODE ? 2 : 4
 
 function get_name2file_map(df_dir::ASCIIString) #maps encounter number to filename
   df_files = readdir_ext("csv", df_dir)
@@ -83,24 +83,6 @@ const MYKEL_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/mykel.json")
 const JOSH1_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh1.json")
 const JOSH2_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh2.json")
 
-function get_fitness{T}(code::Expr, Dl::DFSetLabeled{T})
-  f = to_function(code)
-  predicts = map(f, Dl.records)
-  truth = Dl.labels
-  true_ids = find(truth)
-  false_ids = find(!truth)
-  fpr = count(i -> predicts[i] != truth[i], true_ids) / length(true_ids) #frac of trues correctly classified
-  fnr = count(i -> predicts[i] != truth[i], false_ids) / length(false_ids) #frac of falses correctly classified
-  return W_FPR * fpr + W_FNR * fnr + W_LEN * length(string(code))
-end
-
-function fill_to_col!{T}(Ds::DFSet, field_id::Int64, fillvals::AbstractVector{T})
-  @assert length(Ds) == length(fillvals)
-  for i = 1:length(Ds)
-    fill!(Ds[i].columns[field_id], fillvals[i])
-  end
-end
-
 function get_example_D()
   name2file = get_name2file_map(NMAC_DIR)
   Dl = load_from_clusterresult(MYKEL_CR, name2file)
@@ -115,35 +97,98 @@ function simplify_fnames!{T<:AbstractString}(fnames::Vector{T})
   end
 end
 
-#flat clusters explain
+#Helpers
+#################
+
+function get_metrics{T}(predicts::Vector{Bool}, truth::Vector{T})
+  true_ids = find(predicts)
+  false_ids = find(!predicts)
+  ent_pre = truth |> proportions |> entropy
+  ent_true = truth[true_ids] |> proportions |> entropy
+  ent_false = truth[false_ids] |> proportions |> entropy
+  w1 = length(true_ids) / length(truth)
+  w2 = length(false_ids) / length(truth)
+  ent_post = w1 * ent_true + w2 * ent_false #miminize entropy after split
+  info_gain = ent_pre - ent_post
+  return (info_gain, ent_pre, ent_post) #entropy pre/post split
+end
+
+#Callbacks
+#################
+function get_fitness{T}(code::Expr, Dl::DFSetLabeled{T})
+  f = to_function(code)
+  predicts = map(f, Dl.records)
+  _, _, ent_post = get_metrics(predicts, Dl.labels)
+  return W_ENT * ent_post + W_LEN * length(string(code))
+end
+
+function get_truth(members::Vector{Int64}, Dl::DFSetLabeled{Int64})
+  truth = Dl.labels[members]
+  return truth::Vector{Int64}
+end
+
+function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64}, gb_params::GeneticSearchParams)
+  Dl_sub = Dl[members]
+  classifier = train(gb_params, Dl_sub)
+
+  predicts = classify(classifier, Dl_sub)
+  info_gain, _, _ = get_metrics(predicts, Dl_sub.labels)
+
+  return info_gain > 0 ? classifier : nothing
+end
+
+function get_labels(classifier::GBClassifier, members::Vector{Int64}, Dl::DFSetLabeled{Int64})
+  labels = classify(classifier, Dl.records[members])
+  return labels::Vector{Int64}
+end
+
+function get_tag(node::DTNode, Dl::DFSetLabeled{Int64})
+  #
+  return tag::ASCIIString
+end
+
+#Scripts
+################
+
+#explain flat clusters via decision tree, nmacs only
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script1(crfile::AbstractString)
+using Debug
+@debug function script1(crfile::AbstractString)
   seed = 1
   rsg = RSG(1, seed)
   set_global(rsg)
-
+@bp
   #load data
   name2file = get_name2file_map(NMAC_DIR)
   Dl = load_from_clusterresult(crfile, name2file)
   Dl_check = deepcopy(Dl)
   #explain
-  p = FCParams()
   grammar = create_grammar()
   gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
-  fcrules = explain_clusters(p, gb_params, Dl)
+  num_data = length(Dl)
+  get_truth1(members::Vector{Int64}) = get_truth(members, Dl)
+  get_splitter1(members::Vector{Int64}) = get_splitter(members, Dl, gb_params)
+  get_labels1(classifier::GBClassifier, members::Vector{Int64}) = get_labels(classifier, members, Dl)
+  get_tag1(node::DTNode) = get_tag(node, Dl)
+
+  p = DTParams(num_data, get_truth1, get_splitter1, get_labels1, get_tag1, MAXDEPTH)
+
+  dtree = build_tree(p)
+
   #save fcrules
   fileroot = splitext(basename(crfile))[1]
-  Obj2Dict.save_obj("$(fileroot)_fc.json", fcrules)
+  Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
   #check
-  check_result = checker(fcrules, Dl_check)
-  Obj2Dict.save_obj("$(fileroot)_fccheck.json", check_result)
+  #check_result = checker(fcrules, Dl_check)
+  #Obj2Dict.save_obj("$(fileroot)_fccheck.json", check_result)
   #visualize
-  plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check_result=check_result)
-  return Dl, fcrules, check_result
+  #plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check_result=check_result)
+  return Dl, dtree
 end
 
+#=
 #flat clusters explain -- include non-nmacs as an extra cluster
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
@@ -210,36 +255,5 @@ function script3()
   #visualize
   plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check_result=check_result)
   return Dl, fcrules, check_result
-end
-
-
-#=
-#hierarchical clusters
-#script2(ASCII_CR)
-function script2(crfile::AbstractString)
-  seed = 1
-  rsg = RSG(1, seed)
-  set_global(rsg)
-
-  #load data
-  cr = load_result(crfile)
-  Dl = load_from_clusterresult(cr, NAME2FILE_MAP)
-  #explain
-  p = HCParams(cr.tree)
-  grammar = create_grammar(Dl.records[1])
-  gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
-                            MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
-  hcrules = explain_clusters(p, gb_params, Dl)
-  #save hcrules
-  fileroot = splitext(basename(crfile))[1]
-  Obj2Dict.save_obj("$(fileroot)_hc.json", hcrules)
-  #check
-  cr2 = load_result(crfile)
-  Dl2 = load_from_clusterresult(cr2, NAME2FILE_MAP)
-  check_result = checker(hcrules, Dl2)
-  Obj2Dict.save_obj("$(fileroot)_hccheck.json", check_result)
-  #visualize
-  write_d3js(hcrules, Dl, outfileroot="$(fileroot)_d3js", check_result=check_result)
-  return Dl, hcrules, check_result
 end
 =#

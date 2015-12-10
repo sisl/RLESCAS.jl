@@ -43,11 +43,13 @@ type DTParams
   num_data::Int64 #number of datapoints in training set
   get_truth::Function #labels = get_truth(members)
   get_splitter::Function #split_rule = get_splitter(members)
-  get_labels::Function #labels = get_labels(split_rule)
+  get_labels::Function #labels = get_labels(split_rule,members)
+  get_tag::Function #tag = get_tag(node)
   maxdepth::Int64
 end
 
 type DTNode{T}
+  tag::ASCIIString
   members::Vector{Int64} #indices into data starting at 1
   split_rule::Any #object used in callback for split rule
   children::Dict{T,DTNode} #key=value of label, value=child node
@@ -65,7 +67,9 @@ function build_tree(p::DTParams)
   return DecisionTree(root)
 end
 
-function process_child(p::DTParams, members::Vector{Int64}, depth::Int64)
+using Debug
+@debug function process_child(p::DTParams, members::Vector{Int64}, depth::Int64)
+  @bp
   members_copy = deepcopy(members)
   labels = p.get_truth(members)
   labelset = unique(labels)
@@ -73,22 +77,27 @@ function process_child(p::DTParams, members::Vector{Int64}, depth::Int64)
   if length(labelset) == 1 #all outputs are the same
     label = labelset[1]
     children = Dict{T,DTNode}() #leaf
-    node = DTNode(members_copy, nothing, children, label)
+    node = DTNode("", members_copy, nothing, children, label)
   elseif depth >= p.maxdepth #reached stopping criterion
     label = mode(labels) #from StatsBase.jl
     children = Dict{T,DTNode}() #leaf
-    node = DTNode(members_copy, nothing, children, label)
-  else
+    node = DTNode("", members_copy, nothing, children, label)
+  else #consider splitting
     label = nothing
     split_rule = p.get_splitter(members)
-    predict_labels = p.get_labels(split_rule, members)
     children = Dict{T,DTNode}()
-    for label in unique(predict_labels)
-      child_members = predict_labels[find(x -> x == label, predict_labels)]
-      children[label] = process_child(p, child_members, depth + 1)
+    if split_rule != nothing
+      predict_labels = p.get_labels(split_rule, members)
+      for label in unique(predict_labels)
+        child_members = predict_labels[find(x -> x == label, predict_labels)]
+        children[label] = process_child(p, child_members, depth + 1)
+      end
+    else #get_splitter returned nothing, end here by predicting most popular
+      label = mode(labels)
     end
-    node = DTNode(members_copy, split_rule, children, label)
+    node = DTNode("", members_copy, split_rule, children, label)
   end
+  node.tag = get_tag(node)
   return node
 end
 
