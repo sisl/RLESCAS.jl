@@ -37,8 +37,9 @@ include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/
 
 using GrammarDef
 using DecisionTrees #generic decisions trees based on callbacks
+using DecisionTreesVis
 using GBClassifiers
-using DataFrameSets
+using DataFrameSets #TODO: simplify these using reexport.jl
 using ClusterResults
 using TikzQTrees
 using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, LatexUtils
@@ -57,12 +58,15 @@ const MAXWRAPS = 2
 const DEFAULTCODE = :(eval(false))
 const VERBOSITY = 1
 
-const TESTMODE = false
-const MAX_FITNESS = 0.05
-const POP_SIZE = TESTMODE ? 50 : 5000
-const MINITERATIONS = TESTMODE ? 1 : 5
-const MAXITERATIONS = TESTMODE ? 1 : 20
-const MAXDEPTH = TESTMODE ? 2 : 4
+function TESTMODE(testing::Bool)
+  global MAX_FITNESS = 0.05
+  global POP_SIZE = testing ? 50 : 5000
+  global MINITERATIONS = testing ? 1 : 5
+  global MAXITERATIONS = testing ? 1 : 20
+  global MAXDEPTH = testing ? 2 : 4
+end
+
+TESTMODE(true)
 
 function get_name2file_map(df_dir::ASCIIString) #maps encounter number to filename
   df_files = readdir_ext("csv", df_dir)
@@ -99,13 +103,14 @@ end
 
 #Helpers
 #################
-
 function get_metrics{T}(predicts::Vector{Bool}, truth::Vector{T})
   true_ids = find(predicts)
   false_ids = find(!predicts)
   ent_pre = truth |> proportions |> entropy
-  ent_true = truth[true_ids] |> proportions |> entropy
-  ent_false = truth[false_ids] |> proportions |> entropy
+  ent_true = !isempty(true_ids) ?
+    truth[true_ids] |> proportions |> entropy : 0.0
+  ent_false = !isempty(false_ids) ?
+    truth[false_ids] |> proportions |> entropy : 0.0
   w1 = length(true_ids) / length(truth)
   w2 = length(false_ids) / length(truth)
   ent_post = w1 * ent_true + w2 * ent_false #miminize entropy after split
@@ -131,21 +136,31 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64}, gb_params
   Dl_sub = Dl[members]
   classifier = train(gb_params, Dl_sub)
 
-  predicts = classify(classifier, Dl_sub)
+  predicts = GBClassifiers.classify(classifier, Dl_sub)
   info_gain, _, _ = get_metrics(predicts, Dl_sub.labels)
 
   return info_gain > 0 ? classifier : nothing
 end
 
 function get_labels(classifier::GBClassifier, members::Vector{Int64}, Dl::DFSetLabeled{Int64})
-  labels = classify(classifier, Dl.records[members])
-  return labels::Vector{Int64}
+  labels = GBClassifiers.classify(classifier, Dl.records[members])
+  return labels::Vector{Bool}
 end
 
-function get_tag(node::DTNode, Dl::DFSetLabeled{Int64})
-  #
-  return tag::ASCIIString
+#callbacks for vis
+################
+function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
+  members_text = "members=" * join(Dl.names[node.members], ",")
+  matched = ""
+  mismatched = ""
+  label = "label=$(node.label)"
+  confidence = "confidence=" * string(signif(node.confidence, 3))
+  text = join([members_text, matched, mismatched, label, confidence], "\n")
+  return text::ASCIIString
 end
+
+get_height(node::DTNode) = node.depth
+
 
 #Scripts
 ################
@@ -153,12 +168,11 @@ end
 #explain flat clusters via decision tree, nmacs only
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-using Debug
-@debug function script1(crfile::AbstractString)
+function script1(crfile::AbstractString)
   seed = 1
   rsg = RSG(1, seed)
   set_global(rsg)
-@bp
+
   #load data
   name2file = get_name2file_map(NMAC_DIR)
   Dl = load_from_clusterresult(crfile, name2file)
@@ -168,12 +182,13 @@ using Debug
   gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
   num_data = length(Dl)
-  get_truth1(members::Vector{Int64}) = get_truth(members, Dl)
-  get_splitter1(members::Vector{Int64}) = get_splitter(members, Dl, gb_params)
-  get_labels1(classifier::GBClassifier, members::Vector{Int64}) = get_labels(classifier, members, Dl)
-  get_tag1(node::DTNode) = get_tag(node, Dl)
-
-  p = DTParams(num_data, get_truth1, get_splitter1, get_labels1, get_tag1, MAXDEPTH)
+  T1 = Bool #predict_type
+  T2 = Int64 #label_type
+  p = DTParams(num_data,
+               (members::Vector{Int64}) -> get_truth(members, Dl),
+               (members::Vector{Int64}) -> get_splitter(members, Dl, gb_params),
+               (classifier::GBClassifier, members::Vector{Int64}) -> get_labels(classifier, members, Dl),
+               MAXDEPTH, T1, T2)
 
   dtree = build_tree(p)
 
@@ -184,7 +199,11 @@ using Debug
   #check_result = checker(fcrules, Dl_check)
   #Obj2Dict.save_obj("$(fileroot)_fccheck.json", check_result)
   #visualize
-  #plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check_result=check_result)
+  treedepth = get_max_depth(dtree)
+  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl),
+                      get_height
+                      )
+  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
   return Dl, dtree
 end
 

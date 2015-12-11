@@ -32,21 +32,43 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRules"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRulesVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTreesVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/grammatical_evolution"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/GBClassifiers"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/JSON2ASCII"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
+module DecisionTreesVis
+
+export to_d3js, write_d3js, VisCalls, JDict
+
+using DecisionTrees
+using JSON
+
+typealias JDict Dict{AbstractString,Any}
+
+type VisCalls
+  get_name::Function #name = get_name(DTNode)
+  get_height::Function #height = get_height(DTNode)
+end
+
+function write_d3js{T1,T2}(dtree::DecisionTree{T1,T2}, f::VisCalls, filename::AbstractString="crvis-d3js.json")
+  d = to_d3js(dtree, f)
+  f = open(filename, "w")
+  JSON.print(f, d)
+  close(f)
+  return filename
+end
+
+function to_d3js{T1,T2}(dtree::DecisionTree{T1,T2}, f::VisCalls)
+  d = process(dtree.root, f)
+  return d
+end
+
+function process{T1,T2}(node::DTNode{T1,T2}, f::VisCalls)
+  d = JDict()
+  d["name"] = f.get_name(node)
+  d["height"] = f.get_height(node)
+  d["children"] = Array(JDict, length(node.children))
+  for (i, child) in enumerate(values(node.children))
+    d["children"][i] = process(child, f)
+  end
+  return d
+end
+
+end #module
+

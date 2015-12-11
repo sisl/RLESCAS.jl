@@ -35,12 +35,13 @@
 #Grammar-Based Binary Classifier
 module GBClassifiers
 
-export GBParams, train, GBClassifier, classify, GBTracker
+export GBParams, train, GBClassifier, classify
 export BestSampleParams, best_sample, CodeClassifier
 export GeneticSearchParams, genetic_search, CodeClassifier
 
 using GrammarDef #don't hardcode name of module?
 using DataFrameSets
+#using RLESUtils.Observers
 using GrammaticalEvolution
 using DataFrames
 
@@ -48,7 +49,6 @@ import GrammaticalEvolution.evaluate!
 
 abstract GBParams
 abstract GBClassifier
-abstract GBTracker
 
 type BestSampleParams <: GBParams
   grammar::Grammar
@@ -59,6 +59,7 @@ type BestSampleParams <: GBParams
   nsamples::Int64
   verbosity::Int64
   get_fitness::Union{Void, Function}
+  #observer::Observer
 end
 
 type GeneticSearchParams <: GBParams
@@ -72,17 +73,12 @@ type GeneticSearchParams <: GBParams
   max_iters::Int64
   verbosity::Int
   get_fitness::Union{Void, Function}
+  #observer::Observer
 end
-
-type GeneticSearchTracker <: GBTracker
-  training_fitness::Vector{Float64}
-end
-GeneticSearchTracker() = GeneticSearchTracker(Float64[])
 
 type CodeClassifier <: GBClassifier
   fitness::Float64
   code::Expr
-  tracking::Union{GBTracker,Void}
 end
 CodeClassifier() = CodeClassifier(0.0, :(eval(false)), nothing)
 
@@ -96,7 +92,7 @@ function best_sample(p::BestSampleParams, Dl::DFSetLabeled)
   for i = 1:p.nsamples
     ind = ExampleIndividual(p.genome_size, p.maxvalue)
     evaluate!(p.grammar, ind, p.maxwraps, p.get_fitness, p.default_code, Dl)
-    if p.verbosity > 1
+    if p.verbosity > 1 #TODO: use RLESUtils.Observer framework instead
       s1 = string(ind.code)
       s2 = take(s1, 50) |> join
       s3 = string(best_ind.code)
@@ -142,11 +138,10 @@ function evaluate!(grammar::Grammar, ind::ExampleIndividual, maxwraps::Int64, ge
   end
 end
 
-function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled; track::Bool=true)
+function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
   if p.verbosity > 0
     println("Starting search...")
   end
-  tracker = track ? GeneticSearchTracker() : nothing
   pop = ExamplePopulation(p.pop_size, p.genome_size)
   fitness = Inf
   iter = 1
@@ -154,9 +149,6 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled; track::Bool=tr
     # generate a new population (based off of fitness)
     pop = generate(p.grammar, pop, 0.1, 0.2, 0.2, p.maxwraps, p.get_fitness, p.default_code, Dl)
     fitness = pop[1].fitness #population is sorted, so first entry i the best
-    if track
-      push!(tracker.training_fitness, fitness)
-    end
     s1 = string(pop[1].code)
     s2 = take(s1, 50) |> join
     if p.verbosity > 0
@@ -165,7 +157,7 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled; track::Bool=tr
     iter += 1
   end
   ind = pop[1]
-  return CodeClassifier(ind.fitness, ind.code, tracker)
+  return CodeClassifier(ind.fitness, ind.code)
 end
 
 #single version
@@ -177,13 +169,13 @@ end
 
 #vector version
 classify(classifier::CodeClassifier, Ds::DFSet) = classify(classifier.code, Ds.records)
-classify(classifier::CodeClassifier, Dl::DFSetLabeled) = classify(classifier.code, Dl.records)
+classify{T}(classifier::CodeClassifier, Dl::DFSetLabeled{T}) = classify(classifier.code, Dl.records)
 classify(classifier::CodeClassifier, Ds::Vector{DataFrame}) = classify(classifier.code, Ds)
 classify(code::Expr, Ds::DFSet) = classify(code, Ds.records)
-classify(code::Expr, Dl::DFSetLabeled) = classify(code, Dl.records)
+classify{T}(code::Expr, Dl::DFSetLabeled{T}) = classify(code, Dl.records)
 function classify(code::Expr, Ds::Vector{DataFrame})
   f = to_function(code)
-  return map(f, Dl.records)
+  return map(f, Ds)
 end
 
 end #module
