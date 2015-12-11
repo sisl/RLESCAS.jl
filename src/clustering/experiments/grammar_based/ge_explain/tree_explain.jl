@@ -42,7 +42,7 @@ using GBClassifiers
 using DataFrameSets #TODO: simplify these using reexport.jl
 using ClusterResults
 using TikzQTrees
-using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, LatexUtils
+using RLESUtils: RNGWrapper, Obj2Dict, FileUtils
 using GrammaticalEvolution
 using Iterators
 using DataFrames
@@ -151,11 +151,12 @@ end
 ################
 function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
   members_text = "members=" * join(Dl.names[node.members], ",")
-  matched = ""
-  mismatched = ""
+  #matched = ""
+  #mismatched = ""
   label = "label=$(node.label)"
   confidence = "confidence=" * string(signif(node.confidence, 3))
-  text = join([members_text, matched, mismatched, label, confidence], "\n")
+  rule = isdefined(node.split_rule, :code) ? string(node.split_rule.code) : "none"
+  text = join([members_text, label, confidence, rule], "\\\\")
   return text::ASCIIString
 end
 

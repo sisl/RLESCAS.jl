@@ -63,8 +63,11 @@ function process{T1,T2}(node::DTNode{T1,T2}, f::VisCalls)
   d = JDict()
   d["name"] = f.get_name(node)
   d["height"] = f.get_height(node)
+  d["edgeLabel"] = Array(AbstractString, length(node.children))
   d["children"] = Array(JDict, length(node.children))
-  for (i, child) in enumerate(values(node.children))
+  for (i, kv) in enumerate(node.children)
+    label, child = kv
+    d["edgeLabel"][i] = string(label)
     d["children"][i] = process(child, f)
   end
   return d

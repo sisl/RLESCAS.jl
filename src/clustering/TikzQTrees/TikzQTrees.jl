@@ -34,34 +34,37 @@
 
 module TikzQTrees
 
-export plottree, TikzQTree, QTreeNode
+export plottree, JDict
 
+using RLESUtils.LatexUtils
 using TikzPictures
+using JSON
 
-type QTreeNode
-  name::ASCIIString
-  children::Vector{QTreeNode}
-  arrowlabels::Vector{ASCIIString} #not implemented
-end
-QTreeNode() = QTreeNode("", QTreeNode[], ASCIIString[])
-QTreeNode(name::ASCIIString) = QTreeNode(name, QTreeNode[], ASCIIString[])
+typealias JDict Dict{AbstractString,Any}
 
-type TikzQTree
-  root::QTreeNode
-end
-
-function print_element!(io::IOBuffer, element::QTreeNode)
-  println(io, "[.{$(element.name)}")
-  #process children
-  if !isempty(element.children)
-    for child in element.children
-      print_element!(io, child)
+function print_element!(io::IOBuffer, d::JDict)
+  name = d["name"] |> escape_latex
+  println(io, "[.{$name}")
+  for (i, child) in enumerate(d["children"])
+    if haskey(d, "edgeLabel")
+      edge_label = d["edgeLabel"][i]
+      print(io, "\\edge node[draw=none,bottom color=orange!25]{$(edge_label)}; ")
     end
+    print_element!(io, child)
   end
   print(io, "]")
 end
 
-function plottree(qtree::TikzQTree;
+function plottree(filename::AbstractString;
+                  outfileroot::AbstractString="qtree",
+                  output::AbstractString="TEXPDF")
+  f = open(filename, "r")
+  d = JSON.parse(f)
+  close(f)
+  plottree(d, outfileroot=outfileroot, output=output)
+end
+
+function plottree(d::JDict;
                   outfileroot::AbstractString="qtree",
                   output::AbstractString="TEXPDF")
   preamble = "\\usepackage{tikz-qtree}
@@ -86,7 +89,7 @@ edge from parent/.style=
     }}"
   io = IOBuffer()
   print(io, "\\Tree ")
-  print_element!(io, qtree.root)
+  print_element!(io, d)
   println(io, ";")
 
   tp = TikzPicture(takebuf_string(io), preamble=preamble)
