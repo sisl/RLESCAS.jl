@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module DecisionTreesVis
+module DecisionTreeVis
 
 export to_d3js, write_d3js, VisCalls, JDict
 
