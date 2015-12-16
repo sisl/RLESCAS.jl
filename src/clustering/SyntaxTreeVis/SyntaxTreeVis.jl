@@ -32,24 +32,40 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRules"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRuleVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/grammatical_evolution"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/GBClassifiers"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/JSON2ASCII"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreePretty"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
+module SyntaxTreeVis
+
+export to_d3js, write_d3js, JDict
+
+using SyntaxTrees
+using JSON
+
+typealias JDict Dict{AbstractString,Any}
+
+function write_d3js(stree::SyntaxTree, filename::AbstractString="syntaxtree_d3.json")
+  d = to_d3js(stree)
+  f = open(filename, "w")
+  JSON.print(f, d)
+  close(f)
+  return filename
+end
+
+function to_d3js(stree::SyntaxTree)
+  depth = 0
+  d = process(stree.root, depth)
+  return d
+end
+
+function process(node::STNode, depth::Int64)
+  d = JDict()
+  d["name"] = node.cmd
+  d["height"] = depth
+  d["edgeLabel"] = Array(AbstractString, length(node.args))
+  d["children"] = Array(JDict, length(node.args))
+  for (i, arg) in enumerate(node.args)
+    d["edgeLabel"][i] = "$i"
+    d["children"][i] = process(arg, depth + 1)
+  end
+  return d
+end
+
+end #module

@@ -32,24 +32,34 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRules"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRuleVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/grammatical_evolution"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/GBClassifiers"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/JSON2ASCII"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreePretty"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
+module SyntaxTreePretty
+
+export Format, pretty_string, bin_infix, f_args, get_cmd
+
+using SyntaxTrees
+
+typealias Format Dict{ASCIIString,Function} #usage: D[cmd] = f(cmd, args)
+
+bin_infix(cmd, args) = "$(args[1]) $cmd $(args[2])"
+f_args(cmd, args) = "$cmd(" * join(args,", ") * ")"
+get_cmd(cmd, args) = "$cmd"
+
+pretty_string(s::AbstractString, fmt::Format) = pretty_string(SyntaxTree(s), fmt)
+pretty_string(tree::SyntaxTree, fmt::Format) = pretty_string(tree.root, fmt)
+
+function pretty_string(node::STNode, fmt::Format)
+  cmd = node.cmd
+  args = map(x -> pretty_string(x, fmt), node.args)
+  if haskey(fmt, cmd)
+    out = fmt[cmd](cmd, args) #user callback
+  else
+    if isempty(args)
+      out = get_cmd(cmd, args)
+    else
+      out = f_args(cmd, args)
+    end
+  end
+  return out
+end
+
+end #module

@@ -32,24 +32,43 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRules"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRuleVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/grammatical_evolution"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/GBClassifiers"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/JSON2ASCII"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreePretty"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
+include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
+
+using SyntaxTrees
+using SyntaxTreeVis
+using TikzQTrees
+
+s1 = "F(D[:,71] .< D[:,59])"
+s2 = "!(!(G(Y(dfle(D[:,34],D[:,2],-40),sn(D[:,41],D[:,43])))))"
+s3 = "F(D[:,5] .< 0) || G(sn(D[:,22],D[:,2]) | D[:,75])"
+s4 = "!(!(!(!(!F(D[:,71] .< !(!(D[:,59])))))))"
+
+function test_vis(s::AbstractString, outfileroot::AbstractString)
+  tree = SyntaxTree(s)
+  file = "$outfileroot.json"
+  write_d3js(tree, file)
+  plottree(file, outfileroot=outfileroot)
+end
+
+test_vis(s1, "s1")
+test_vis(s2, "s2")
+test_vis(s3, "s3")
+test_vis(s4, "s4")
+
+function double_nots(node::STNode)
+  while node.cmd == "!" && node.args[1].cmd == "!"
+    node = node.args[1].args[1]
+  end
+  return node
+end
+
+function test_visit(s::AbstractString, outfileroot::AbstractString)
+  tree = SyntaxTree(s)
+  visit!(tree, double_nots)
+  file = "$outfileroot.json"
+  write_d3js(tree, file)
+  plottree(file, outfileroot=outfileroot)
+end
+
+test_visit(s2, "s2_visit")
+test_visit(s4, "s4_visit")

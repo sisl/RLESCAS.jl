@@ -34,8 +34,9 @@
 
 module GrammarDef
 
-export create_grammar, feat_type_ids, to_function, pretty_string
+export create_grammar, feat_type_ids, to_function, get_format
 
+using SyntaxTreePretty
 using RLESUtils.DataFramesUtils
 using GrammaticalEvolution
 using DataFrames
@@ -65,6 +66,7 @@ function create_grammar()
 
     #equal
     eq = vrate_eq | altdiff_eq | angle_eq | sr_eq | tds_eq | timer_eq | psid_eq | v_eq | alt_eq
+    #eq = vrate_eq | angle_eq | tds_eq | timer_eq | psid_eq | v_eq | alt_eq
     vrate_eq = Expr(:comparison, vrate_feat, :.==, vrate_val) | Expr(:comparison, vrate_feat, :.==, vrate_feat)
     altdiff_eq = Expr(:comparison, altdiff_feat, :.==, altdiff_val)
     angle_eq = Expr(:comparison, angle_feat, :.==, angle_val) | Expr(:comparison, angle_feat, :.==, angle_feat)
@@ -77,6 +79,7 @@ function create_grammar()
 
     #less then
     lt = vrate_lt | altdiff_lt | angle_lt | sr_lt | tds_lt | timer_lt | psid_lt | v_lt | alt_lt
+    #lt = vrate_lt | angle_lt | tds_lt | timer_lt | psid_lt | v_lt | alt_lt
     vrate_lt = Expr(:comparison, vrate_feat, :.<, vrate_val) | Expr(:comparison, vrate_feat, :.<, vrate_feat)
     altdiff_lt = Expr(:comparison, altdiff_feat, :.<, altdiff_val)
     angle_lt = Expr(:comparison, angle_feat, :.<, angle_val) | Expr(:comparison, angle_feat, :.<, angle_feat)
@@ -89,6 +92,7 @@ function create_grammar()
 
     #less then or equal
     lte = vrate_lte | altdiff_lte | angle_lte | sr_lte | tds_lte | timer_lte | psid_lte | v_lte | alt_lte
+    #lte = vrate_lte | angle_lte | tds_lte | timer_lte | psid_lte | v_lte | alt_lte
     vrate_lte = Expr(:comparison, vrate_feat, :.<=, vrate_val) | Expr(:comparison, vrate_feat, :.<=, vrate_feat)
     altdiff_lte = Expr(:comparison, altdiff_feat, :.<=, altdiff_val)
     angle_lte = Expr(:comparison, angle_feat, :.<=, angle_val) | Expr(:comparison, angle_feat, :.<=, angle_feat)
@@ -228,22 +232,31 @@ function to_function(code::Expr)
   return f
 end
 
-function pretty_string{T<:AbstractString}(code::AbstractString, colnames::Vector{T})
-  s = code
-  #remove spaces
-  s = replace(s, " ", "")
-  #sub variables
-  s = sub_varnames(s, colnames)
-  return s
-end
+const U_LTE = "<=" #"\u2264"
+const U_GTE = ">=" #"\u2265"
+const U_IMPLIES = "=>" #"\u21D2"
 
-function sub_varnames{T<:AbstractString}(s::AbstractString, colnames::Vector{T})
-  r = r"D\[:,(\d+)\]"
-  for m in eachmatch(r, s)
-    id = parse(Int, m.captures[1])
-    s = replace(s, m.match, colnames[id])
+function get_format{T<:AbstractString}(colnames::Vector{T})
+  fmt = Format()
+  for s in ["&&", "||", "&", "|"]
+    fmt[s] = bin_infix
   end
-  return s
+  fmt[".=="] = (cmd, args) -> bin_infix("=", args)
+  fmt[".<"] = (cmd, args) -> bin_infix("<", args)
+  fmt[".<="] = (cmd, args) -> bin_infix("$(U_LTE)", args)
+  fmt["D"] = (cmd, args) -> "$(colnames[parse(Int,args[2])])"
+  fmt["sn"] = (cmd, args) -> "sign($(args[1])) = sign($(args[2]))"
+  fmt["dfeq"] = (cmd, args) -> "$(args[1]) - $(args[2]) = $(args[3])"
+  fmt["dflt"] = (cmd, args) -> "$(args[1]) - $(args[2]) < $(args[3])"
+  fmt["dfle"] = (cmd, args) -> "$(args[1]) - $(args[2]) $(U_LTE) $(args[3])"
+  fmt["ctlt"] = (cmd, args) -> "count($(args[1])) < $(args[2])"
+  fmt["ctle"] = (cmd, args) -> "count($(args[1])) $(U_LTE) $(args[2])"
+  fmt["ctgt"] = (cmd, args) -> "count($(args[1])) > $(args[2])"
+  fmt["ctge"] = (cmd, args) -> "count($(args[1])) $(U_GTE) $(args[2])"
+  fmt["cteq"] = (cmd, args) -> "count($(args[1])) = $(args[2])"
+  fmt["Y"] = (cmd, args) -> "$(args[1]) $(U_IMPLIES) $(args[2])"
+
+  return fmt
 end
 
 end #module

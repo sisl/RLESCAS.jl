@@ -32,24 +32,65 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRules"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRuleVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/grammatical_evolution"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/GBClassifiers"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/JSON2ASCII"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreePretty"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
+module SyntaxTrees
+
+export SyntaxTree, STNode, parse_ex, visit!
+
+type STNode
+  cmd::ASCIIString
+  args::Vector{STNode}
+end
+STNode(cmd::AbstractString) = STNode(cmd, STNode[])
+
+type SyntaxTree
+  root::STNode
+end
+SyntaxTree(s::AbstractString) = parse_ex(s)
+
+function parse_ex(s::AbstractString)
+  ex = parse(s)
+  root = parse_ex(ex)
+  return SyntaxTree(root)
+end
+
+parse_ex(val) = STNode("$val")
+parse_ex(ex::Expr) = parse_ex(Val{ex.head}, ex.args)
+
+parse_ex(V::Type{Val{:call}}, args) = parse_ex1(V, args)
+parse_ex(V::Type{Val{:ref}}, args) = parse_ex1(V, args)
+parse_ex(V::Type{Val{:comparison}}, args) = parse_ex2(V, args)
+
+#e.g., ||, &&
+parse_ex{T}(V::Type{Val{T}}, args) = parse_ex0(V, args)
+
+#cmd is 1st argument, others are args
+function parse_ex0{T}(::Type{Val{T}}, args)
+  args1 = map(parse_ex, args)
+  return STNode("$T", args1)
+end
+
+#cmd is 1st argument, others are args
+function parse_ex1{T}(::Type{Val{T}}, args)
+  args1 = map(parse_ex, args[2:end])
+  return STNode("$(args[1])", args1)
+end
+
+#cmd is 2nd argument, others are arg
+function parse_ex2{T}(::Type{Val{T}}, args)
+  args1 = map(parse_ex, args[[1, 3]])
+  return STNode("$(args[2])", args1)
+end
+
+function visit!(tree::SyntaxTree, f::Function)
+  tree.root = visit(tree.root, f)
+end
+
+function visit(node::STNode, f::Function)
+  node = f(node)
+  for i in eachindex(node.args)
+    node.args[i] = visit(node.args[i], f)
+  end
+  return node
+end
+
+end #module

@@ -37,12 +37,14 @@ include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/
 
 using GrammarDef
 using DecisionTrees #generic decisions trees based on callbacks
-using DecisionTreesVis
+using DecisionTreeVis
+using SyntaxTrees
+using SyntaxTreePretty
 using GBClassifiers
 using DataFrameSets #TODO: simplify these using reexport.jl
 using ClusterResults
 using TikzQTrees
-using RLESUtils: RNGWrapper, Obj2Dict, FileUtils
+using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils
 using GrammaticalEvolution
 using Iterators
 using DataFrames
@@ -88,9 +90,8 @@ const JOSH1_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh1.json")
 const JOSH2_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh2.json")
 
 function get_example_D()
-  name2file = get_name2file_map(NMAC_DIR)
-  Dl = load_from_clusterresult(MYKEL_CR, name2file)
-  return D = Dl.records[1]
+  fname = joinpath(NMAC_DIR, readdir(NMAC_DIR)[1])
+  return D = fname |> readtable
 end
 
 function simplify_fnames!{T<:AbstractString}(fnames::Vector{T})
@@ -149,20 +150,33 @@ end
 
 #callbacks for vis
 ################
+const FMT = get_example_D() |> get_col_names |> get_format
 function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
-  members_text = "members=" * join(Dl.names[node.members], ",")
+  members = sort(Dl.names[node.members], by=x->parse(Int64, x))
+  members_text = "members=" * join(members, ",")
   #matched = ""
   #mismatched = ""
   label = "label=$(node.label)"
   confidence = "confidence=" * string(signif(node.confidence, 3))
-  rule = isdefined(node.split_rule, :code) ? string(node.split_rule.code) : "none"
+  if isdefined(node.split_rule, :code)
+    tree = SyntaxTree(string(node.split_rule.code))
+    visit!(tree, rem_double_nots) #remove double nots
+    rule = pretty_string(tree, FMT)
+  else
+    rule = "none"
+  end
   text = join([members_text, label, confidence, rule], "\\\\")
   return text::ASCIIString
 end
 
 get_height(node::DTNode) = node.depth
 
-
+function rem_double_nots(node::STNode)
+  while node.cmd == "!" && node.args[1].cmd == "!"
+    node = node.args[1].args[1]
+  end
+  return node
+end
 #Scripts
 ################
 
@@ -196,19 +210,23 @@ function script1(crfile::AbstractString)
   #save fcrules
   fileroot = splitext(basename(crfile))[1]
   Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
-  #check
-  #check_result = checker(fcrules, Dl_check)
-  #Obj2Dict.save_obj("$(fileroot)_fccheck.json", check_result)
   #visualize
-  treedepth = get_max_depth(dtree)
-  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl),
-                      get_height
-                      )
+  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
   write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
+  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
   return Dl, dtree
 end
 
-#=
+function script1_vis(crfile::AbstractString, result_file::AbstractString)
+  name2file = get_name2file_map(NMAC_DIR)
+  Dl = load_from_clusterresult(crfile, name2file)
+  dtree = Obj2Dict.load_obj("$(result_file)")
+  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
+  fileroot = splitext(basename(crfile))[1]
+  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
+  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
+end
+
 #flat clusters explain -- include non-nmacs as an extra cluster
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
@@ -227,20 +245,28 @@ function script2(crfile::AbstractString)
   Dl = vcat(Dl_nmac, Dl_non_nmac)
   Dl_check = deepcopy(Dl)
   #explain
-  p = FCParams()
   grammar = create_grammar()
   gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
-  fcrules = explain_clusters(p, gb_params, Dl)
+  num_data = length(Dl)
+  T1 = Bool #predict_type
+  T2 = Int64 #label_type
+  p = DTParams(num_data,
+               (members::Vector{Int64}) -> get_truth(members, Dl),
+               (members::Vector{Int64}) -> get_splitter(members, Dl, gb_params),
+               (classifier::GBClassifier, members::Vector{Int64}) -> get_labels(classifier, members, Dl),
+               MAXDEPTH, T1, T2)
+
+  dtree = build_tree(p)
+
   #save fcrules
   fileroot = splitext(basename(crfile))[1]
-  Obj2Dict.save_obj("$(fileroot)_fc.json", fcrules)
-  #check
-  check_result = checker(fcrules, Dl_check)
-  Obj2Dict.save_obj("$(fileroot)_fccheck.json", check_result)
+  Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
   #visualize
-  plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check_result=check_result)
-  return Dl, fcrules, check_result
+  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
+  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
+  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
+  return Dl, dtree
 end
 
 #flat clusters explain, nmacs vs non-nmacs
@@ -261,19 +287,34 @@ function script3()
   Dl = vcat(Dl_nmac, Dl_non_nmac)
   Dl_check = deepcopy(Dl)
   #explain
-  p = FCParams()
   grammar = create_grammar()
   gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
                             MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
-  fcrules = explain_clusters(p, gb_params, Dl)
+  num_data = length(Dl)
+  T1 = Bool #predict_type
+  T2 = Int64 #label_type
+  p = DTParams(num_data,
+               (members::Vector{Int64}) -> get_truth(members, Dl),
+               (members::Vector{Int64}) -> get_splitter(members, Dl, gb_params),
+               (classifier::GBClassifier, members::Vector{Int64}) -> get_labels(classifier, members, Dl),
+               MAXDEPTH, T1, T2)
+
+  dtree = build_tree(p)
+
   #save fcrules
   fileroot = "nmacs_vs_nonnmacs"
-  Obj2Dict.save_obj("$(fileroot)_fc.json", fcrules)
-  #check
-  check_result = checker(fcrules, Dl_check)
-  Obj2Dict.save_obj("$(fileroot)_fccheck.json", check_result)
+  Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
   #visualize
-  plot_qtree(fcrules, Dl, outfileroot="$(fileroot)_qtree", check_result=check_result)
-  return Dl, fcrules, check_result
+  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
+  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
+  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
+  return Dl, dtree
 end
-=#
+
+s1 = "F(D[:,71] .< D[:,59])"
+s2 = "!(!(G(Y(dfle(D[:,34],D[:,2],-40),sn(D[:,41],D[:,43])))))"
+s3 = "F(D[:,5] .< 0) || G(sn(D[:,22],D[:,2]) | D[:,75])"
+
+function testscript()
+end
+

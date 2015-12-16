@@ -37,7 +37,7 @@ include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/
 
 using GrammarDef
 using ClusterRules
-using ClusterRulesVis
+using ClusterRuleVis
 using GBClassifiers
 using DataFrameSets
 using ClusterResults
