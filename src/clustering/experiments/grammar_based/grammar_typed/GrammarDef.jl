@@ -34,7 +34,7 @@
 
 module GrammarDef
 
-export create_grammar, feat_type_ids, to_function, get_format
+export create_grammar, feat_type_ids, to_function, get_format_pretty, get_format_natural
 
 using SyntaxTreePretty
 using RLESUtils.DataFramesUtils
@@ -62,7 +62,8 @@ function create_grammar()
     not = Expr(:call, :!, bin_vec)
     implies = Expr(:call, :Y, bin_vec, bin_vec)
     count = Expr(:call, :ctlt, bin_vec, timestep) | Expr(:call, :ctle, bin_vec, timestep) |
-      Expr(:call, :ctgt, bin_vec, timestep) | Expr(:call, :ctge, bin_vec, timestep) | Expr(:call, :cteq, bin_vec, timestep)
+      Expr(:call, :ctgt, bin_vec, timestep) | Expr(:call, :ctge, bin_vec, timestep) |
+      Expr(:call, :cteq, bin_vec, timestep)
 
     #equal
     eq = vrate_eq | altdiff_eq | angle_eq | sr_eq | tds_eq | timer_eq | psid_eq | v_eq | alt_eq
@@ -236,7 +237,7 @@ const U_LTE = "<=" #"\u2264"
 const U_GTE = ">=" #"\u2265"
 const U_IMPLIES = "=>" #"\u21D2"
 
-function get_format{T<:AbstractString}(colnames::Vector{T})
+function get_format_pretty{T<:AbstractString}(colnames::Vector{T})
   fmt = Format()
   for s in ["&&", "||", "&", "|"]
     fmt[s] = bin_infix
@@ -256,6 +257,32 @@ function get_format{T<:AbstractString}(colnames::Vector{T})
   fmt["cteq"] = (cmd, args) -> "count($(args[1])) = $(args[2])"
   fmt["Y"] = (cmd, args) -> "$(args[1]) $(U_IMPLIES) $(args[2])"
 
+  return fmt
+end
+
+function get_format_natural{T<:AbstractString}(colnames::Vector{T})
+  fmt = Format()
+  fmt["&&"] = (cmd, args) -> bin_infix("and", args)
+  fmt["||"] = (cmd, args) -> bin_infix("or", args)
+  fmt["&"] = (cmd, args) -> bin_infix("and", args)
+  fmt["|"] = (cmd, args) -> bin_infix("or", args)
+  fmt[".=="] = (cmd, args) -> bin_infix("equals", args)
+  fmt[".<"] = (cmd, args) -> bin_infix("is less than", args)
+  fmt[".<="] = (cmd, args) -> bin_infix("is less than or equal to", args)
+  fmt["D"] = (cmd, args) -> "$(colnames[parse(Int, args[2])])"
+  fmt["sn"] = (cmd, args) -> "sign of $(args[1]) is equal to sign of $(args[2])"
+  fmt["dfeq"] = (cmd, args) -> "difference between $(args[1]) and $(args[2]) is equal to $(args[3])"
+  fmt["dflt"] = (cmd, args) -> "difference between $(args[1]) and $(args[2]) is less than $(args[3])"
+  fmt["dfle"] = (cmd, args) -> "difference between $(args[1]) and $(args[2]) is less than or equal to $(args[3])"
+  fmt["ctlt"] = (cmd, args) -> "number of times $(args[1])) is true is less than $(args[2])"
+  fmt["ctle"] = (cmd, args) -> "number of times $(args[1])) is true is less than or equal to $(args[2])"
+  fmt["ctgt"] = (cmd, args) -> "number of times $(args[1])) is true is greater than $(args[2])"
+  fmt["ctge"] = (cmd, args) -> "number of times $(args[1])) is true is greater than or equal to $(args[2])"
+  fmt["cteq"] = (cmd, args) -> "number of times $(args[1])) is true is equal to $(args[2])"
+  fmt["Y"] = (cmd, args) -> "$(args[1]) implies $(args[2])"
+  fmt["G"] = (cmd, args) -> "for all time, $(args[1])"
+  fmt["F"] = (cmd, args) -> "at some point, $(args[1])"
+  fmt["!"] = (cmd, args) -> "it is not true that $(args[1])"
   return fmt
 end
 

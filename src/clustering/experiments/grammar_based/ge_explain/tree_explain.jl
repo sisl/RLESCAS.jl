@@ -34,6 +34,7 @@
 
 include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
 include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/GrammarDef.jl"))
+include("DescriptionMap.jl")
 
 using GrammarDef
 using DecisionTrees #generic decisions trees based on callbacks
@@ -44,7 +45,8 @@ using GBClassifiers
 using DataFrameSets #TODO: simplify these using reexport.jl
 using ClusterResults
 using TikzQTrees
-using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils
+using DescriptionMap
+using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils, StringUtils
 using GrammaticalEvolution
 using Iterators
 using DataFrames
@@ -150,7 +152,11 @@ end
 
 #callbacks for vis
 ################
-const FMT = get_example_D() |> get_col_names |> get_format
+const COLNAMES = get_example_D() |> get_col_names
+const COLNAMES_FULL = map(x -> DESCRIP_MAP[x], COLNAMES)
+const FMT_PRETTY = get_format_pretty(COLNAMES)
+const FMT_NATURAL = get_format_natural(COLNAMES_FULL)
+
 function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
   members = sort(Dl.names[node.members], by=x->parse(Int64, x))
   members_text = "members=" * join(members, ",")
@@ -161,11 +167,13 @@ function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
   if isdefined(node.split_rule, :code)
     tree = SyntaxTree(string(node.split_rule.code))
     visit!(tree, rem_double_nots) #remove double nots
-    rule = pretty_string(tree, FMT)
+    rule = pretty_string(tree, FMT_PRETTY)
+    s = pretty_string(tree, FMT_NATURAL)
+    natural = uppercase_first(s)
   else
-    rule = "none"
+    natural = rule = "none"
   end
-  text = join([members_text, label, confidence, rule], "\\\\")
+  text = join([members_text, label, confidence, rule, natural], "\\\\")
   return text::ASCIIString
 end
 
@@ -217,12 +225,12 @@ function script1(crfile::AbstractString)
   return Dl, dtree
 end
 
-function script1_vis(crfile::AbstractString, result_file::AbstractString)
+function script1_vis(crfile::AbstractString)
   name2file = get_name2file_map(NMAC_DIR)
   Dl = load_from_clusterresult(crfile, name2file)
-  dtree = Obj2Dict.load_obj("$(result_file)")
-  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
   fileroot = splitext(basename(crfile))[1]
+  dtree = Obj2Dict.load_obj("$(fileroot)_fc.json")
+  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
   write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
   plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
 end
@@ -267,6 +275,24 @@ function script2(crfile::AbstractString)
   write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
   plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
   return Dl, dtree
+end
+
+function script2_vis(crfile::AbstractString)
+  #load data
+  name2file = get_name2file_map(NMAC_DIR)
+  Dl_nmac = load_from_clusterresult(crfile, name2file)
+  new_id = maximum(Dl_nmac.labels) + 1
+  D = load_from_dir(NON_NMAC_DIR)
+  simplify_fnames!(D.names)
+  Dl_non_nmac = DFSetLabeled(D, fill(new_id, length(D)))
+  Dl = vcat(Dl_nmac, Dl_non_nmac)
+  #load obj
+  fileroot = splitext(basename(crfile))[1]
+  dtree = Obj2Dict.load_obj("$(fileroot)_fc.json")
+  #visualize
+  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
+  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
+  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
 end
 
 #flat clusters explain, nmacs vs non-nmacs
