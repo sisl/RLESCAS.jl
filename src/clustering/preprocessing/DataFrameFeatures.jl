@@ -34,7 +34,7 @@
 
 module DataFrameFeatures
 
-export add_features!, transform!
+export add_features!, transform, transform!
 
 using DataFrames
 using Iterators
@@ -79,15 +79,17 @@ function add_features!(D::DataFrame, feature_map::Vector{LookupCallback},
   return D
 end
 
-function transform!(df_files::Vector{ASCIIString}, feat_transforms::Tuple{Symbol,Function}...; overwrite::Bool=false)
+function transform(df_files::Vector{ASCIIString}, args...;
+                    overwrite::Bool=false)
   map(df_files) do f
-    transform!(f, feat_transforms..., overwrite=overwrite)
+    transform(f, args..., overwrite=overwrite)
   end
 end
 
-function transform!(df_file::AbstractString, feat_transforms::Tuple{Symbol,Function}...; overwrite::Bool=false)
+function transform(df_file::AbstractString, args...;
+                   overwrite::Bool=false)
   D = readtable(df_file)
-  transform!(D, feat_transforms...)
+  transform!(D, args...)
   fileroot, ext = splitext(df_file)
   f = overwrite ? df_file : fileroot * "_transform" * ext
   writetable(f, D)
@@ -97,6 +99,21 @@ end
 function transform!(D::DataFrame, feat_transforms::Tuple{Symbol,Function}...)
   for (key, f) in feat_transforms
     D[key] = map(f, D[key])
+  end
+end
+
+function transform!(D::DataFrame, lookup_callbacks::Vector{LookupCallback})
+  for lcb in lookup_callbacks
+    lookups = map(symbol, lcb.lookups)
+    f = lcb.callback
+    for row = 1:size(D, 1)
+      inputs = [D[row, l] for l in lookups]
+      outputs = f(inputs...)
+      @assert length(inputs) == length(outputs) == length(lookups)
+      for i = 1:length(lookups)
+        D[row, lookups[i]] = outputs[i]
+      end
+    end
   end
 end
 

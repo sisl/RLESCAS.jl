@@ -46,7 +46,7 @@ using DataFrameSets #TODO: simplify these using reexport.jl
 using ClusterResults
 using TikzQTrees
 using DescriptionMap
-using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils, StringUtils
+using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils, StringUtils, ArrayUtils, Observers, Loggers, Organizers
 using GrammaticalEvolution
 using Iterators
 using DataFrames
@@ -60,13 +60,15 @@ const W_LEN = 0.1 #
 const GENOME_SIZE = 500
 const MAXWRAPS = 2
 const DEFAULTCODE = :(eval(false))
+const TOP_PERCENT = 0.4
+const PROB_MUTATION = 0.2
+const MUTATION_RATE = 0.2
 const VERBOSITY = 1
 
 function TESTMODE(testing::Bool)
-  global MAX_FITNESS = 0.05
   global POP_SIZE = testing ? 50 : 5000
-  global MINITERATIONS = testing ? 1 : 5
-  global MAXITERATIONS = testing ? 1 : 20
+  global STOP_N = testing ? 2 : 10
+  global MAXITERATIONS = testing ? 1 : 30
   global MAXDEPTH = testing ? 2 : 4
 end
 
@@ -123,6 +125,20 @@ end
 
 #Callbacks
 #################
+function stop(tracker::Vector{Float64}, iter::Int64, fitness::Float64)
+  if iter == 1
+    empty!(tracker)
+  end
+  push!(tracker, fitness)
+
+  if length(tracker) < STOP_N
+    return false
+  else
+    last_N = tracker[end - STOP_N + 1 : end]
+    return elements_equal(last_N)
+  end
+end
+
 function get_fitness{T}(code::Expr, Dl::DFSetLabeled{T})
   f = to_function(code)
   predicts = map(f, Dl.records)
@@ -135,7 +151,30 @@ function get_truth(members::Vector{Int64}, Dl::DFSetLabeled{Int64})
   return truth::Vector{Int64}
 end
 
-function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64}, gb_params::GeneticSearchParams)
+function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64}, gb_params::GeneticSearchParams, logs::Organizer)
+  observer = gb_params.observer
+  empty!(observer)
+  log1 = DataFrameLogger([Int64, Float64], ["iter", "fitness"])
+  log2 = ArrayLogger()
+  add_observer(observer, "fitness", log1.f)
+  add_observer(observer, "population", x -> begin
+                 pop = x[1]
+                 fitness_vec = Float64[pop[i].fitness  for i = 1:length(pop)]
+                 edges, counts = hist(fitness_vec, 20)
+                 edges = collect(edges)
+                 mids = Array(Float64, length(edges) - 1)
+                 for (i, edge) in enumerate(partition(edges, 2, 1))
+                   mids[i] = mean(edge)
+                 end
+                 D = Dict{ASCIIString,Any}()
+                 D["mids"] =  mids
+                 D["counts"] = counts
+                 D["top10"] = fitness_vec[1:10]
+                 push!(log2, D)
+               end)
+  tagged_push!(logs, "fitness", log1)
+  tagged_push!(logs, "population", log2)
+
   Dl_sub = Dl[members]
   classifier = train(gb_params, Dl_sub)
 
@@ -157,9 +196,15 @@ const COLNAMES_FULL = map(x -> DESCRIP_MAP[x], COLNAMES)
 const FMT_PRETTY = get_format_pretty(COLNAMES)
 const FMT_NATURAL = get_format_natural(COLNAMES_FULL)
 
-function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
+using Debug
+@debug function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
+  @bp
   members = sort(Dl.names[node.members], by=x->parse(Int64, x))
-  members_text = "members=" * join(members, ",")
+  tmp = ["members="]
+  for mems in partition(members, 30)
+    push!(tmp, join(mems, ","))
+  end
+  members_text = join(tmp, "\\\\")
   #matched = ""
   #mismatched = ""
   label = "label=$(node.label)"
@@ -185,6 +230,65 @@ function rem_double_nots(node::STNode)
   end
   return node
 end
+
+function train_dtree{T}(Dl::DFSetLabeled{T})
+  #explain
+  grammar = create_grammar()
+  fitness_tracker = Float64[]
+  gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS,
+                                  TOP_PERCENT, PROB_MUTATION, MUTATION_RATE, DEFAULTCODE,
+                                  MAXITERATIONS, VERBOSITY, get_fitness,
+                                  (iter, fitness) -> stop(fitness_tracker, iter, fitness),
+                                  Observer())
+  logs = Organizer()
+  num_data = length(Dl)
+  T1 = Bool #predict_type
+  T2 = Int64 #label_type
+  p = DTParams(num_data,
+               (members::Vector{Int64}) -> get_truth(members, Dl),
+               (members::Vector{Int64}) -> get_splitter(members, Dl, gb_params, logs),
+               (classifier::GBClassifier, members::Vector{Int64}) -> get_labels(classifier, members, Dl),
+               MAXDEPTH, T1, T2)
+
+  dtree = build_tree(p)
+  return dtree, logs
+end
+
+################
+function nmac_clusters(crfile::AbstractString)
+  name2file = get_name2file_map(NMAC_DIR)
+  Dl = load_from_clusterresult(crfile, name2file)
+  return Dl
+end
+
+function nonnmacs_extra_cluster(crfile::AbstractString)
+  name2file = get_name2file_map(NMAC_DIR)
+  Dl_nmac = load_from_clusterresult(crfile, name2file)
+  new_id = maximum(Dl_nmac.labels) + 1
+  D = load_from_dir(NON_NMAC_DIR)
+  simplify_fnames!(D.names)
+  Dl_non_nmac = DFSetLabeled(D, fill(new_id, length(D)))
+  Dl = vcat(Dl_nmac, Dl_non_nmac)
+  return Dl
+end
+
+function nmacs_vs_nonnmacs()
+  D_nmac = load_from_dir(NMAC_DIR)
+  simplify_fnames!(D_nmac.names)
+  Dl_nmac = DFSetLabeled(D_nmac, fill(1, length(D_nmac)))
+  D_non_nmac = load_from_dir(NON_NMAC_DIR)
+  simplify_fnames!(D_non_nmac.names)
+  Dl_non_nmac = DFSetLabeled(D_non_nmac, fill(2, length(D_non_nmac)))
+  Dl = vcat(Dl_nmac, Dl_non_nmac)
+  return Dl
+end
+
+function tree_vis{T}(dtree::DecisionTree, Dl::DFSetLabeled{T}, fileroot::AbstractString)
+  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
+  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
+  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
+end
+
 #Scripts
 ################
 
@@ -192,47 +296,32 @@ end
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
 function script1(crfile::AbstractString)
-  seed = 1
+  seed = 2
   rsg = RSG(1, seed)
   set_global(rsg)
 
   #load data
-  name2file = get_name2file_map(NMAC_DIR)
-  Dl = load_from_clusterresult(crfile, name2file)
-  Dl_check = deepcopy(Dl)
+  Dl = nmac_clusters(crfile)
+
   #explain
-  grammar = create_grammar()
-  gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
-                            MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
-  num_data = length(Dl)
-  T1 = Bool #predict_type
-  T2 = Int64 #label_type
-  p = DTParams(num_data,
-               (members::Vector{Int64}) -> get_truth(members, Dl),
-               (members::Vector{Int64}) -> get_splitter(members, Dl, gb_params),
-               (classifier::GBClassifier, members::Vector{Int64}) -> get_labels(classifier, members, Dl),
-               MAXDEPTH, T1, T2)
+  dtree, logs = train_dtree(Dl)
 
-  dtree = build_tree(p)
-
-  #save fcrules
+  #save to json
   fileroot = splitext(basename(crfile))[1]
   Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
+  Obj2Dict.save_obj("$(fileroot)_logs.json", logs)
+
   #visualize
-  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
-  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
-  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
-  return Dl, dtree
+  tree_vis(dtree, Dl, fileroot)
+
+  return dtree, logs
 end
 
 function script1_vis(crfile::AbstractString)
-  name2file = get_name2file_map(NMAC_DIR)
-  Dl = load_from_clusterresult(crfile, name2file)
+  Dl = nmac_clusters(crfile)
   fileroot = splitext(basename(crfile))[1]
   dtree = Obj2Dict.load_obj("$(fileroot)_fc.json")
-  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
-  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
-  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
+  tree_vis(dtree, Dl, fileroot)
 end
 
 #flat clusters explain -- include non-nmacs as an extra cluster
@@ -244,103 +333,56 @@ function script2(crfile::AbstractString)
   set_global(rsg)
 
   #load data
-  name2file = get_name2file_map(NMAC_DIR)
-  Dl_nmac = load_from_clusterresult(crfile, name2file)
-  new_id = maximum(Dl_nmac.labels) + 1
-  D = load_from_dir(NON_NMAC_DIR)
-  simplify_fnames!(D.names)
-  Dl_non_nmac = DFSetLabeled(D, fill(new_id, length(D)))
-  Dl = vcat(Dl_nmac, Dl_non_nmac)
-  Dl_check = deepcopy(Dl)
+  Dl = nonnmacs_extra_cluster(crfile)
+
   #explain
-  grammar = create_grammar()
-  gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
-                            MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
-  num_data = length(Dl)
-  T1 = Bool #predict_type
-  T2 = Int64 #label_type
-  p = DTParams(num_data,
-               (members::Vector{Int64}) -> get_truth(members, Dl),
-               (members::Vector{Int64}) -> get_splitter(members, Dl, gb_params),
-               (classifier::GBClassifier, members::Vector{Int64}) -> get_labels(classifier, members, Dl),
-               MAXDEPTH, T1, T2)
+  dtree, logs = train_dtree(Dl)
 
-  dtree = build_tree(p)
-
-  #save fcrules
+  #save to json
   fileroot = splitext(basename(crfile))[1]
   Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
+  Obj2Dict.save_obj("$(fileroot)_logs.json", logs)
+
   #visualize
-  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
-  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
-  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
-  return Dl, dtree
+  tree_vis(dtree, Dl, fileroot)
+
+  return dtree, logs
 end
 
 function script2_vis(crfile::AbstractString)
   #load data
-  name2file = get_name2file_map(NMAC_DIR)
-  Dl_nmac = load_from_clusterresult(crfile, name2file)
-  new_id = maximum(Dl_nmac.labels) + 1
-  D = load_from_dir(NON_NMAC_DIR)
-  simplify_fnames!(D.names)
-  Dl_non_nmac = DFSetLabeled(D, fill(new_id, length(D)))
-  Dl = vcat(Dl_nmac, Dl_non_nmac)
+  Dl = nonnmacs_extra_cluster(crfile)
+
   #load obj
   fileroot = splitext(basename(crfile))[1]
   dtree = Obj2Dict.load_obj("$(fileroot)_fc.json")
+
   #visualize
-  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
-  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
-  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
+  tree_vis(dtree, Dl, fileroot)
 end
 
 #flat clusters explain, nmacs vs non-nmacs
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
 function script3()
-  seed = 1
+  seed = 2
   rsg = RSG(1, seed)
   set_global(rsg)
 
   #load data
-  D_nmac = load_from_dir(NMAC_DIR)
-  simplify_fnames!(D_nmac.names)
-  Dl_nmac = DFSetLabeled(D_nmac, fill(1, length(D_nmac)))
-  D_non_nmac = load_from_dir(NON_NMAC_DIR)
-  simplify_fnames!(D_non_nmac.names)
-  Dl_non_nmac = DFSetLabeled(D_non_nmac, fill(2, length(D_non_nmac)))
-  Dl = vcat(Dl_nmac, Dl_non_nmac)
-  Dl_check = deepcopy(Dl)
+  Dl = nmacs_vs_nonnmacs()
+
   #explain
-  grammar = create_grammar()
-  gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS, DEFAULTCODE, MAX_FITNESS,
-                            MINITERATIONS, MAXITERATIONS, VERBOSITY, get_fitness)
-  num_data = length(Dl)
-  T1 = Bool #predict_type
-  T2 = Int64 #label_type
-  p = DTParams(num_data,
-               (members::Vector{Int64}) -> get_truth(members, Dl),
-               (members::Vector{Int64}) -> get_splitter(members, Dl, gb_params),
-               (classifier::GBClassifier, members::Vector{Int64}) -> get_labels(classifier, members, Dl),
-               MAXDEPTH, T1, T2)
+  dtree, logs = train_dtree(Dl)
 
-  dtree = build_tree(p)
-
-  #save fcrules
+  #save to json
   fileroot = "nmacs_vs_nonnmacs"
   Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
+  Obj2Dict.save_obj("$(fileroot)_logs.json", logs)
+
   #visualize
-  viscalls = VisCalls((node::DTNode) -> get_name(node, Dl), get_height)
-  write_d3js(dtree, viscalls, "$(fileroot)_d3.json")
-  plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
-  return Dl, dtree
-end
+  tree_vis(dtree, Dl, fileroot)
 
-s1 = "F(D[:,71] .< D[:,59])"
-s2 = "!(!(G(Y(dfle(D[:,34],D[:,2],-40),sn(D[:,41],D[:,43])))))"
-s3 = "F(D[:,5] .< 0) || G(sn(D[:,22],D[:,2]) | D[:,75])"
-
-function testscript()
+  return dtree, logs
 end
 

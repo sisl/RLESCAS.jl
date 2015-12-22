@@ -78,6 +78,7 @@ function get_map(num_aircraft::Int64 = 2)
     D["h_$i"] = "aircraft $i's altitude"
   end
   D["converging"] = "aircraft are converging"
+  D["abs_alt_diff"] = "absolute altitude difference"
   return D
 end
 

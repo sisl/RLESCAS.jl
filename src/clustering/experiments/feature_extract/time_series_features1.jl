@@ -37,6 +37,7 @@ include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
 using CSVFeatures
 using DataFrameFeatures
 using RLESUtils: MathUtils, LookupCallbacks, FileUtils, StringUtils
+using DataFrames
 
 const DASC_NMACS = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs/csv")
 const DASC_NMACS_OUT = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats") #time series feats (as opposed to static feats)
@@ -124,6 +125,13 @@ const FEATURE_NAMES = ASCIIString[
   "h"
   ]
 
+const COC_STAYS_MAP = LookupCallback[
+  LookupCallback(["RA_1", "response_none_1", "response_stay_1"],
+                 (ra, none, stay) -> (ra, ra ? none : true, ra ? stay : false)),
+  LookupCallback(["RA_2", "response_none_2", "response_stay_2"],
+                 (ra, none, stay) -> (ra, ra ? none : true, ra ? stay : false))
+  ]
+
 function is_converging(psi1::Float64, chi1::Float64, psi2::Float64, chi2::Float64)
   #println("psi1=$psi1, chi1=$chi1, psi2=$psi2, chi2=$chi2")
   if abs(chi1) > pi/2 && abs(chi2) > pi/2 #flying away from each other
@@ -135,17 +143,32 @@ function is_converging(psi1::Float64, chi1::Float64, psi2::Float64, chi2::Float6
 end
 
 const ADD_FEATURE_MAP = LookupCallback[
-  LookupCallback(["psi_1", "intr_chi_1", "psi_2", "intr_chi_2"], is_converging)
+  LookupCallback(["psi_1", "intr_chi_1", "psi_2", "intr_chi_2"], is_converging),
+  LookupCallback(["alt_diff_1"], abs)
   ]
 
 const ADD_FEATURE_NAMES = ASCIIString[
-  "converging"
+  "converging",
+  "abs_alt_diff"
   ]
 
-function csvs2dataframes(in_dir::ASCIIString, out_dir::ASCIIString)
+function csvs2dataframes(in_dir::AbstractString, out_dir::AbstractString)
   csvfiles = readdir_ext("csv", in_dir)
   df_files = csv_to_dataframe(csvfiles, FEATURE_MAP, FEATURE_NAMES, outdir=out_dir)
   add_features!(df_files, ADD_FEATURE_MAP, ADD_FEATURE_NAMES, overwrite=true)
-  transform!(df_files, (:psi_1, rad2deg), (:psi_2, rad2deg), (:intr_chi_1, rad2deg), (:intr_chi_2, rad2deg), overwrite=true)
+  transform(df_files, (:psi_1, rad2deg), (:psi_2, rad2deg), (:intr_chi_1, rad2deg), (:intr_chi_2, rad2deg),
+            overwrite=true)
 end
 
+function correct_coc_stays!(dir::AbstractString)
+  df_files = readdir_ext("csv", dir)
+  transform(df_files, COC_STAYS_MAP, overwrite=true)
+end
+
+function script_dasc()
+  csvs2dataframes(DASC_NMACS, DASC_NMACS_OUT)
+  csvs2dataframes(DASC_NON_NMACS, DASC_NON_NMACS_OUT)
+
+  correct_coc_stays!(DASC_NMACS_OUT)
+  correct_coc_stays!(DASC_NON_NMACS_OUT)
+end

@@ -41,7 +41,7 @@ export GeneticSearchParams, genetic_search, CodeClassifier
 
 using GrammarDef #don't hardcode name of module?
 using DataFrameSets
-#using RLESUtils.Observers
+using RLESUtils.Observers
 using GrammaticalEvolution
 using DataFrames
 
@@ -58,8 +58,15 @@ type BestSampleParams <: GBParams
   default_code::Expr
   nsamples::Int64
   verbosity::Int64
-  get_fitness::Union{Void, Function}
-  #observer::Observer
+  get_fitness::Union{Void,Function}
+  observer::Observer
+end
+
+function BestSampleParams(grammar::Grammar, genome_size::Int64, maxvalue::Int64, maxwraps::Int64,
+                          default_code::Expr, nsamples::Int64, verbosity::Int64, get_fitness::Union{Void,Function})
+  observer = Observer()
+  BestSampleParams(grammar, genome_size, maxvalue, maxwraps, default_code, nsamples, verbosity,
+                   get_fitness, observer)
 end
 
 type GeneticSearchParams <: GBParams
@@ -67,13 +74,25 @@ type GeneticSearchParams <: GBParams
   genome_size::Int64
   pop_size::Int64
   maxwraps::Int64
+  top_percent::Float64
+  prob_mutation::Float64
+  mutation_rate::Float64
   default_code::Expr
-  max_fitness::Float64
-  min_iters::Int64
   max_iters::Int64
-  verbosity::Int
+  verbosity::Int64
   get_fitness::Union{Void, Function}
-  #observer::Observer
+  stop::Function #bool = stop(iter::Int64, fitness::Float64) user stopping criterion
+  observer::Observer
+end
+
+function GeneticSearchParams(grammar::Grammar, genome_size::Int64, pop_size::Int64, maxwraps::Int64,
+                             top_percent::Float64, prob_mutation::Float64, mutation_rate::Float64,
+                             default_code::Expr, max_iters::Int64, verbosity::Int64,
+                             get_fitness::Union{Void,Function}, stop::Function=x->false)
+  observer = Observer()
+  GeneticSearchParams(grammar, genome_size, pop_size, maxwraps, top_percent, prob_mutation,
+                      mutation_rate, default_code, max_iters, verbosity, get_fitness,
+                      stop, observer)
 end
 
 type CodeClassifier <: GBClassifier
@@ -145,13 +164,16 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
   pop = ExamplePopulation(p.pop_size, p.genome_size)
   fitness = Inf
   iter = 1
-  while iter <= p.min_iters || (fitness > p.max_fitness && iter <= p.max_iters)
+  while !p.stop(iter, fitness) && iter <= p.max_iters
     # generate a new population (based off of fitness)
-    pop = generate(p.grammar, pop, 0.1, 0.2, 0.2, p.maxwraps, p.get_fitness, p.default_code, Dl)
-    fitness = pop[1].fitness #population is sorted, so first entry i the best
-    s1 = string(pop[1].code)
-    s2 = take(s1, 50) |> join
+    pop = generate(p.grammar, pop, p.top_percent, p.prob_mutation, p.mutation_rate,
+                   p.maxwraps, p.get_fitness, p.default_code, Dl)
+    fitness = pop[1].fitness #population is sorted, so first entry is the best
+    notify_observer(p.observer, "fitness", Any[iter, fitness])
+    notify_observer(p.observer, "population", Any[pop])
     if p.verbosity > 0
+      s1 = string(pop[1].code)
+      s2 = take(s1, 50) |> join
       println("generation: $iter, max fitness=$fitness, length=$(length(s1)) code=$(s2)")
     end
     iter += 1
