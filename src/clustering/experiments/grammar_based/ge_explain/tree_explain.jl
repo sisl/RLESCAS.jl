@@ -46,7 +46,7 @@ using SyntaxTreePretty
 using GBClassifiers
 using TikzQTrees
 using DescriptionMap
-using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils, StringUtils, ArrayUtils, Observers, Loggers, Organizers
+using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils, StringUtils, ArrayUtils, Observers, Loggers
 using GrammaticalEvolution
 using Iterators
 using DataFrames
@@ -63,6 +63,7 @@ const TOP_PERCENT = 0.5
 const PROB_MUTATION = 0.2
 const MUTATION_RATE = 0.2
 const VERBOSITY = 1
+const MAXVALUE = 1000
 
 const MAN_JOSH1 = "josh1"
 const MAN_JOSH2 = "josh2"
@@ -72,8 +73,8 @@ const WRAP_MEMBERS = 30
 
 function TESTMODE(testing::Bool)
   global POP_SIZE = testing ? 50 : 5000
-  global STOP_N = testing ? 2 : 10
-  global MAXITERATIONS = testing ? 1 : 30
+  global STOP_N = testing ? 3 : 10
+  global MAXITERATIONS = testing ? 3 : 30
   global MAXDEPTH = testing ? 2 : 4
 end
 
@@ -124,13 +125,15 @@ function get_truth{T}(members::Vector{Int64}, Dl::DFSetLabeled{T})
   return truth::Vector{T}
 end
 
-function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64}, gb_params::GeneticSearchParams, logs::Organizer)
+function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64},
+                      gb_params::GeneticSearchParams, logs::TaggedDFLogger)
   observer = gb_params.observer
   empty!(observer)
-  log1 = DataFrameLogger([Int64, Float64], ["iter", "fitness"])
-  add_observer(observer, "fitness", log1.f)
-  tagged_push!(logs, "fitness", log1)
-  log2 = ArrayLogger()
+  id = nrow(logs["fitness"]) > 0 ?
+    maximum(logs["fitness"][:ID]) + 1 : 1
+  add_observer(observer, "fitness", append_push!_f(logs, "fitness", id))
+  add_observer(observer, "code", append_push!_f(logs, "code", id))
+  #=log2 = ArrayLogger()
   add_observer(observer, "population", x -> begin
                  pop = x[1]
                  fitness_vec = Float64[pop[i].fitness  for i = 1:length(pop)]
@@ -146,7 +149,7 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64}, gb_params
                  D["top10"] = fitness_vec[1:10]
                  push!(log2, D)
                end)
-  tagged_push!(logs, "population", log2)
+  tagged_push!(logs, "population", log2)=#
 
   Dl_sub = Dl[members]
   classifier = train(gb_params, Dl_sub)
@@ -194,10 +197,12 @@ function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
     rule = pretty_string(tree, FMT_PRETTY)
     s = pretty_string(tree, FMT_NATURAL)
     natural = uppercase_first(s)
+    fitness = "fitness=" * string(signif(node.split_rule.fitness, 4))
   else
     natural = rule = "none"
+    fitness = "fitness=none"
   end
-  text = join([members_text, label, confidence, rule, natural], "\\\\")
+  text = join([members_text, label, confidence, rule, natural, fitness], "\\\\")
   return text::ASCIIString
 end
 
@@ -210,16 +215,29 @@ function rem_double_nots(node::STNode)
   return node
 end
 
+function define_logger()
+  logger = TaggedDFLogger()
+  add_folder!(logger, "fitness", [Int64, Float64, Int64], ["iter", "fitness", "ID"])
+  add_folder!(logger, "code", [Int64, ASCIIString, Int64], ["iter", "code", "ID"])
+  return logger
+end
+
 function train_dtree{T}(Dl::DFSetLabeled{T})
   #explain
   grammar = create_grammar()
   fitness_tracker = Float64[]
+
   gb_params = GeneticSearchParams(grammar, GENOME_SIZE, POP_SIZE, MAXWRAPS,
                                   TOP_PERCENT, PROB_MUTATION, MUTATION_RATE, DEFAULTCODE,
                                   MAXITERATIONS, VERBOSITY, get_fitness,
                                   (iter, fitness) -> stop(fitness_tracker, iter, fitness),
                                   Observer())
-  logs = Organizer()
+
+  #gb_params = BestSampleParams(grammar, GENOME_SIZE, MAXVALUE, MAXWRAPS,
+  #                                DEFAULTCODE, 5000, VERBOSITY, get_fitness,
+  #                                Observer())
+
+  logs = define_logger()
   num_data = length(Dl)
   T1 = Bool #predict_type
   T2 = Int64 #label_type
@@ -282,8 +300,7 @@ end
 #explain flat clusters via decision tree, nmacs only
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script1(dataname::AbstractString)
-  seed = 1
+function script1(dataname::AbstractString; seed::Int64=1)
   rsg = RSG(1, seed)
   set_global(rsg)
 
@@ -295,7 +312,7 @@ function script1(dataname::AbstractString)
 
   #save to json
   Obj2Dict.save_obj("$(dataname)_fc.json", dtree)
-  Obj2Dict.save_obj("$(dataname)_logs.json", logs)
+  save_log("$(dataname)_logs.txt", logs)
 
   #visualize
   tree_vis(dtree, Dl, dataname)
@@ -312,8 +329,7 @@ end
 #flat clusters explain -- include non-nmacs as an extra cluster
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script2(dataname::AbstractString)
-  seed = 1
+function script2(dataname::AbstractString; seed::Int64=1)
   rsg = RSG(1, seed)
   set_global(rsg)
 
@@ -325,7 +341,7 @@ function script2(dataname::AbstractString)
 
   #save to json
   Obj2Dict.save_obj("$(dataname)_fc.json", dtree)
-  Obj2Dict.save_obj("$(dataname)_logs.json", logs)
+  save_log("$(dataname)_logs.txt", logs)
 
   #visualize
   tree_vis(dtree, Dl, dataname)
@@ -347,8 +363,7 @@ end
 #flat clusters explain, nmacs vs non-nmacs
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script3()
-  seed = 1
+function script3(; seed::Int64=1)
   rsg = RSG(1, seed)
   set_global(rsg)
 
@@ -361,7 +376,7 @@ function script3()
   #save to json
   fileroot = "nmacs_vs_nonnmacs"
   Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
-  Obj2Dict.save_obj("$(fileroot)_logs.json", logs)
+  save_log("$(fileroot)_logs.txt", logs)
 
   #visualize
   tree_vis(dtree, Dl, fileroot)

@@ -169,12 +169,13 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
     pop = generate(p.grammar, pop, p.top_percent, p.prob_mutation, p.mutation_rate,
                    p.maxwraps, p.get_fitness, p.default_code, Dl)
     fitness = pop[1].fitness #population is sorted, so first entry is the best
+    code = string(pop[1].code)
     notify_observer(p.observer, "fitness", Any[iter, fitness])
-    notify_observer(p.observer, "population", Any[pop])
+    notify_observer(p.observer, "code", Any[iter, code])
+    notify_observer(p.observer, "population", Any[iter, pop])
     if p.verbosity > 0
-      s1 = string(pop[1].code)
-      s2 = take(s1, 50) |> join
-      println("generation: $iter, max fitness=$(signif(fitness,4)), length=$(length(s1)) code=$(s2)")
+      code_short = take(code, 50) |> join
+      println("generation: $iter, max fitness=$(signif(fitness, 4)), length=$(length(code)), code=$(code_short)")
     end
     iter += 1
   end
