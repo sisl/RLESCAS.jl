@@ -59,9 +59,9 @@ const W_LEN = 0.1 #
 const GENOME_SIZE = 500
 const MAXWRAPS = 2
 const DEFAULTCODE = :(eval(false))
-const TOP_PERCENT = 0.2 #0.5
-const PROB_MUTATION = 0.1 #0.2
-const MUTATION_RATE = 0.1 #0.2
+const TOP_PERCENT = 0.5
+const PROB_MUTATION = 0.2
+const MUTATION_RATE = 0.2
 const VERBOSITY = 1
 
 const MAN_JOSH1 = "josh1"
@@ -73,7 +73,7 @@ const WRAP_MEMBERS = 30
 function TESTMODE(testing::Bool)
   global POP_SIZE = testing ? 50 : 5000
   global STOP_N = testing ? 2 : 10
-  global MAXITERATIONS = testing ? 1 : 20 #30
+  global MAXITERATIONS = testing ? 1 : 30
   global MAXDEPTH = testing ? 2 : 4
 end
 
