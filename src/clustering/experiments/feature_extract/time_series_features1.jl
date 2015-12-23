@@ -45,6 +45,8 @@ const DASC_NMACS_OUT = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats"
 const DASC_NON_NMACS = Pkg.dir("RLESCAS/src/clustering/data/dasc_non_nmacs/csv")
 const DASC_NON_NMACS_OUT = Pkg.dir("RLESCAS/src/clustering/data/dasc_non_nmacs_ts_feats") #time series feats (as opposed to static feats)
 
+const DASC_OUT = Pkg.dir("Datasets/data/dasc")
+
 const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.ra_active", x -> Bool(x)),
   LookupCallback("ra_detailed.ownInput.dz", x -> Float64(x)),
@@ -165,10 +167,40 @@ function correct_coc_stays!(dir::AbstractString)
   transform(df_files, COC_STAYS_MAP, overwrite=true)
 end
 
+function get_id(filename::AbstractString)
+  s = basename(filename)
+  s = replace(s, "trajSaveMCTS_ACASX_EvE_", "")
+  s = replace(s, "_dataframe.csv", "")
+  return parse(Int64, s) #encounter number
+end
+
+function merge_dataframes(true_dir::AbstractString, false_dir::AbstractString,
+                          outfile::AbstractString)
+  Ds1 = get_dataframes(true_dir, true)
+  Ds2 = get_dataframes(false_dir, false)
+  D = vcat(Ds1..., Ds2...)
+  writetable(outfile, D)
+end
+
+function get_dataframes(dir::AbstractString, isnmac::Bool)
+  files = readdir_ext("csv", dir)
+  Ds = map(files) do f
+    df = readtable(f)
+    df[:t] = Int64[1:nrow(df);]
+    df[:ID] = fill(get_id(f), nrow(df))
+    df[:NMAC] = fill(isnmac, nrow(df))
+    return df
+  end
+  return Ds
+end
+
 function script_dasc()
   csvs2dataframes(DASC_NMACS, DASC_NMACS_OUT)
   csvs2dataframes(DASC_NON_NMACS, DASC_NON_NMACS_OUT)
 
   correct_coc_stays!(DASC_NMACS_OUT)
   correct_coc_stays!(DASC_NON_NMACS_OUT)
+
+  outfile = joinpath(DASC_OUT, "tsfeats1.csv.gz")
+  merge_dataframes(DASC_NMACS_OUT, DASC_NON_NMACS_OUT, outfile)
 end

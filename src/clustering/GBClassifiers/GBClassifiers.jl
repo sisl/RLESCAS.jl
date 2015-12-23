@@ -174,7 +174,7 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
     if p.verbosity > 0
       s1 = string(pop[1].code)
       s2 = take(s1, 50) |> join
-      println("generation: $iter, max fitness=$fitness, length=$(length(s1)) code=$(s2)")
+      println("generation: $iter, max fitness=$(signif(fitness,4)), length=$(length(s1)) code=$(s2)")
     end
     iter += 1
   end

@@ -37,74 +37,47 @@ include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/
 include("DescriptionMap.jl")
 
 using GrammarDef
+using Datasets
 using DecisionTrees #generic decisions trees based on callbacks
 using DecisionTreeVis
+using DataFrameSets
 using SyntaxTrees
 using SyntaxTreePretty
 using GBClassifiers
-using DataFrameSets #TODO: simplify these using reexport.jl
-using ClusterResults
 using TikzQTrees
 using DescriptionMap
 using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils, StringUtils, ArrayUtils, Observers, Loggers, Organizers
 using GrammaticalEvolution
 using Iterators
 using DataFrames
+using DataFramesMeta
 using StatsBase
 
-const NMAC_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats/")
-const NON_NMAC_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_non_nmacs_ts_feats/")
 const W_ENT = 100 #entropy
 const W_LEN = 0.1 #
 
 const GENOME_SIZE = 500
 const MAXWRAPS = 2
 const DEFAULTCODE = :(eval(false))
-const TOP_PERCENT = 0.4
-const PROB_MUTATION = 0.2
-const MUTATION_RATE = 0.2
+const TOP_PERCENT = 0.2 #0.5
+const PROB_MUTATION = 0.1 #0.2
+const MUTATION_RATE = 0.1 #0.2
 const VERBOSITY = 1
+
+const MAN_JOSH1 = "josh1"
+const MAN_JOSH2 = "josh2"
+const MAN_MYKEL = "mykel"
+
+const WRAP_MEMBERS = 30
 
 function TESTMODE(testing::Bool)
   global POP_SIZE = testing ? 50 : 5000
   global STOP_N = testing ? 2 : 10
-  global MAXITERATIONS = testing ? 1 : 30
+  global MAXITERATIONS = testing ? 1 : 20 #30
   global MAXDEPTH = testing ? 2 : 4
 end
 
 TESTMODE(true)
-
-function get_name2file_map(df_dir::ASCIIString) #maps encounter number to filename
-  df_files = readdir_ext("csv", df_dir)
-  ks = map(df_files) do f
-    s = basename(f)
-    s = replace(s, "trajSaveMCTS_ACASX_EvE_", "")
-    return replace(s, "_dataframe.csv", "")
-  end
-  name2file_map = Dict{ASCIIString, ASCIIString}()
-  for (k, f) in zip(ks, df_files)
-    name2file_map[k] = f
-  end
-  return name2file_map
-end
-
-const ASCII_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/ascii_clusters.json")
-const MYKEL_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/mykel.json")
-const JOSH1_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh1.json")
-const JOSH2_CR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters/josh2.json")
-
-function get_example_D()
-  fname = joinpath(NMAC_DIR, readdir(NMAC_DIR)[1])
-  return D = fname |> readtable
-end
-
-function simplify_fnames!{T<:AbstractString}(fnames::Vector{T})
-  map!(fnames) do s
-    s = replace(s, "trajSaveMCTS_ACASX_EvE_", "")
-    s = replace(s, "_dataframe.csv", "")
-    return s
-  end
-end
 
 #Helpers
 #################
@@ -146,17 +119,18 @@ function get_fitness{T}(code::Expr, Dl::DFSetLabeled{T})
   return W_ENT * ent_post + W_LEN * length(string(code))
 end
 
-function get_truth(members::Vector{Int64}, Dl::DFSetLabeled{Int64})
+function get_truth{T}(members::Vector{Int64}, Dl::DFSetLabeled{T})
   truth = Dl.labels[members]
-  return truth::Vector{Int64}
+  return truth::Vector{T}
 end
 
 function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64}, gb_params::GeneticSearchParams, logs::Organizer)
   observer = gb_params.observer
   empty!(observer)
   log1 = DataFrameLogger([Int64, Float64], ["iter", "fitness"])
-  log2 = ArrayLogger()
   add_observer(observer, "fitness", log1.f)
+  tagged_push!(logs, "fitness", log1)
+  log2 = ArrayLogger()
   add_observer(observer, "population", x -> begin
                  pop = x[1]
                  fitness_vec = Float64[pop[i].fitness  for i = 1:length(pop)]
@@ -172,7 +146,6 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64}, gb_params
                  D["top10"] = fitness_vec[1:10]
                  push!(log2, D)
                end)
-  tagged_push!(logs, "fitness", log1)
   tagged_push!(logs, "population", log2)
 
   Dl_sub = Dl[members]
@@ -191,20 +164,26 @@ end
 
 #callbacks for vis
 ################
-const COLNAMES = get_example_D() |> get_col_names
+const COLNAMES = begin
+  D = dataset("dasc", "tsfeats1")
+  cols = setdiff(names(D), [:NMAC, :label, :t, :ID])
+  map(string, cols) #return
+end
 const COLNAMES_FULL = map(x -> DESCRIP_MAP[x], COLNAMES)
 const FMT_PRETTY = get_format_pretty(COLNAMES)
 const FMT_NATURAL = get_format_natural(COLNAMES_FULL)
 
-using Debug
-@debug function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
-  @bp
+function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
   members = sort(Dl.names[node.members], by=x->parse(Int64, x))
-  tmp = ["members="]
-  for mems in partition(members, 30)
-    push!(tmp, join(mems, ","))
+  tmp = ASCIIString[]
+  if length(members) <= WRAP_MEMBERS
+    push!(tmp, join(members, ",")) #push all of it
+  else
+    for mems in partition(members, WRAP_MEMBERS) #split
+      push!(tmp, join(mems, ","))
+    end
   end
-  members_text = join(tmp, "\\\\")
+  members_text = "members=" * join(tmp, "\\\\")
   #matched = ""
   #mismatched = ""
   label = "label=$(node.label)"
@@ -255,32 +234,40 @@ function train_dtree{T}(Dl::DFSetLabeled{T})
 end
 
 ################
-function nmac_clusters(crfile::AbstractString)
-  name2file = get_name2file_map(NMAC_DIR)
-  Dl = load_from_clusterresult(crfile, name2file)
+function to_DFSetLabeled(D::DataFrame, labelcol::Symbol, labeltype::Type;
+                         exclude::Vector{Symbol}=Symbol[])
+  Dl = DFSetLabeled(labeltype)
+  for subdf in DataFrames.groupby(D, :ID)
+    name = string(subdf[:ID][1]) #they should all be the same
+    label::labeltype = subdf[labelcol][1] #they should all be the same
+    cols = setdiff(names(subdf), exclude) #remove labels
+    record = subdf[cols]
+    push!(Dl, name, record, label)
+  end
   return Dl
 end
 
-function nonnmacs_extra_cluster(crfile::AbstractString)
-  name2file = get_name2file_map(NMAC_DIR)
-  Dl_nmac = load_from_clusterresult(crfile, name2file)
-  new_id = maximum(Dl_nmac.labels) + 1
-  D = load_from_dir(NON_NMAC_DIR)
-  simplify_fnames!(D.names)
-  Dl_non_nmac = DFSetLabeled(D, fill(new_id, length(D)))
-  Dl = vcat(Dl_nmac, Dl_non_nmac)
-  return Dl
+function nmac_clusters(clustering::AbstractString)
+  D = dataset("dasc", "tsfeats1")
+  D = D[D[:NMAC], :] #NMACs only
+  labels = dataset("dasc_manual", clustering)
+  D = join(D, labels, on=:ID) #join by encounters
+  return to_DFSetLabeled(D, :label, Int64, exclude=[:label, :NMAC])
+end
+
+function nonnmacs_extra_cluster(clustering::AbstractString)
+  D = dataset("dasc", "tsfeats1")
+  labels = dataset("dasc_manual", clustering)
+  D = join(D, labels, on=:ID, kind=:left)
+  n = maximum(D[!isna(D[:label]), :label]) + 1 #avoid NA poisoning
+  @byrow! D if isna(:label); :label = n end
+  return to_DFSetLabeled(D, :label, Int64, exclude=[:label, :NMAC])
 end
 
 function nmacs_vs_nonnmacs()
-  D_nmac = load_from_dir(NMAC_DIR)
-  simplify_fnames!(D_nmac.names)
-  Dl_nmac = DFSetLabeled(D_nmac, fill(1, length(D_nmac)))
-  D_non_nmac = load_from_dir(NON_NMAC_DIR)
-  simplify_fnames!(D_non_nmac.names)
-  Dl_non_nmac = DFSetLabeled(D_non_nmac, fill(2, length(D_non_nmac)))
-  Dl = vcat(Dl_nmac, Dl_non_nmac)
-  return Dl
+  D = dataset("dasc", "tsfeats1")
+  D[:NMAC]=map(x->x ? 1 : 2, D[:NMAC])
+  return to_DFSetLabeled(D, :NMAC, Int64, exclude=[:label, :NMAC])
 end
 
 function tree_vis{T}(dtree::DecisionTree, Dl::DFSetLabeled{T}, fileroot::AbstractString)
@@ -295,77 +282,73 @@ end
 #explain flat clusters via decision tree, nmacs only
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script1(crfile::AbstractString)
-  seed = 2
-  rsg = RSG(1, seed)
-  set_global(rsg)
-
-  #load data
-  Dl = nmac_clusters(crfile)
-
-  #explain
-  dtree, logs = train_dtree(Dl)
-
-  #save to json
-  fileroot = splitext(basename(crfile))[1]
-  Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
-  Obj2Dict.save_obj("$(fileroot)_logs.json", logs)
-
-  #visualize
-  tree_vis(dtree, Dl, fileroot)
-
-  return dtree, logs
-end
-
-function script1_vis(crfile::AbstractString)
-  Dl = nmac_clusters(crfile)
-  fileroot = splitext(basename(crfile))[1]
-  dtree = Obj2Dict.load_obj("$(fileroot)_fc.json")
-  tree_vis(dtree, Dl, fileroot)
-end
-
-#flat clusters explain -- include non-nmacs as an extra cluster
-#script1(MYKEL_CR)
-#script1(JOSH1_CR)
-function script2(crfile::AbstractString)
+function script1(dataname::AbstractString)
   seed = 1
   rsg = RSG(1, seed)
   set_global(rsg)
 
   #load data
-  Dl = nonnmacs_extra_cluster(crfile)
+  Dl = nmac_clusters(dataname)
 
   #explain
   dtree, logs = train_dtree(Dl)
 
   #save to json
-  fileroot = splitext(basename(crfile))[1]
-  Obj2Dict.save_obj("$(fileroot)_fc.json", dtree)
-  Obj2Dict.save_obj("$(fileroot)_logs.json", logs)
+  Obj2Dict.save_obj("$(dataname)_fc.json", dtree)
+  Obj2Dict.save_obj("$(dataname)_logs.json", logs)
 
   #visualize
-  tree_vis(dtree, Dl, fileroot)
+  tree_vis(dtree, Dl, dataname)
 
   return dtree, logs
 end
 
-function script2_vis(crfile::AbstractString)
-  #load data
-  Dl = nonnmacs_extra_cluster(crfile)
+function script1_vis(dataname::AbstractString)
+  Dl = nmac_clusters(dataname)
+  dtree = Obj2Dict.load_obj("$(dataname)_fc.json")
+  tree_vis(dtree, Dl, dataname)
+end
 
-  #load obj
-  fileroot = splitext(basename(crfile))[1]
-  dtree = Obj2Dict.load_obj("$(fileroot)_fc.json")
+#flat clusters explain -- include non-nmacs as an extra cluster
+#script1(MYKEL_CR)
+#script1(JOSH1_CR)
+function script2(dataname::AbstractString)
+  seed = 1
+  rsg = RSG(1, seed)
+  set_global(rsg)
+
+  #load data
+  Dl = nonnmacs_extra_cluster(dataname)
+
+  #explain
+  dtree, logs = train_dtree(Dl)
+
+  #save to json
+  Obj2Dict.save_obj("$(dataname)_fc.json", dtree)
+  Obj2Dict.save_obj("$(dataname)_logs.json", logs)
 
   #visualize
-  tree_vis(dtree, Dl, fileroot)
+  tree_vis(dtree, Dl, dataname)
+
+  return dtree, logs
+end
+
+function script2_vis(dataname::AbstractString)
+  #load data
+  Dl = nonnmacs_extra_cluster(dataname)
+
+  #load obj
+  dtree = Obj2Dict.load_obj("$(dataname)_fc.json")
+
+  #visualize
+  tree_vis(dtree, Dl, dataname)
 end
 
 #flat clusters explain, nmacs vs non-nmacs
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
 function script3()
-  seed = 2
+  seed = 1
   rsg = RSG(1, seed)
   set_global(rsg)
 

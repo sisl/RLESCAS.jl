@@ -66,10 +66,9 @@ function create_grammar()
       Expr(:call, :cteq, bin_vec, timestep)
 
     #equal
-    eq = vrate_eq | altdiff_eq | abs_altdiff_eq | chi_angle_eq | psi_angle_eq | sr_eq | tds_eq | timer_eq | psid_eq | v_eq | alt_eq
+    eq = vrate_eq | altdiff_eq | chi_angle_eq | psi_angle_eq | sr_eq | tds_eq | timer_eq | psid_eq | v_eq | alt_eq abs_altdiff_eq
     vrate_eq = Expr(:comparison, vrate_feat, :.==, vrate_val) | Expr(:comparison, vrate_feat, :.==, vrate_feat)
     altdiff_eq = Expr(:comparison, altdiff_feat, :.==, altdiff_val)
-    abs_altdiff_eq = Expr(:comparison, abs_altdiff_feat, :.==, abs_altdiff_val)
     chi_angle_eq = Expr(:comparison, chi_angle_feat, :.==, angle_val) | Expr(:comparison, chi_angle_feat, :.==, chi_angle_feat)
     psi_angle_eq = Expr(:comparison, psi_angle_feat, :.==, psi_angle_feat)
     sr_eq = Expr(:comparison, sr_feat, :.==, sr_val)
@@ -78,12 +77,12 @@ function create_grammar()
     psid_eq = Expr(:comparison, psid_feat, :.==, psid_val) | Expr(:comparison, psid_feat, :.==, psid_feat)
     v_eq = Expr(:comparison, v_feat, :.==, v_val) | Expr(:comparison, v_feat, :.==, v_feat)
     alt_eq = Expr(:comparison, alt_feat, :.==, alt_val) | Expr(:comparison, alt_feat, :.==, alt_feat)
+    abs_altdiff_eq = Expr(:comparison, abs_altdiff_feat, :.==, abs_altdiff_val)
 
     #less then
-    lt = vrate_lt | altdiff_lt | abs_altdiff_lt | chi_angle_lt | psi_angle_lt | sr_lt | tds_lt | timer_lt | psid_lt | v_lt | alt_lt
+    lt = vrate_lt | altdiff_lt  | chi_angle_lt | psi_angle_lt | sr_lt | tds_lt | timer_lt | psid_lt | v_lt | alt_lt | abs_altdiff_lt
     vrate_lt = Expr(:comparison, vrate_feat, :.<, vrate_val) | Expr(:comparison, vrate_feat, :.<, vrate_feat)
     altdiff_lt = Expr(:comparison, altdiff_feat, :.<, altdiff_val)
-    abs_altdiff_lt = Expr(:comparison, abs_altdiff_feat, :.<, abs_altdiff_val)
     chi_angle_lt = Expr(:comparison, chi_angle_feat, :.<, angle_val) | Expr(:comparison, chi_angle_feat, :.<, chi_angle_feat)
     psi_angle_lt = Expr(:comparison, psi_angle_feat, :.<, psi_angle_feat)
     sr_lt = Expr(:comparison, sr_feat, :.<, sr_val)
@@ -92,12 +91,12 @@ function create_grammar()
     psid_lt = Expr(:comparison, psid_feat, :.<, psid_val) | Expr(:comparison, psid_feat, :.<, psid_feat)
     v_lt = Expr(:comparison, v_feat, :.<, v_val) | Expr(:comparison, v_feat, :.<, v_feat)
     alt_lt = Expr(:comparison, alt_feat, :.<, alt_val) | Expr(:comparison, alt_feat, :.<, alt_feat)
+    abs_altdiff_lt = Expr(:comparison, abs_altdiff_feat, :.<, abs_altdiff_val)
 
     #less then or equal
-    lte = vrate_lte | altdiff_lte | abs_altdiff_lte | chi_angle_lte | psi_angle_lte | sr_lte | tds_lte | timer_lte | psid_lte | v_lte | alt_lte
+    lte = vrate_lte | altdiff_lte | chi_angle_lte | psi_angle_lte | sr_lte | tds_lte | timer_lte | psid_lte | v_lte | alt_lte | abs_altdiff_lte
     vrate_lte = Expr(:comparison, vrate_feat, :.<=, vrate_val) | Expr(:comparison, vrate_feat, :.<=, vrate_feat)
     altdiff_lte = Expr(:comparison, altdiff_feat, :.<=, altdiff_val)
-    abs_altdiff_lte = Expr(:comparison, abs_altdiff_feat, :.<=, abs_altdiff_val)
     chi_angle_lte = Expr(:comparison, chi_angle_feat, :.<=, angle_val) | Expr(:comparison, chi_angle_feat, :.<=, chi_angle_feat)
     psi_angle_lte = Expr(:comparison, psi_angle_feat, :.<=, psi_angle_feat)
     sr_lte = Expr(:comparison, sr_feat, :.<=, sr_val)
@@ -106,6 +105,8 @@ function create_grammar()
     psid_lte = Expr(:comparison, psid_feat, :.<=, psid_val) | Expr(:comparison, psid_feat, :.<=, psid_feat)
     v_lte = Expr(:comparison, v_feat, :.<=, v_val) | Expr(:comparison, v_feat, :.<=, v_feat)
     alt_lte = Expr(:comparison, alt_feat, :.<=, alt_val) | Expr(:comparison, alt_feat, :.<=, alt_feat)
+    abs_altdiff_lte = Expr(:comparison, abs_altdiff_feat, :.<=, abs_altdiff_val)
+    #add abs vert rate also?
 
     #sign
     sign = vrate_sign | chi_angle_sign | psid_sign
@@ -161,7 +162,7 @@ function create_grammar()
     #indices of each type
     bin_feat_id = 1 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 23 | 24 | 25 | 26 | 27 |
       28 | 30 | 31 | 32 | 38 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 60 | 61 |
-      62 | 63 | 64 | 65 | 67 | 68 | 69 | 75 | 76
+      62 | 63 | 64 | 65 | 67 | 68 | 69 | 75
     vrate_feat_id = 2 | 22 | 34 | 39 | 59 | 71
     altdiff_feat_id = 3 | 40
     abs_altdiff_feat_id = 76
@@ -214,7 +215,7 @@ count_lte(v::AbstractVector{Bool}, b::Real) = count_(v) .<= b
 count_gt(v::AbstractVector{Bool}, b::Real) = count_(v) .> b
 count_gte(v::AbstractVector{Bool}, b::Real) = count_(v) .>= b
 
-#shorthands used in grammar
+#shorthands used in grammar to reduce impact on code length
 dfeq = diff_eq
 dfle = diff_lte
 dflt = diff_lt

@@ -34,15 +34,37 @@
 
 include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
 
-const IN_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_manual_clustering")
-const OUT_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters")
+const CSV_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_manual_clustering")
+const CLUSTERS_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters")
+const DF_OUT = Pkg.dir("Datasets/data/dasc_manual/")
 
 using ClusterResults
 using RLESUtils.FileUtils
+using DataFrames
 
-files = readdir_ext("txt", IN_DIR)
-for file in files
-  cr = open(loadcsv, file)
-  outfile = replace(basename(file), ".txt", ".json")
-  save_result(cr, joinpath(OUT_DIR, outfile))
+function to_crfiles(in_dir::AbstractString, out_dir::AbstractString)
+  files = readdir_ext("txt", in_dir)
+  for file in files
+    cr = open(load_csv, file)
+    outfile = replace(basename(file), ".txt", ".json")
+    save_result(cr, joinpath(out_dir, outfile))
+  end
+end
+
+function to_dataframes(in_dir::AbstractString, out_dir::AbstractString)
+  files = readdir_ext("json", in_dir)
+  for file in files
+    cr = load_result(file)
+    D = DataFrame()
+    D[:ID] = map(x -> parse(Int64, x), cr.names)
+    D[:label] = cr.labels
+    outfile = string(splitext(basename(file))[1], ".csv.gz")
+    outfile = joinpath(out_dir, outfile)
+    writetable(outfile, D)
+  end
+end
+
+function script_manuals()
+  to_crfiles(CSV_DIR, CLUSTERS_DIR)
+  to_dataframes(CLUSTERS_DIR, DF_OUT)
 end

@@ -35,14 +35,15 @@
 module DataFrameSets
 
 export DFSet, DFSetLabeled, get_colnames, setlabels, setlabels!, load_from_dir, load_from_csvs,
-        load_from_clusterresult
-export start, next, done, length, vcat, getindex
+        load_from_clusterresult, anyna
+export start, next, done, length, vcat, getindex, push!
 
-import Base: start, next, done, length, vcat, getindex
+import Base: start, next, done, length, vcat, getindex, push!
 
 using ClusterResults
 using RLESUtils.FileUtils
 using DataFrames
+import DataArrays.anyna
 
 type DFSet
   names::Vector{ASCIIString}
@@ -55,6 +56,7 @@ type DFSetLabeled{T}
   records::Vector{DataFrame}
   labels::Vector{T}
 end
+DFSetLabeled(T::Type) = DFSetLabeled(ASCIIString[], DataFrame[], T[])
 DFSetLabeled{T}(name::ASCIIString, record::DataFrame, label::T) = DFSetLabeled{T}([name], [record], [label])
 
 function DFSetLabeled{T}(Ds::DFSet, labels::Vector{T})
@@ -104,6 +106,17 @@ function setlabels{T1, T2}(Dl::DFSetLabeled{T1}, labels::Vector{T2})
   return DFSetLabeled{T2}(Dl.names, Dl.records, labels)
 end
 
+function push!(Ds::DFSet, name::AbstractString, record::DataFrame)
+  push!(Ds.names, name)
+  push!(Ds.records, record)
+end
+
+function push!{T}(Ds::DFSetLabeled{T}, name::AbstractString, record::DataFrame, label::T)
+  push!(Ds.names, name)
+  push!(Ds.records, record)
+  push!(Ds.labels, label)
+end
+
 start(Ds::DFSet) = start(zip(Ds.names, Ds.records)) #TODO: don't zip every time
 next(Ds::DFSet, s) = next(zip(Ds.names, Ds.records), s)
 done(Ds::DFSet, s) = done(zip(Ds.names, Ds.records), s)
@@ -129,28 +142,10 @@ function vcat{T}(Dl1::DFSetLabeled{T}, Dl2::DFSetLabeled{T})
     )
 end
 
-containsNA(Ds::DFSet) = containsNA(Ds.records)
-containsNA(Dl::DFSetLabeled) = containsNA(Dl.records)
+anyna(Ds::DFSet) = anyna(Ds.records)
+anyna(Dl::DFSetLabeled) = anyna(Dl.records)
 
-function containsNA(records::Vector{DataFrame})
-  out = false
-  i = j = 1
-  try
-    while i <= length(records)
-      while j <= length(D.columns)
-        convert(Array, records[i].columns[j]) #will fail if contains NA
-        j += 1
-      end
-      i += 1
-    end
-    out = false
-  catch e
-    println(e)
-    println("Record $i, column $j contains an NA")
-    out = true
-  end
-  println("No NAs")
-  return out
-end
+anyna(Ds::Vector{DataFrame}) = any(map(anyna, Ds))
+anyna(D::DataFrame) = any(convert(Array, map(anyna, eachcol(D))))
 
 end #module
