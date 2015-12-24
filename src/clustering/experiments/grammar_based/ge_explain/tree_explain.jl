@@ -32,9 +32,11 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
-include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/GrammarDef.jl"))
-include("DescriptionMap.jl")
+include(Pkg.dir("RLESCAS/src/clustering/clustering.jl")) #clustering packages
+include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/GrammarDef.jl")) #grammar
+
+const MAINDIR = dirname(@__FILE__)
+push!(LOAD_PATH, MAINDIR)
 
 using GrammarDef
 using Datasets
@@ -46,6 +48,7 @@ using SyntaxTreePretty
 using GBClassifiers
 using TikzQTrees
 using DescriptionMap
+using TreeExplainVis
 using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils, StringUtils, ArrayUtils, Observers, Loggers
 using GrammaticalEvolution
 using Iterators
@@ -70,12 +73,14 @@ const MAN_JOSH2 = "josh2"
 const MAN_MYKEL = "mykel"
 
 const WRAP_MEMBERS = 30
+const HIST_NBINS = 40
+const HIST_EDGES = linspace(0.0, 200.0, HIST_NBINS + 1)
 
 function TESTMODE(testing::Bool)
   global POP_SIZE = testing ? 50 : 5000
-  global STOP_N = testing ? 3 : 10
-  global MAXITERATIONS = testing ? 3 : 30
-  global MAXDEPTH = testing ? 2 : 4
+  global MAXITERATIONS = testing ? 3 : 50
+  global STOP_N = MAXITERATIONS #testing ? 3 : 10 #early stop
+  global MAXDEPTH = 1#testing ? 2 : 4
 end
 
 TESTMODE(true)
@@ -132,24 +137,23 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64},
   id = nrow(logs["fitness"]) > 0 ?
     maximum(logs["fitness"][:ID]) + 1 : 1
   add_observer(observer, "fitness", append_push!_f(logs, "fitness", id))
+  add_observer(observer, "fitness5", append_push!_f(logs, "fitness5", id))
   add_observer(observer, "code", append_push!_f(logs, "code", id))
-  #=log2 = ArrayLogger()
   add_observer(observer, "population", x -> begin
-                 pop = x[1]
+                 iter, pop = x
                  fitness_vec = Float64[pop[i].fitness  for i = 1:length(pop)]
-                 edges, counts = hist(fitness_vec, 20)
-                 edges = collect(edges)
-                 mids = Array(Float64, length(edges) - 1)
-                 for (i, edge) in enumerate(partition(edges, 2, 1))
-                   mids[i] = mean(edge)
+                 edges, counts = hist(fitness_vec, HIST_EDGES)
+                 mids = Base.midpoints(edges) |> collect
+                 for (m, c) in zip(mids, counts)
+                   push!(logs, "pop_distr", [iter, m, c, id])
                  end
-                 D = Dict{ASCIIString,Any}()
-                 D["mids"] =  mids
-                 D["counts"] = counts
-                 D["top10"] = fitness_vec[1:10]
-                 push!(log2, D)
                end)
-  tagged_push!(logs, "population", log2)=#
+  add_observer(observer, "population", x -> begin
+                 iter, pop = x
+                 n_fit = length(unique(imap(i -> string(pop[i].fitness), 1:length(pop))))
+                 n_code = length(unique(imap(i -> string(pop[i].code), 1:length(pop))))
+                 push!(logs, "pop_diversity", [iter, n_fit, n_code, id])
+               end)
 
   Dl_sub = Dl[members]
   classifier = train(gb_params, Dl_sub)
@@ -218,7 +222,13 @@ end
 function define_logger()
   logger = TaggedDFLogger()
   add_folder!(logger, "fitness", [Int64, Float64, Int64], ["iter", "fitness", "ID"])
+  add_folder!(logger, "fitness5", [Int64, fill(Float64, 5)..., Int64],
+              ["iter", ["fitness$i" for i = 1:5]..., "ID"])
   add_folder!(logger, "code", [Int64, ASCIIString, Int64], ["iter", "code", "ID"])
+  add_folder!(logger, "pop_distr", [Int64, Float64, Int64, Int64],
+              ["iter", "bin_center", "count", "ID"])
+  add_folder!(logger, "pop_diversity", [Int64, Int64, Int64, Int64],
+              ["iter", "unique_fitness", "unique_code", "ID"])
   return logger
 end
 
@@ -294,6 +304,13 @@ function tree_vis{T}(dtree::DecisionTree, Dl::DFSetLabeled{T}, fileroot::Abstrac
   plottree("$(fileroot)_d3.json", outfileroot="$(fileroot)_d3")
 end
 
+function log_vis(logs::TaggedDFLogger, fileroot::ASCIIString="logs")
+  plot_pop_distr(logs["pop_distr"], "$(fileroot)_popdistr.gif")
+  plot_fitness(logs["fitness"], "$(fileroot)_fitness.pdf")
+  plot_fitness5(logs["fitness5"], "$(fileroot)_fitness5.pdf")
+  plot_pop_diversity(logs["pop_diversity"], "$(fileroot)_popdiversity.pdf")
+end
+
 #Scripts
 ################
 
@@ -316,6 +333,7 @@ function script1(dataname::AbstractString; seed::Int64=1)
 
   #visualize
   tree_vis(dtree, Dl, dataname)
+  log_vis(logs, "$(dataname)_logs")
 
   return dtree, logs
 end
@@ -345,6 +363,7 @@ function script2(dataname::AbstractString; seed::Int64=1)
 
   #visualize
   tree_vis(dtree, Dl, dataname)
+  log_vis(logs, "$(dataname)_logs")
 
   return dtree, logs
 end
@@ -380,6 +399,7 @@ function script3(; seed::Int64=1)
 
   #visualize
   tree_vis(dtree, Dl, fileroot)
+  log_vis(logs, "$(fileroot)_logs")
 
   return dtree, logs
 end
