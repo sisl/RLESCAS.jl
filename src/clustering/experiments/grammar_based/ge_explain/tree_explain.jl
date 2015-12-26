@@ -154,6 +154,7 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64},
                  n_code = length(unique(imap(i -> string(pop[i].code), 1:length(pop))))
                  push!(logs, "pop_diversity", [iter, n_fit, n_code, id])
                end)
+  add_observer(observer, "iteration_time", append_push!_f(logs, "iteration_time", id))
 
   Dl_sub = Dl[members]
   classifier = train(gb_params, Dl_sub)
@@ -229,6 +230,8 @@ function define_logger()
               ["iter", "bin_center", "count", "ID"])
   add_folder!(logger, "pop_diversity", [Int64, Int64, Int64, Int64],
               ["iter", "unique_fitness", "unique_code", "ID"])
+  add_folder!(logger, "iteration_time", [Int64, Float64, Int64],
+              ["iter", "iteration_time_s", "ID"])
   return logger
 end
 

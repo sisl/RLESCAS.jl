@@ -165,14 +165,17 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
   fitness = Inf
   iter = 1
   while !p.stop(iter, fitness) && iter <= p.max_iters
+    tic()
     # generate a new population (based off of fitness)
     pop = generate(p.grammar, pop, p.top_percent, p.prob_mutation, p.mutation_rate,
                    p.maxwraps, p.get_fitness, p.default_code, Dl)
     fitness = pop[1].fitness #population is sorted, so first entry is the best
     code = string(pop[1].code)
-    notify_observer(p.observer, "fitness", Any[iter, fitness])
-    notify_observer(p.observer, "code", Any[iter, code])
-    notify_observer(p.observer, "population", Any[iter, pop])
+    @notify_observer(p.observer, "iteration_time", Any[iter, toq()])
+    @notify_observer(p.observer, "fitness", Any[iter, fitness])
+    @notify_observer(p.observer, "fitness5", Any[iter, [pop[i].fitness for i = 1:5]...])
+    @notify_observer(p.observer, "code", Any[iter, code])
+    @notify_observer(p.observer, "population", Any[iter, pop])
     if p.verbosity > 0
       code_short = take(code, 50) |> join
       println("generation: $iter, max fitness=$(signif(fitness, 4)), length=$(length(code)), code=$(code_short)")
