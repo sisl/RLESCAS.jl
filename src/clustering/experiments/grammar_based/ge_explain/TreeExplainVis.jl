@@ -39,8 +39,6 @@ export plot_pop_distr, plot_fitness, plot_fitness5, plot_pop_diversity, drawplot
 using Gadfly, Reel
 using DataFrames
 
-const FPS = 5
-
 function drawplot(outfile::AbstractString, p::Plot;
                   width=4inch, height=3inch)
   if endswith(outfile, ".pdf")
@@ -58,39 +56,77 @@ function drawplot(outfile::AbstractString, p::Plot;
   end
 end
 
-#FIXME: these need to groupby ID
+function plot_pop_distr(log::DataFrame, outfile::ASCIIString="pop_distr.gif"; fps::Float64=5.0)
+  fileroot, ext = splitext(outfile)
+  for D in groupby(log, :ID)
+    id = D[:ID][1]
+    n_iters = maximum(D[:iter])
 
-function plot_pop_distr(log::DataFrame, outfile::ASCIIString="pop_distr.gif")
-  n_iters = maximum(log[:iter])
+    #counts
+    film1 = roll(fps=fps, duration=n_iters / fps) do t, dt
+      i = Int64(round(t * fps + 1))
+      D1 = D[D[:iter] .== i, [:bin_center, :count]]
+      plot(D1, x="bin_center", y="count", Geom.bar,
+           Guide.xlabel("Fitness"), Guide.ylabel("Count"), Guide.title("Population Fitness Over Time"))
+    end
+    write("$(fileroot)_$(id)_counts$ext", film1)
 
-  film = roll(fps=FPS, duration=n_iters / FPS) do t, dt
-    i = Int64(round(t * FPS + 1))
-    D = log[log[:iter] .== i,:]
-    plot(D, x="bin_center", y="count", Geom.bar,
-         Guide.xlabel("Fitness"), Guide.ylabel("Count"), Guide.title("Population Fitness Over Time"))
+    #unique fitness
+    film2 = roll(fps=fps, duration=n_iters / fps) do t, dt
+      i = Int64(round(t * fps + 1))
+      D1 = D[D[:iter] .== i, [:bin_center, :unique_fitness]]
+      plot(D1, x="bin_center", y="unique_fitness", Geom.bar,
+           Guide.xlabel("Fitness"), Guide.ylabel("Number of Unique Fitness"), Guide.title("Population Unique Fitness Over Time"))
+    end
+    write("$(fileroot)_$(id)_uniqfitness$ext", film2)
+
+    #unique code
+    film3 = roll(fps=fps, duration=n_iters / fps) do t, dt
+      i = Int64(round(t * fps + 1))
+      D1 = D[D[:iter] .== i, [:bin_center, :unique_code]]
+      plot(D1, x="bin_center", y="unique_code", Geom.bar,
+           Guide.xlabel("Fitness"), Guide.ylabel("Number of Unique Code"), Guide.title("Population Unique Code Over Time"))
+    end
+    write("$(fileroot)_$(id)_uniqcode$ext", film3)
   end
-  write(outfile, film)
 end
 
 function plot_fitness(log::DataFrame, outfile::ASCIIString="fitness.pdf")
-  p = plot(log, x="iter", y="fitness", Geom.point, Geom.line)
-  drawplot(outfile, p)
-  return p
+  plotvec = Plot[]
+  fileroot, ext = splitext(outfile)
+  for D in groupby(log, :ID)
+    p = plot(D, x="iter", y="fitness", Geom.point, Geom.line)
+    push!(plotvec, p)
+    id = D[:ID][1]
+    drawplot("$(fileroot)_$id$ext", p)
+  end
+  return plotvec
 end
 
 function plot_fitness5(log::DataFrame, outfile::ASCIIString="fitness5.pdf")
-  N = 5
-  layers = [layer(x="iter", y="fitness$i", Geom.point, Geom.line) for i = 1:N]
-  p = plot(log, layers...)
-  drawplot(outfile, p)
-  return p
+  plotvec = Plot[]
+  fileroot, ext = splitext(outfile)
+  for D in groupby(log, :ID)
+    p = plot(log, x="iter", y="fitness", color="position", Geom.point, Geom.line)
+    push!(plotvec, p)
+    id = D[:ID][1]
+    drawplot("$(fileroot)_$id$ext", p)
+  end
+  return plotvec
 end
 
 function plot_pop_diversity(log::DataFrame, outfile::ASCIIString="pop_diversity.pdf")
-  p = plot(log, layer(x="iter", y="unique_fitness", Geom.point, Geom.line),
-           layer(x="iter", y="unique_code", Geom.point, Geom.line))
-  drawplot(outfile, p)
-  return p
+  plotvec = Plot[]
+  fileroot, ext = splitext(outfile)
+  for D in groupby(log, :ID)
+    D1 = DataFrame(x=D[:iter], y=D[:unique_fitness], label="num_unique_fitness")
+    D2 = DataFrame(x=D[:iter], y=D[:unique_code], label="num_unique_code")
+    p = plot(vcat(D1, D2), x="x", y="y", color="label", Geom.point, Geom.line)
+    push!(plotvec, p)
+    id = D[:ID][1]
+    drawplot("$(fileroot)_$id$ext", p)
+  end
+  return plotvec
 end
 
 end #module

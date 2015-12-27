@@ -75,12 +75,13 @@ const MAN_MYKEL = "mykel"
 const WRAP_MEMBERS = 30
 const HIST_NBINS = 40
 const HIST_EDGES = linspace(0.0, 200.0, HIST_NBINS + 1)
+const HIST_MIDS = Base.midpoints(HIST_EDGES) |> collect
 
 function TESTMODE(testing::Bool)
   global POP_SIZE = testing ? 50 : 5000
   global MAXITERATIONS = testing ? 3 : 50
   global STOP_N = MAXITERATIONS #testing ? 3 : 10 #early stop
-  global MAXDEPTH = 1#testing ? 2 : 4
+  global MAXDEPTH = testing ? 2 : 4
 end
 
 TESTMODE(true)
@@ -137,15 +138,30 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64},
   id = nrow(logs["fitness"]) > 0 ?
     maximum(logs["fitness"][:ID]) + 1 : 1
   add_observer(observer, "fitness", append_push!_f(logs, "fitness", id))
-  add_observer(observer, "fitness5", append_push!_f(logs, "fitness5", id))
+  add_observer(observer, "fitness5", x -> begin
+                 iter = x[1]
+                 fitness = x[2:end]
+                 for i in eachindex(fitness)
+                   push!(logs, "fitness5", [iter, i, fitness[i], id])
+                 end
+               end)
   add_observer(observer, "code", append_push!_f(logs, "code", id))
   add_observer(observer, "population", x -> begin
                  iter, pop = x
                  fitness_vec = Float64[pop[i].fitness  for i = 1:length(pop)]
                  edges, counts = hist(fitness_vec, HIST_EDGES)
-                 mids = Base.midpoints(edges) |> collect
-                 for (m, c) in zip(mids, counts)
-                   push!(logs, "pop_distr", [iter, m, c, id])
+                 uniq_fitness = Int64[]
+                 uniq_code = Int64[]
+                 for (e1, e2) in partition(HIST_EDGES, 2, 1)
+                   subids = filter(i -> e1 <= pop[i].fitness < e2, 1:length(pop))
+                   subpop = pop[subids]
+                   n_fit = length(unique(imap(i -> string(subpop[i].fitness), 1:length(subpop))))
+                   n_code = length(unique(imap(i -> string(subpop[i].code), 1:length(subpop))))
+                   push!(uniq_fitness, n_fit)
+                   push!(uniq_code, n_code)
+                 end
+                 for (m, c, uf, uc) in zip(HIST_MIDS, counts, uniq_fitness, uniq_code)
+                   push!(logs, "pop_distr", [iter, m, c, uf, uc, id])
                  end
                end)
   add_observer(observer, "population", x -> begin
@@ -223,11 +239,11 @@ end
 function define_logger()
   logger = TaggedDFLogger()
   add_folder!(logger, "fitness", [Int64, Float64, Int64], ["iter", "fitness", "ID"])
-  add_folder!(logger, "fitness5", [Int64, fill(Float64, 5)..., Int64],
-              ["iter", ["fitness$i" for i = 1:5]..., "ID"])
+  add_folder!(logger, "fitness5", [Int64, Int64, Float64, Int64],
+              ["iter", "position", "fitness", "ID"])
   add_folder!(logger, "code", [Int64, ASCIIString, Int64], ["iter", "code", "ID"])
-  add_folder!(logger, "pop_distr", [Int64, Float64, Int64, Int64],
-              ["iter", "bin_center", "count", "ID"])
+  add_folder!(logger, "pop_distr", [Int64, Float64, Int64, Int64, Int64, Int64],
+              ["iter", "bin_center", "count", "unique_fitness", "unique_code", "ID"])
   add_folder!(logger, "pop_diversity", [Int64, Int64, Int64, Int64],
               ["iter", "unique_fitness", "unique_code", "ID"])
   add_folder!(logger, "iteration_time", [Int64, Float64, Int64],
