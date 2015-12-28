@@ -187,7 +187,7 @@ function get_dataframes(dir::AbstractString, isnmac::Bool)
   Ds = map(files) do f
     df = readtable(f)
     df[:t] = Int64[1:nrow(df);]
-    df[:ID] = fill(get_id(f), nrow(df))
+    df[:encounter_id] = fill(get_id(f), nrow(df))
     df[:NMAC] = fill(isnmac, nrow(df))
     return df
   end

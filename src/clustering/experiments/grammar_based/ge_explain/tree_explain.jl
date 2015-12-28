@@ -39,15 +39,15 @@ const MAINDIR = dirname(@__FILE__)
 push!(LOAD_PATH, MAINDIR)
 
 using GrammarDef
+using DescriptionMap
 using Datasets
+using DataFrameSets
+using GBClassifiers
 using DecisionTrees #generic decisions trees based on callbacks
 using DecisionTreeVis
-using DataFrameSets
 using SyntaxTrees
 using SyntaxTreePretty
-using GBClassifiers
 using TikzQTrees
-using DescriptionMap
 using TreeExplainVis
 using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, StringUtils, ArrayUtils, Observers, Loggers
 using GrammaticalEvolution
@@ -190,7 +190,7 @@ end
 ################
 const COLNAMES = begin
   D = dataset("dasc", "tsfeats1")
-  cols = setdiff(names(D), [:NMAC, :label, :t, :ID])
+  cols = setdiff(names(D), [:NMAC, :label, :t, :encounter_id])
   map(string, cols) #return
 end
 const COLNAMES_FULL = map(x -> DESCRIP_MAP[x], COLNAMES)
@@ -284,8 +284,8 @@ end
 function to_DFSetLabeled(D::DataFrame, labelcol::Symbol, labeltype::Type;
                          exclude::Vector{Symbol}=Symbol[])
   Dl = DFSetLabeled(labeltype)
-  for subdf in DataFrames.groupby(D, :ID)
-    name = string(subdf[:ID][1]) #they should all be the same
+  for subdf in DataFrames.groupby(D, :encounter_id)
+    name = string(subdf[:encounter_id][1]) #they should all be the same
     label::labeltype = subdf[labelcol][1] #they should all be the same
     cols = setdiff(names(subdf), exclude) #remove labels
     record = subdf[cols]
@@ -298,14 +298,14 @@ function nmac_clusters(clustering::AbstractString)
   D = dataset("dasc", "tsfeats1")
   D = D[D[:NMAC], :] #NMACs only
   labels = dataset("dasc_manual", clustering)
-  D = join(D, labels, on=:ID) #join by encounters
+  D = join(D, labels, on=:encounter_id) #join by encounters
   return to_DFSetLabeled(D, :label, Int64, exclude=[:label, :NMAC])
 end
 
 function nonnmacs_extra_cluster(clustering::AbstractString)
   D = dataset("dasc", "tsfeats1")
   labels = dataset("dasc_manual", clustering)
-  D = join(D, labels, on=:ID, kind=:left)
+  D = join(D, labels, on=:encounter_id, kind=:left)
   n = maximum(D[!isna(D[:label]), :label]) + 1 #avoid NA poisoning
   @byrow! D if isna(:label); :label = n end
   return to_DFSetLabeled(D, :label, Int64, exclude=[:label, :NMAC])
