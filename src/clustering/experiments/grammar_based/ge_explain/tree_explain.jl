@@ -49,7 +49,7 @@ using GBClassifiers
 using TikzQTrees
 using DescriptionMap
 using TreeExplainVis
-using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, DataFramesUtils, StringUtils, ArrayUtils, Observers, Loggers
+using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, StringUtils, ArrayUtils, Observers, Loggers
 using GrammaticalEvolution
 using Iterators
 using DataFrames
@@ -135,17 +135,17 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64},
                       gb_params::GeneticSearchParams, logs::TaggedDFLogger)
   observer = gb_params.observer
   empty!(observer)
-  id = nrow(logs["fitness"]) > 0 ?
-    maximum(logs["fitness"][:ID]) + 1 : 1
-  add_observer(observer, "fitness", append_push!_f(logs, "fitness", id))
+  decision_id = nrow(logs["fitness"]) > 0 ?
+    maximum(logs["fitness"][:decision_id]) + 1 : 1
+  add_observer(observer, "fitness", append_push!_f(logs, "fitness", decision_id))
   add_observer(observer, "fitness5", x -> begin
                  iter = x[1]
                  fitness = x[2:end]
                  for i in eachindex(fitness)
-                   push!(logs, "fitness5", [iter, i, fitness[i], id])
+                   push!(logs, "fitness5", [iter, i, fitness[i], decision_id])
                  end
                end)
-  add_observer(observer, "code", append_push!_f(logs, "code", id))
+  add_observer(observer, "code", append_push!_f(logs, "code", decision_id))
   add_observer(observer, "population", x -> begin
                  iter, pop = x
                  fitness_vec = Float64[pop[i].fitness  for i = 1:length(pop)]
@@ -161,16 +161,16 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64},
                    push!(uniq_code, n_code)
                  end
                  for (m, c, uf, uc) in zip(HIST_MIDS, counts, uniq_fitness, uniq_code)
-                   push!(logs, "pop_distr", [iter, m, c, uf, uc, id])
+                   push!(logs, "pop_distr", [iter, m, c, uf, uc, decision_id])
                  end
                end)
   add_observer(observer, "population", x -> begin
                  iter, pop = x
                  n_fit = length(unique(imap(i -> string(pop[i].fitness), 1:length(pop))))
                  n_code = length(unique(imap(i -> string(pop[i].code), 1:length(pop))))
-                 push!(logs, "pop_diversity", [iter, n_fit, n_code, id])
+                 push!(logs, "pop_diversity", [iter, n_fit, n_code, decision_id])
                end)
-  add_observer(observer, "iteration_time", append_push!_f(logs, "iteration_time", id))
+  add_observer(observer, "iteration_time", append_push!_f(logs, "iteration_time", decision_id))
 
   Dl_sub = Dl[members]
   classifier = train(gb_params, Dl_sub)
@@ -358,9 +358,16 @@ function script1(dataname::AbstractString; seed::Int64=1)
 end
 
 function script1_vis(dataname::AbstractString)
+  #load data
   Dl = nmac_clusters(dataname)
+
+  #load obj
   dtree = Obj2Dict.load_obj("$(dataname)_fc.json")
+  logs = load_log("$(dataname)_logs.txt")
+
+  #visualize
   tree_vis(dtree, Dl, dataname)
+  log_vis(logs, "$(dataname)_logs")
 end
 
 #flat clusters explain -- include non-nmacs as an extra cluster
@@ -393,9 +400,11 @@ function script2_vis(dataname::AbstractString)
 
   #load obj
   dtree = Obj2Dict.load_obj("$(dataname)_fc.json")
+  logs = load_log("$(dataname)_logs.txt")
 
   #visualize
   tree_vis(dtree, Dl, dataname)
+  log_vis(logs, "$(dataname)_logs")
 end
 
 #flat clusters explain, nmacs vs non-nmacs
@@ -421,5 +430,18 @@ function script3(; seed::Int64=1)
   log_vis(logs, "$(fileroot)_logs")
 
   return dtree, logs
+end
+
+function script3_vis(fileroot::AbstractString="nmacs_vs_nonnmacs")
+  #load data
+  Dl = nmacs_vs_nonnmacs()
+
+  #load obj
+  dtree = Obj2Dict.load_obj("$(fileroot)_fc.json")
+  logs = load_log("$(fileroot)_logs.txt")
+
+  #visualize
+  tree_vis(dtree, Dl, fileroot)
+  log_vis(logs, "$(fileroot)_logs")
 end
 

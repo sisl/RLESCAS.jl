@@ -37,7 +37,6 @@ module GrammarDef
 export create_grammar, feat_type_ids, to_function, get_format_pretty, get_format_natural
 
 using SyntaxTreePretty
-using RLESUtils.DataFramesUtils
 using GrammaticalEvolution
 using DataFrames
 
@@ -230,7 +229,7 @@ ctge = count_gte
 cteq = count_eq
 
 function feat_type_ids(D::DataFrame; verbose::Bool=false)
-  Ts = map(string, get_col_types(D))
+  Ts = map(string, eltypes(D))
   @assert all(x->x=="Bool" || x=="Float64", Ts)
   bin_ids = find(x -> x == "Bool", Ts)
   real_ids = find(x -> x == "Float64", Ts)
