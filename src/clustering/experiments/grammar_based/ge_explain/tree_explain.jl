@@ -328,6 +328,7 @@ function log_vis(logs::TaggedDFLogger, fileroot::ASCIIString="logs")
   plot_fitness(logs["fitness"], "$(fileroot)_fitness.pdf")
   plot_fitness5(logs["fitness5"], "$(fileroot)_fitness5.pdf")
   plot_pop_diversity(logs["pop_diversity"], "$(fileroot)_popdiversity.pdf")
+  plot_itertime(logs["iteration_time"], "$(fileroot)_itertime.pdf")
 end
 
 #Scripts

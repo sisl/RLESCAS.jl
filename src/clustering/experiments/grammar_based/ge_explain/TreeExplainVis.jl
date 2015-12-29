@@ -34,7 +34,7 @@
 
 module TreeExplainVis
 
-export plot_pop_distr, plot_fitness, plot_fitness5, plot_pop_diversity, drawplot
+export drawplot, plot_pop_distr, plot_fitness, plot_fitness5, plot_pop_diversity, plot_itertime
 
 using Gadfly, Reel
 using DataFrames
@@ -122,6 +122,18 @@ function plot_pop_diversity(log::DataFrame, outfile::ASCIIString="pop_diversity.
     D1 = DataFrame(x=D[:iter], y=D[:unique_fitness], label="num_unique_fitness")
     D2 = DataFrame(x=D[:iter], y=D[:unique_code], label="num_unique_code")
     p = plot(vcat(D1, D2), x="x", y="y", color="label", Geom.point, Geom.line)
+    push!(plotvec, p)
+    id = D[:decision_id][1]
+    drawplot("$(fileroot)_$id$ext", p)
+  end
+  return plotvec
+end
+
+function plot_itertime(log::DataFrame, outfile::ASCIIString="itertime.pdf")
+  plotvec = Plot[]
+  fileroot, ext = splitext(outfile)
+  for D in groupby(log, :decision_id)
+    p = plot(D, x="iter", y="iteration_time_s", Geom.point, Geom.line)
     push!(plotvec, p)
     id = D[:decision_id][1]
     drawplot("$(fileroot)_$id$ext", p)
