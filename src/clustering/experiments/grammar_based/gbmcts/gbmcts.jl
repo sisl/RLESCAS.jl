@@ -37,20 +37,46 @@ include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/
 
 using GrammarDef
 using DerivationTrees
+using DerivationTreeVis
+using TikzQTrees
 
-using Debug
-@debug function script1()
-  grammar = create_grammar()
-  params = DerivTreeParams(grammar)
+using DataStructures
 
-  tree = DerivationTree(params)
+srand(0)
 
-  @bp
-  initialize(tree)
+grammar = create_grammar()
+params = DerivTreeParams(grammar)
 
+tree = DerivationTree(params)
+
+initialize!(tree)
+
+i = 1
+while !isterminal(tree) && i < 500
+  println("step ", i)
   action_space = actionspace(tree)
-  a = 1 #from action_space
-  step(tree, a)
+  #a = 1 #from action_space
+  a = rand(action_space)
+  #a = i
+  step!(tree, a)
+  i += 1
 end
 
-script1()
+################
+###callbacks for vis
+function get_name(node::DerivTreeNode)
+  cmd_text = "cmd=$(node.cmd)"
+  type_text = "type=$(split(string(typeof(node.rule)),".")[end])"
+  depth_text = "depth=$(node.depth)"
+  action_text = "action=$(node.action)"
+  value_text = "value=$(string(getvalue(node)))"
+  text = join([cmd_text, type_text, depth_text, action_text, value_text], "\\\\")
+  return text::ASCIIString
+end
+
+get_height(node::DerivTreeNode) = node.depth
+##############
+
+viscalls = VisCalls(get_name, get_height)
+write_d3js(tree, viscalls, "tree_d3.json")
+plottree("tree_d3.json", outfileroot="tree_d3")

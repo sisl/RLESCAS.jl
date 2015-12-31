@@ -32,26 +32,46 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterResults"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRules"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/ClusterRuleVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DataFrameSets"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DecisionTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DerivationTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DerivationTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/DivisiveTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/editops_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/force_directed_visualize"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/grammatical_evolution"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/GBClassifiers"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/JSON2ASCII"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/metrics"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/PhylogeneticTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/preprocessing"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SkClustering"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTrees"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreeVis"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/SyntaxTreePretty"))
-push!(LOAD_PATH, Pkg.dir("RLESCAS/src/clustering/TikzQTrees"))
+module DerivationTreeVis
+
+export to_d3js, write_d3js, VisCalls, JDict
+
+using DerivationTrees
+using JSON
+
+typealias JDict Dict{AbstractString,Any}
+
+type VisCalls
+  get_name::Function #name = get_name(Node)
+  get_height::Function #height = get_height(Node)
+end
+
+function write_d3js(tree::DerivationTree, f::VisCalls, filename::AbstractString="treevis-d3.json")
+  d = to_d3js(tree, f)
+  f = open(filename, "w")
+  JSON.print(f, d)
+  close(f)
+  return filename
+end
+
+function to_d3js(tree::DerivationTree, f::VisCalls)
+  d = process(tree.root, f)
+  return d
+end
+
+function process(node::DerivTreeNode, f::VisCalls)
+  d = JDict()
+  d["name"] = f.get_name(node)
+  d["height"] = f.get_height(node)
+  d["edgeLabel"] = Array(AbstractString, length(node.children))
+  d["children"] = Array(JDict, length(node.children))
+  for (i, child) in enumerate(node.children)
+    label = i
+    d["edgeLabel"][i] = string(label)
+    d["children"][i] = process(child, f)
+  end
+  return d
+end
+
+end #module
+

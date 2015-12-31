@@ -56,6 +56,13 @@ function drawplot(outfile::AbstractString, p::Plot;
   end
 end
 
+function writefilm(file::AbstractString, film; remove_destination::Bool=true)
+  ext = splitext(file)[2]
+  tmpfile = splitext(basename(tempname()))[1] * ext #temp name, current directory, same ext as file
+  write(tmpfile, film)
+  mv(tmpfile, file, remove_destination=remove_destination) #workaround for Reel not working for long filenames
+end
+
 function plot_pop_distr(log::DataFrame, outfile::ASCIIString="pop_distr.gif"; fps::Float64=5.0)
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
@@ -67,27 +74,27 @@ function plot_pop_distr(log::DataFrame, outfile::ASCIIString="pop_distr.gif"; fp
       i = Int64(round(t * fps + 1))
       D1 = D[D[:iter] .== i, [:bin_center, :count]]
       plot(D1, x="bin_center", y="count", Geom.bar,
-           Guide.xlabel("Fitness"), Guide.ylabel("Count"), Guide.title("Population Fitness Over Time"))
+           Guide.xlabel("Fitness"), Guide.ylabel("Count"), Guide.title("Population Fitness, Generation=$i"))
     end
-    write("$(fileroot)_$(id)_counts$ext", film1)
+    writefilm("$(fileroot)_$(id)_counts$ext", film1)
 
     #unique fitness
     film2 = roll(fps=fps, duration=n_iters / fps) do t, dt
       i = Int64(round(t * fps + 1))
       D1 = D[D[:iter] .== i, [:bin_center, :unique_fitness]]
       plot(D1, x="bin_center", y="unique_fitness", Geom.bar,
-           Guide.xlabel("Fitness"), Guide.ylabel("Number of Unique Fitness"), Guide.title("Population Unique Fitness Over Time"))
+           Guide.xlabel("Fitness"), Guide.ylabel("Number of Unique Fitness"), Guide.title("Population Unique Fitness, Generation=$i"))
     end
-    write("$(fileroot)_$(id)_uniqfitness$ext", film2)
+    writefilm("$(fileroot)_$(id)_uniqfitness$ext", film2)
 
     #unique code
     film3 = roll(fps=fps, duration=n_iters / fps) do t, dt
       i = Int64(round(t * fps + 1))
       D1 = D[D[:iter] .== i, [:bin_center, :unique_code]]
       plot(D1, x="bin_center", y="unique_code", Geom.bar,
-           Guide.xlabel("Fitness"), Guide.ylabel("Number of Unique Code"), Guide.title("Population Unique Code Over Time"))
+           Guide.xlabel("Fitness"), Guide.ylabel("Number of Unique Code"), Guide.title("Population Unique Code, Generation=$i"))
     end
-    write("$(fileroot)_$(id)_uniqcode$ext", film3)
+    writefilm("$(fileroot)_$(id)_uniqcode$ext", film3)
   end
 end
 

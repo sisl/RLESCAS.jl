@@ -41,8 +41,9 @@ export GeneticSearchParams, genetic_search, CodeClassifier
 
 using GrammarDef #don't hardcode name of module?
 using DataFrameSets
-using RLESUtils.Observers
+using RLESUtils: Observers, GitUtils
 using GrammaticalEvolution
+using CPUTime
 using DataFrames
 
 import GrammaticalEvolution.evaluate!
@@ -161,17 +162,19 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
   if p.verbosity > 0
     println("Starting search...")
   end
+  startstamp = string(now())
+
   pop = ExamplePopulation(p.pop_size, p.genome_size)
   fitness = Inf
   iter = 1
   while !p.stop(iter, fitness) && iter <= p.max_iters
-    tic()
+    CPUtic()
     # generate a new population (based off of fitness)
     pop = generate(p.grammar, pop, p.top_percent, p.prob_mutation, p.mutation_rate,
                    p.maxwraps, p.get_fitness, p.default_code, Dl)
     fitness = pop[1].fitness #population is sorted, so first entry is the best
     code = string(pop[1].code)
-    @notify_observer(p.observer, "iteration_time", Any[iter, toq()])
+    @notify_observer(p.observer, "iteration_time", Any[iter, CPUtoq()])
     @notify_observer(p.observer, "fitness", Any[iter, fitness])
     @notify_observer(p.observer, "fitness5", Any[iter, [pop[i].fitness for i = 1:5]...])
     @notify_observer(p.observer, "code", Any[iter, code])
@@ -182,6 +185,7 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
     end
     iter += 1
   end
+  @notify_observer(p.observer, "computeinfo", Any[startstamp, string(now()), gethostname(), get_SHA(dirname(@__FILE__))])
   ind = pop[1]
   return CodeClassifier(ind.fitness, ind.code)
 end

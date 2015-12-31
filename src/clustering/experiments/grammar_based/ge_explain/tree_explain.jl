@@ -171,6 +171,7 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64},
                  push!(logs, "pop_diversity", [iter, n_fit, n_code, decision_id])
                end)
   add_observer(observer, "iteration_time", append_push!_f(logs, "iteration_time", decision_id))
+  add_observer(observer, "computeinfo", append_push!_f(logs, "computeinfo", decision_id))
 
   Dl_sub = Dl[members]
   classifier = train(gb_params, Dl_sub)
@@ -238,16 +239,18 @@ end
 
 function define_logger()
   logger = TaggedDFLogger()
-  add_folder!(logger, "fitness", [Int64, Float64, Int64], ["iter", "fitness", "ID"])
+  add_folder!(logger, "fitness", [Int64, Float64, Int64], ["iter", "fitness", "decision_id"])
   add_folder!(logger, "fitness5", [Int64, Int64, Float64, Int64],
-              ["iter", "position", "fitness", "ID"])
-  add_folder!(logger, "code", [Int64, ASCIIString, Int64], ["iter", "code", "ID"])
+              ["iter", "position", "fitness", "decision_id"])
+  add_folder!(logger, "code", [Int64, ASCIIString, Int64], ["iter", "code", "decision_id"])
   add_folder!(logger, "pop_distr", [Int64, Float64, Int64, Int64, Int64, Int64],
-              ["iter", "bin_center", "count", "unique_fitness", "unique_code", "ID"])
+              ["iter", "bin_center", "count", "unique_fitness", "unique_code", "decision_id"])
   add_folder!(logger, "pop_diversity", [Int64, Int64, Int64, Int64],
-              ["iter", "unique_fitness", "unique_code", "ID"])
+              ["iter", "unique_fitness", "unique_code", "decision_id"])
   add_folder!(logger, "iteration_time", [Int64, Float64, Int64],
-              ["iter", "iteration_time_s", "ID"])
+              ["iter", "iteration_time_s", "decision_id"])
+  add_folder!(logger, "computeinfo", [ASCIIString, ASCIIString, ASCIIString, ASCIIString, Int64],
+              ["startdatetime", "enddatetime", "hostname", "git_hash", "decision_id"])
   return logger
 end
 
