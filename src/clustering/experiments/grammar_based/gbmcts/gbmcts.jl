@@ -40,27 +40,6 @@ using DerivationTrees
 using DerivationTreeVis
 using TikzQTrees
 
-using DataStructures
-
-srand(0)
-
-grammar = create_grammar()
-params = DerivTreeParams(grammar)
-
-tree = DerivationTree(params)
-
-initialize!(tree)
-
-i = 1
-while !isterminal(tree) && i < 500
-  println("step ", i)
-  action_space = actionspace(tree)
-  #a = 1 #from action_space
-  a = rand(action_space)
-  #a = i
-  step!(tree, a)
-  i += 1
-end
 
 ################
 ###callbacks for vis
@@ -77,6 +56,27 @@ end
 get_height(node::DerivTreeNode) = node.depth
 ##############
 
-viscalls = VisCalls(get_name, get_height)
-write_d3js(tree, viscalls, "tree_d3.json")
-plottree("tree_d3.json", outfileroot="tree_d3")
+function sample(; seed::Int64=1)
+  srand(seed)
+
+  grammar = create_grammar()
+  params = DerivTreeParams(grammar)
+  tree = DerivationTree(params)
+
+  initialize!(tree)
+  i = 1
+  while !isterminal(tree) && i < 500
+    println("step ", i)
+    action_space = actionspace(tree)
+    a = rand(action_space)
+    step!(tree, a)
+    i += 1
+  end
+
+  viscalls = VisCalls(get_name, get_height)
+  fileroot = "tree_$seed"
+  write_d3js(tree, viscalls, "$fileroot.json")
+  plottree("$fileroot.json", outfileroot=fileroot)
+
+  return tree
+end

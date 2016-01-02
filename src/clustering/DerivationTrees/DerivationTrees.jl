@@ -36,13 +36,15 @@
 #Warning: not all rules are supported
 module DerivationTrees
 
-export DerivTreeParams, DerivationTree, DerivTreeNode, getvalue
+export DerivTreeParams, DerivationTree, DerivTreeNode, getvalue, empty!, length, maxlength
 export initialize!, step!, isterminal, actionspace
 
 using GrammaticalEvolution
 using DataStructures
 
 using Debug
+
+import Base: empty!, length
 
 typealias DecisionRule Union{OrRule, RangeRule} #rules that require a decision
 
@@ -57,7 +59,7 @@ type DerivTreeNode
   depth::Int64
   children::Vector{DerivTreeNode}
 end
-function DerivTreeNode(cmd::ASCIIString, rule::Rule, depth::Int64=0, action::Int64=-1)
+function DerivTreeNode(rule::Rule, depth::Int64=0, cmd::AbstractString="", action::Int64=-1)
   return DerivTreeNode(cmd, rule, action, depth, DerivTreeNode[])
 end
 
@@ -65,15 +67,29 @@ type DerivationTree
   params::DerivTreeParams
   root::DerivTreeNode
   opennodes::Stack
+  nsteps::Int64 #track number of steps taken
+  maxdepth::Int64 #track max tree depth
 end
 
 function DerivationTree(p::DerivTreeParams)
-  root = DerivTreeNode("", p.grammar.rules[:start])
-  tree = DerivationTree(p, root, Stack(DerivTreeNode))
+  root = DerivTreeNode(p.grammar.rules[:start])
+  tree = DerivationTree(p, root, Stack(DerivTreeNode), 0, 0)
   return tree
 end
 
+function reset!(tree::DerivationTree)
+  empty!(tree.opennodes)
+  p = tree.params
+  root = tree.root
+  root.cmd = ""
+  root.rule = p.grammar.rules[:start]
+  root.depth = 0
+  root.action = -1
+  empty!(root.children)
+end
+
 function initialize!(tree::DerivationTree)
+  reset!(tree)
   push!(tree.opennodes, tree.root)
   process_non_decisions!(tree)
 end
@@ -83,6 +99,7 @@ function step!(tree::DerivationTree, a::Int64)
   if isempty(opennodes)
     return #we're done
   end
+  tree.nsteps += 1
   node = pop!(opennodes)
   process!(tree, node, node.rule, a)
   process_non_decisions!(tree)
@@ -101,16 +118,18 @@ end
 ###########################
 ### process! nonterminals
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::OrRule, a::Int64)
+  tree.maxdepth = max(tree.maxdepth, node.depth)
   node.action = a
   node.cmd = rule.name
   idx = ((a - 1) % length(rule.values)) + 1
-  child_node = DerivTreeNode("", rule.values[idx], node.depth + 1)
+  child_node = DerivTreeNode(rule.values[idx], node.depth + 1)
   push!(node.children, child_node)
   push!(tree.opennodes, child_node)
 end
 
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::ReferencedRule)
   #don't create a child node for reference rules, shortcut through
+  tree.maxdepth = max(tree.maxdepth, node.depth)
   node.cmd = rule.name
   node.rule = tree.params.grammar.rules[rule.symbol]
   push!(tree.opennodes, node)
@@ -127,10 +146,11 @@ end
 =#
 
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::ExprRule)
+  tree.maxdepth = max(tree.maxdepth, node.depth)
   node.cmd = rule.name
   for arg in rule.args
     if isa(arg, Rule)
-      child_node = DerivTreeNode("", arg, node.depth + 1)
+      child_node = DerivTreeNode(arg, node.depth + 1)
       push!(node.children, child_node)
       push!(tree.opennodes, child_node)
     end
@@ -140,22 +160,28 @@ end
 ###########################
 ### Terminals
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::RangeRule, a::Int64)
+  tree.maxdepth = max(tree.maxdepth, node.depth)
   node.cmd = rule.name
   node.action = a
 end
 
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::Terminal)
+  tree.maxdepth = max(tree.maxdepth, node.depth)
   node.cmd = rule.name
 end
 
 function process!(tree::DerivationTree, node::DerivTreeNode, x)
+  tree.maxdepth = max(tree.maxdepth, node.depth)
   node.cmd = string(x)
 end
 
 ###########################
 ### getvalue
 
-getvalue(tree::DerivationTree) = getvalue(tree.root) #entry
+function getvalue(tree::DerivationTree, defaultval::Symbol=symbol(false)) #entry
+  return isempty(tree.opennodes) ? getvalue(tree.root) : defaultval
+end
+
 getvalue(node::DerivTreeNode) = getvalue(node, node.rule)
 getvalue(node::DerivTreeNode, rule::Terminal) = rule.value
 
@@ -195,5 +221,18 @@ end
 
 actionspace(node::DerivTreeNode, rule::OrRule) = 1:length(rule.values)
 actionspace(node::DerivTreeNode, rule::RangeRule) = 1:length(rule.range)
+
+###########################
+###
+empty!(stack::Stack) = empty!(stack.store)
+
+#entry
+maxlength(grammar::Grammar) = reduce(max, 0, map(length, values(grammar.rules)))
+
+#decision rules
+length(rule::OrRule) = length(rule.values)
+length(rule::RangeRule) = length(rule.range)
+#other rules
+length(rule::Rule) = 1
 
 end #module
