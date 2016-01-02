@@ -36,65 +36,70 @@ module TreeExplainVis
 
 export drawplot, plot_pop_distr, plot_fitness, plot_fitness5, plot_pop_diversity, plot_itertime
 
-using Gadfly, Reel
 using DataFrames
+using Plots
 
-function drawplot(outfile::AbstractString, p::Plot;
-                  width=4inch, height=3inch)
+gadfly()
+dataframes()
+
+function drawplot(outfile::AbstractString, p::Plot)
   if endswith(outfile, ".pdf")
-    draw(PDF(outfile, width, height), p)
+    Plots.pdf(p, outfile)
   elseif endswith(outfile, ".png")
-    draw(PNG(outfile, width, height), p)
+    Plots.png(p, outfile)
   elseif endswith(outfile, ".svg")
-    draw(SVG(outfile, width, height), p)
+    Plots.svg(p, outfile)
   elseif endswith(outfile, ".tex")
-    draw(PGF(outfile, width, height), p)
+    Plots.tex(p, outfile)
   elseif endswith(outfile, ".ps")
-    draw(PS(outfile, width, height), p)
+    Plots.ps(p, outfile)
   else
     error("drawplot: extension not recognized $(splitext(outfile)[2])")
   end
 end
 
-function writefilm(file::AbstractString, film; remove_destination::Bool=true)
+function writefilm(file::AbstractString, film::Animation, fps::Int64; remove_destination::Bool=true)
   ext = splitext(file)[2]
   tmpfile = splitext(basename(tempname()))[1] * ext #temp name, current directory, same ext as file
-  write(tmpfile, film)
+  gif(film, tmpfile, fps=fps)
   mv(tmpfile, file, remove_destination=remove_destination) #workaround for Reel not working for long filenames
 end
 
-function plot_pop_distr(log::DataFrame, outfile::ASCIIString="pop_distr.gif"; fps::Float64=5.0)
+function plot_pop_distr(log::DataFrame, outfile::ASCIIString="pop_distr.gif"; fps::Int64=5)
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
     id = D[:decision_id][1]
     n_iters = maximum(D[:iter])
 
     #counts
-    film1 = roll(fps=fps, duration=n_iters / fps) do t, dt
-      i = Int64(round(t * fps + 1))
+    film1 = Animation()
+    for i = 1:n_iters
       D1 = D[D[:iter] .== i, [:bin_center, :count]]
-      plot(D1, x="bin_center", y="count", Geom.bar,
-           Guide.xlabel("Fitness"), Guide.ylabel("Count"), Guide.title("Population Fitness, Generation=$i"))
+      p = plot(D1, :bin_center, :count, linetype=:bar,
+           xlabel="Fitness", ylabel="Count", title="Population Fitness, Generation=$i");
+      frame(film1, p)
     end
-    writefilm("$(fileroot)_$(id)_counts$ext", film1)
+    writefilm("$(fileroot)_$(id)_counts$ext", film1, fps)
 
     #unique fitness
-    film2 = roll(fps=fps, duration=n_iters / fps) do t, dt
-      i = Int64(round(t * fps + 1))
+    film2 = Animation()
+    for i = 1:n_iters
       D1 = D[D[:iter] .== i, [:bin_center, :unique_fitness]]
-      plot(D1, x="bin_center", y="unique_fitness", Geom.bar,
-           Guide.xlabel("Fitness"), Guide.ylabel("Number of Unique Fitness"), Guide.title("Population Unique Fitness, Generation=$i"))
+      p = plot(D1, :bin_center, :unique_fitness, linetype=:bar,
+           xlabel="Fitness", ylabel="Number of Unique Fitness", title="Population Unique Fitness, Generation=$i");
+      frame(film2, p)
     end
-    writefilm("$(fileroot)_$(id)_uniqfitness$ext", film2)
+    writefilm("$(fileroot)_$(id)_uniqfitness$ext", film2, fps)
 
     #unique code
-    film3 = roll(fps=fps, duration=n_iters / fps) do t, dt
-      i = Int64(round(t * fps + 1))
+    film3 = Animation()
+    for i = 1:n_iters
       D1 = D[D[:iter] .== i, [:bin_center, :unique_code]]
-      plot(D1, x="bin_center", y="unique_code", Geom.bar,
-           Guide.xlabel("Fitness"), Guide.ylabel("Number of Unique Code"), Guide.title("Population Unique Code, Generation=$i"))
+      p = plot(D1, :bin_center, :unique_code, linetype=:bar,
+           xlabel="Fitness", ylabel="Number of Unique Code", title="Population Unique Code, Generation=$i");
+      frame(film3, p)
     end
-    writefilm("$(fileroot)_$(id)_uniqcode$ext", film3)
+    writefilm("$(fileroot)_$(id)_uniqcode$ext", film3, fps)
   end
 end
 
@@ -102,9 +107,9 @@ function plot_fitness(log::DataFrame, outfile::ASCIIString="fitness.pdf")
   plotvec = Plot[]
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
-    p = plot(D, x="iter", y="fitness", Geom.point, Geom.line)
-    push!(plotvec, p)
     id = D[:decision_id][1]
+    p = plot(D, :iter, :fitness, marker=:rect);
+    push!(plotvec, p)
     drawplot("$(fileroot)_$id$ext", p)
   end
   return plotvec
@@ -114,9 +119,9 @@ function plot_fitness5(log::DataFrame, outfile::ASCIIString="fitness5.pdf")
   plotvec = Plot[]
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
-    p = plot(D, x="iter", y="fitness", color="position", Geom.point, Geom.line)
-    push!(plotvec, p)
     id = D[:decision_id][1]
+    p = plot(D, :iter, :fitness, group=:position, marker=:rect);
+    push!(plotvec, p)
     drawplot("$(fileroot)_$id$ext", p)
   end
   return plotvec
@@ -126,11 +131,11 @@ function plot_pop_diversity(log::DataFrame, outfile::ASCIIString="pop_diversity.
   plotvec = Plot[]
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
+    id = D[:decision_id][1]
     D1 = DataFrame(x=D[:iter], y=D[:unique_fitness], label="num_unique_fitness")
     D2 = DataFrame(x=D[:iter], y=D[:unique_code], label="num_unique_code")
-    p = plot(vcat(D1, D2), x="x", y="y", color="label", Geom.point, Geom.line)
+    p = plot(vcat(D1, D2), :x, :y, group=:label, marker=:rect);
     push!(plotvec, p)
-    id = D[:decision_id][1]
     drawplot("$(fileroot)_$id$ext", p)
   end
   return plotvec
@@ -140,9 +145,9 @@ function plot_itertime(log::DataFrame, outfile::ASCIIString="itertime.pdf")
   plotvec = Plot[]
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
-    p = plot(D, x="iter", y="iteration_time_s", Geom.point, Geom.line)
-    push!(plotvec, p)
     id = D[:decision_id][1]
+    p = plot(D, :iter, :iteration_time_s, marker=:rect);
+    push!(plotvec, p)
     drawplot("$(fileroot)_$id$ext", p)
   end
   return plotvec
