@@ -34,29 +34,13 @@
 
 module TreeExplainVis
 
-export drawplot, plot_pop_distr, plot_fitness, plot_fitness5, plot_pop_diversity, plot_itertime
+export plot_pop_distr, plot_fitness, plot_fitness5, plot_pop_diversity, plot_itertime
 
 using DataFrames
 using Plots
 
 gadfly()
 dataframes()
-
-function drawplot(outfile::AbstractString, p::Plot)
-  if endswith(outfile, ".pdf")
-    Plots.pdf(p, outfile)
-  elseif endswith(outfile, ".png")
-    Plots.png(p, outfile)
-  elseif endswith(outfile, ".svg")
-    Plots.svg(p, outfile)
-  elseif endswith(outfile, ".tex")
-    Plots.tex(p, outfile)
-  elseif endswith(outfile, ".ps")
-    Plots.ps(p, outfile)
-  else
-    error("drawplot: extension not recognized $(splitext(outfile)[2])")
-  end
-end
 
 function writefilm(file::AbstractString, film::Animation, fps::Int64; remove_destination::Bool=true)
   ext = splitext(file)[2]
@@ -108,9 +92,9 @@ function plot_fitness(log::DataFrame, outfile::ASCIIString="fitness.pdf")
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
     id = D[:decision_id][1]
-    p = plot(D, :iter, :fitness, marker=:rect);
+    p = plot(D, :iter, :fitness, marker=:circle, markerstrokecolor=:match, markersize=3);
     push!(plotvec, p)
-    drawplot("$(fileroot)_$id$ext", p)
+    savefig(p, "$(fileroot)_$id$ext")
   end
   return plotvec
 end
@@ -120,9 +104,9 @@ function plot_fitness5(log::DataFrame, outfile::ASCIIString="fitness5.pdf")
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
     id = D[:decision_id][1]
-    p = plot(D, :iter, :fitness, group=:position, marker=:rect);
+    p = plot(D, :iter, :fitness, group=:position, marker=:circle, markerstrokecolor=:match, markersize=3);
     push!(plotvec, p)
-    drawplot("$(fileroot)_$id$ext", p)
+    savefig(p, "$(fileroot)_$id$ext")
   end
   return plotvec
 end
@@ -134,9 +118,9 @@ function plot_pop_diversity(log::DataFrame, outfile::ASCIIString="pop_diversity.
     id = D[:decision_id][1]
     D1 = DataFrame(x=D[:iter], y=D[:unique_fitness], label="num_unique_fitness")
     D2 = DataFrame(x=D[:iter], y=D[:unique_code], label="num_unique_code")
-    p = plot(vcat(D1, D2), :x, :y, group=:label, marker=:rect);
+    p = plot(vcat(D1, D2), :x, :y, group=:label, marker=:circle, markerstrokecolor=:match, markersize=3);
     push!(plotvec, p)
-    drawplot("$(fileroot)_$id$ext", p)
+    savefig(p, "$(fileroot)_$id$ext")
   end
   return plotvec
 end
@@ -146,9 +130,9 @@ function plot_itertime(log::DataFrame, outfile::ASCIIString="itertime.pdf")
   fileroot, ext = splitext(outfile)
   for D in groupby(log, :decision_id)
     id = D[:decision_id][1]
-    p = plot(D, :iter, :iteration_time_s, marker=:rect);
+    p = plot(D, :iter, :iteration_time_s, marker=:circle, markerstrokecolor=:match, markersize=3);
     push!(plotvec, p)
-    drawplot("$(fileroot)_$id$ext", p)
+    savefig(p, "$(fileroot)_$id$ext")
   end
   return plotvec
 end
