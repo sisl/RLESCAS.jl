@@ -32,39 +32,46 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
+include("process_jsons.jl")
+include("time_series_features1.jl")
 
-const CSV_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_manual_clustering")
-const CLUSTERS_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters")
-const DF_OUT = Pkg.dir("Datasets/data/dasc_manual/")
+const DASC_JSON = Pkg.dir("RLESCAS/src/clustering/data/dasc/json")
+const DASC_CSV = Pkg.dir("RLESCAS/src/clustering/data/dasc/csv")
+const DASC_OUT = Pkg.dir("Datasets/data/dasc")
+const DASC_META = Pkg.dir("Datasets/data/dasc_meta")
 
-using ClusterResults
-using RLESUtils.FileUtils
-using DataFrames
+const LIBCAS098_SMALL_JSON = Pkg.dir("RLESCAS/src/clustering/data/libcas098_small/json")
+const LIBCAS098_SMALL_CSV = Pkg.dir("RLESCAS/src/clustering/data/libcas098_small/csv")
+const LIBCAS098_SMALL_OUT = Pkg.dir("Datasets/data/libcas098_small")
+const LIBCAS098_META = Pkg.dir("Datasets/data/libcas098_small_meta")
 
-function to_crfiles(in_dir::AbstractString, out_dir::AbstractString)
-  files = readdir_ext("txt", in_dir)
-  for file in files
-    cr = open(load_csv, file)
-    outfile = replace(basename(file), ".txt", ".json")
-    save_result(cr, joinpath(out_dir, outfile))
+function script_dasc(fromjson::Bool=true)
+  if fromjson
+    convert2csvs(DASC_JSON, DASC_CSV)
   end
+
+  tmpdir = mktempdir()
+  csvs2dataframes(DASC_CSV, tmpdir)
+  correct_coc_stays!(tmpdir)
+
+  mv_files(tmpdir, DASC_OUT, name_from_id)
+  add_encounter_info!(DASC_OUT)
+
+  encounter_meta(DASC_JSON, DASC_META)
 end
 
-function to_dataframes(in_dir::AbstractString, out_dir::AbstractString)
-  files = readdir_ext("json", in_dir)
-  for file in files
-    cr = load_result(file)
-    D = DataFrame()
-    D[:encounter_id] = map(x -> parse(Int64, x), cr.names)
-    D[:label] = cr.labels
-    outfile = string(splitext(basename(file))[1], ".csv.gz")
-    outfile = joinpath(out_dir, outfile)
-    writetable(outfile, D)
+#from APL 20151230, libcas0.9.8, MCTS iterations=500, testbatch
+function script_libcas098_small(fromjson::Bool=true)
+  if fromjson
+    convert2csvs(LIBCAS098_SMALL_JSON, LIBCAS098_SMALL_CSV)
   end
-end
 
-function script_manuals()
-  to_crfiles(CSV_DIR, CLUSTERS_DIR)
-  to_dataframes(CLUSTERS_DIR, DF_OUT)
+  tmpdir = mktempdir()
+  csvs2dataframes(LIBCAS098_SMALL_CSV, tmpdir)
+  correct_coc_stays!(tmpdir)
+
+  mv_files(tmpdir, LIBCAS098_SMALL_OUT, name_from_id)
+  add_encounter_info!(LIBCAS098_SMALL_OUT)
+
+  encounter_meta(LIBCAS098_SMALL_JSON, LIBCAS098_SMALL_META)
 end

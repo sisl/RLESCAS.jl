@@ -39,14 +39,6 @@ using DataFrameFeatures
 using RLESUtils: MathUtils, LookupCallbacks, FileUtils, StringUtils
 using DataFrames
 
-const DASC_NMACS = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs/csv")
-const DASC_NMACS_OUT = Pkg.dir("RLESCAS/src/clustering/data/dasc_nmacs_ts_feats") #time series feats (as opposed to static feats)
-
-const DASC_NON_NMACS = Pkg.dir("RLESCAS/src/clustering/data/dasc_non_nmacs/csv")
-const DASC_NON_NMACS_OUT = Pkg.dir("RLESCAS/src/clustering/data/dasc_non_nmacs_ts_feats") #time series feats (as opposed to static feats)
-
-const DASC_OUT = Pkg.dir("Datasets/data/dasc")
-
 const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.ra_active", x -> Bool(x)),
   LookupCallback("ra_detailed.ownInput.dz", x -> Float64(x)),
@@ -162,45 +154,50 @@ function csvs2dataframes(in_dir::AbstractString, out_dir::AbstractString)
             overwrite=true)
 end
 
+#Note: This can be improved using DataFramesMeta
 function correct_coc_stays!(dir::AbstractString)
-  df_files = readdir_ext("csv", dir)
+  df_files = readdir_ext(".csv.gz", dir)
   transform(df_files, COC_STAYS_MAP, overwrite=true)
 end
 
 function get_id(filename::AbstractString)
   s = basename(filename)
+  s = split(s, '.')[1]
   s = replace(s, "trajSaveMCTS_ACASX_EvE_", "")
-  s = replace(s, "_dataframe.csv", "")
+  s = replace(s, "trajSaveMCTS_ACASX_Multi_", "")
+  s = replace(s, "_dataframe", "")
   return parse(Int64, s) #encounter number
 end
 
-function merge_dataframes(true_dir::AbstractString, false_dir::AbstractString,
-                          outfile::AbstractString)
-  Ds1 = get_dataframes(true_dir, true)
-  Ds2 = get_dataframes(false_dir, false)
-  D = vcat(Ds1..., Ds2...)
+function merge_dataframes(dir::AbstractString, outfile::AbstractString)
+  Ds = get_dataframes(dir)
+  D = vcat(Ds...)
   writetable(outfile, D)
 end
 
-function get_dataframes(dir::AbstractString, isnmac::Bool)
-  files = readdir_ext("csv", dir)
-  Ds = map(files) do f
+function add_encounter_info!(dir::AbstractString)
+  files = readdir_ext(".csv.gz", dir)
+  for (i, f) in enumerate(files)
+    fileroot = split(basename(f), '.')[1]
     df = readtable(f)
     df[:t] = Int64[1:nrow(df);]
-    df[:encounter_id] = fill(get_id(f), nrow(df))
-    df[:NMAC] = fill(isnmac, nrow(df))
-    return df
+    df[:encounter_id] = fill(get_id(fileroot), nrow(df))
+    writetable(f, df)
   end
-  return Ds
+  return files
 end
 
-function script_dasc()
-  csvs2dataframes(DASC_NMACS, DASC_NMACS_OUT)
-  csvs2dataframes(DASC_NON_NMACS, DASC_NON_NMACS_OUT)
+function name_from_id(filename::AbstractString, ext::AbstractString=".csv.gz")
+  id = get_id(filename)
+  return string(id, ext)
+end
 
-  correct_coc_stays!(DASC_NMACS_OUT)
-  correct_coc_stays!(DASC_NON_NMACS_OUT)
-
-  outfile = joinpath(DASC_OUT, "tsfeats1.csv.gz")
-  merge_dataframes(DASC_NMACS_OUT, DASC_NON_NMACS_OUT, outfile)
+function mv_files(in_dir::AbstractString, out_dir::AbstractString, get_new_name::Function)
+  files = readdir(in_dir)
+  for f in files
+    fileroot, ext = splitext(f)
+    src = joinpath(in_dir, f)
+    dst = joinpath(out_dir, get_new_name(f))
+    mv(src, dst, remove_destination=true)
+  end
 end

@@ -68,6 +68,10 @@ const MUTATION_RATE = 0.2
 const VERBOSITY = 1
 const MAXVALUE = 1000
 
+const DATASET = dataset("dasc")
+const MANUALS = "dasc_manual"
+const DATASET_META = dataset("dasc_meta", "encounter_meta")
+
 const MAN_JOSH1 = "josh1"
 const MAN_JOSH2 = "josh2"
 const MAN_MYKEL = "mykel"
@@ -190,7 +194,7 @@ end
 #callbacks for vis
 ################
 const COLNAMES = begin
-  D = dataset("dasc", "tsfeats1")
+  D = records(DATASET)[1]
   cols = setdiff(names(D), [:NMAC, :label, :t, :encounter_id])
   map(string, cols) #return
 end
@@ -284,40 +288,58 @@ function train_dtree{T}(Dl::DFSetLabeled{T})
 end
 
 ################
-function to_DFSetLabeled(D::DataFrame, labelcol::Symbol, labeltype::Type;
-                         exclude::Vector{Symbol}=Symbol[])
-  Dl = DFSetLabeled(labeltype)
-  for subdf in DataFrames.groupby(D, :encounter_id)
-    name = string(subdf[:encounter_id][1]) #they should all be the same
-    label::labeltype = subdf[labelcol][1] #they should all be the same
-    cols = setdiff(names(subdf), exclude) #remove labels
-    record = subdf[cols]
-    push!(Dl, name, record, label)
+function nmac_clusters(clustering::DataFrame, Ds::DFSet)
+  ids = map(x -> parse(Int, x), names(Ds))
+  labeldict = Dict{Int64,Int64}() #facilitate random access
+  for row in eachrow(clustering)
+    labeldict[row[:encounter_id]] = row[:label]
   end
-  return Dl
+  inds = find(x -> haskey(labeldict, x), ids)
+  sublabels = map(x -> labeldict[x], ids[inds])
+  subDs = Ds[inds]
+  return DFSetLabeled(subDs, sublabels)
 end
 
-function nmac_clusters(clustering::AbstractString)
-  D = dataset("dasc", "tsfeats1")
-  D = D[D[:NMAC], :] #NMACs only
-  labels = dataset("dasc_manual", clustering)
-  D = join(D, labels, on=:encounter_id) #join by encounters
-  return to_DFSetLabeled(D, :label, Int64, exclude=[:label, :NMAC])
+function nonnmacs_extra_cluster(clustering::DataFrame, Ds::DFSet, meta::DataFrame)
+  ids = map(x -> parse(Int, x), names(Ds))
+  labeldict = Dict{Int64,Int64}() #facilitate random access
+  for row in eachrow(clustering)
+    labeldict[row[:encounter_id]] = row[:label]
+  end
+
+  nmacdict = Dict{Int64,Bool}() #facilitate random access
+  for row in eachrow(meta)
+    nmacdict[row[:encounter_id]] = row[:nmac]
+  end
+
+  nonnmac_label = maximum(clustering[:label]) + 1
+  labels = map(ids) do id
+    label = if haskey(labeldict, id)
+      labeldict[id]
+    else
+      @assert nmacdict[id] == false
+      nonnmac_label
+    end
+    return label
+  end
+  return DFSetLabeled(Ds, labels)
 end
 
-function nonnmacs_extra_cluster(clustering::AbstractString)
-  D = dataset("dasc", "tsfeats1")
-  labels = dataset("dasc_manual", clustering)
-  D = join(D, labels, on=:encounter_id, kind=:left)
-  n = maximum(D[!isna(D[:label]), :label]) + 1 #avoid NA poisoning
-  @byrow! D if isna(:label); :label = n end
-  return to_DFSetLabeled(D, :label, Int64, exclude=[:label, :NMAC])
-end
-
-function nmacs_vs_nonnmacs()
-  D = dataset("dasc", "tsfeats1")
-  D[:NMAC]=map(x->x ? 1 : 2, D[:NMAC])
-  return to_DFSetLabeled(D, :NMAC, Int64, exclude=[:label, :NMAC])
+function nmacs_vs_nonnmacs(Ds::DFSet, meta::DataFrame)
+  ids = map(x -> parse(Int, x), names(Ds))
+  nmac_ids = meta[meta[:nmac] .== true, :encounter_id]
+  nonnmac_ids = meta[meta[:nmac] .== false, :encounter_id]
+  labels = map(ids) do id
+    label = if id in nmac_ids
+      1
+    elseif id in nonnmac_ids
+      2
+    else
+      error("encounter id not found: $id")
+    end
+    return label
+  end
+  return DFSetLabeled(Ds, labels)
 end
 
 function tree_vis{T}(dtree::DecisionTree, Dl::DFSetLabeled{T}, fileroot::AbstractString)
@@ -340,12 +362,16 @@ end
 #explain flat clusters via decision tree, nmacs only
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script1(dataname::AbstractString; seed::Int64=1)
+function script1(dataname::AbstractString;
+                 seed::Int64=1,
+                 manuals::AbstractString=MANUALS,
+                 data::DFSet=DATASET)
   rsg = RSG(1, seed)
   set_global(rsg)
 
   #load data
-  Dl = nmac_clusters(dataname)
+  clustering = dataset(manuals, dataname)
+  Dl = nmac_clusters(clustering, data)
 
   #explain
   dtree, logs = train_dtree(Dl)
@@ -361,9 +387,12 @@ function script1(dataname::AbstractString; seed::Int64=1)
   return dtree, logs
 end
 
-function script1_vis(dataname::AbstractString)
+function script1_vis(dataname::AbstractString;
+                     manuals::AbstractString=MANUALS,
+                     data::DFSet=DATASET)
   #load data
-  Dl = nmac_clusters(dataname)
+  clustering = dataset(manuals, dataname)
+  Dl = nmac_clusters(clustering, data)
 
   #load obj
   dtree = Obj2Dict.load_obj("$(dataname)_fc.json")
@@ -377,12 +406,17 @@ end
 #flat clusters explain -- include non-nmacs as an extra cluster
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script2(dataname::AbstractString; seed::Int64=1)
+function script2(dataname::AbstractString;
+                 seed::Int64=1,
+                 manuals::AbstractString=MANUALS,
+                 data::DFSet=DATASET,
+                 data_meta::DataFrame=DATASET_META)
   rsg = RSG(1, seed)
   set_global(rsg)
 
   #load data
-  Dl = nonnmacs_extra_cluster(dataname)
+  clustering = dataset(manuals, dataname)
+  Dl = nonnmacs_extra_cluster(clustering, data, data_meta)
 
   #explain
   dtree, logs = train_dtree(Dl)
@@ -398,9 +432,13 @@ function script2(dataname::AbstractString; seed::Int64=1)
   return dtree, logs
 end
 
-function script2_vis(dataname::AbstractString)
+function script2_vis(dataname::AbstractString;
+                     manuals::AbstractString=MANUALS,
+                     data::DFSet=DATASET,
+                     data_meta::DataFrame=DATASET_META)
   #load data
-  Dl = nonnmacs_extra_cluster(dataname)
+  clustering = dataset(manuals, dataname)
+  Dl = nonnmacs_extra_cluster(clustering, data, data_meta)
 
   #load obj
   dtree = Obj2Dict.load_obj("$(dataname)_fc.json")
@@ -414,12 +452,14 @@ end
 #flat clusters explain, nmacs vs non-nmacs
 #script1(MYKEL_CR)
 #script1(JOSH1_CR)
-function script3(; seed::Int64=1)
+function script3(; seed::Int64=1,
+                 data::DFSet=DATASET,
+                 data_meta::DataFrame=DATASET_META)
   rsg = RSG(1, seed)
   set_global(rsg)
 
   #load data
-  Dl = nmacs_vs_nonnmacs()
+  Dl = nmacs_vs_nonnmacs(data, data_meta)
 
   #explain
   dtree, logs = train_dtree(Dl)
@@ -438,7 +478,7 @@ end
 
 function script3_vis(fileroot::AbstractString="nmacs_vs_nonnmacs")
   #load data
-  Dl = nmacs_vs_nonnmacs()
+  Dl = nmacs_vs_nonnmacs(data, data_meta)
 
   #load obj
   dtree = Obj2Dict.load_obj("$(fileroot)_fc.json")

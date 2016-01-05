@@ -41,7 +41,7 @@ using RLESUtils.FileUtils
 using DataFrames
 using Iterators
 
-function feature_frame(csvfile::ASCIIString, feature_map::Vector{LookupCallback},
+function feature_frame(csvfile::AbstractString, feature_map::Vector{LookupCallback},
                         colnames::Vector{Symbol}=Symbol[])
   csv = readcsv(csvfile)
   headers = csv[1, :] |> vec
@@ -65,10 +65,10 @@ function feature_frame(csvfile::ASCIIString, feature_map::Vector{LookupCallback}
   return DataFrame(V, colnames)
 end
 
-append(V::Vector{ASCIIString}, s::AbstractString) = map(x -> "$(x)$(s)", V)
+append{T<:AbstractString}(V::Vector{T}, s::AbstractString) = map(x -> "$(x)$(s)", V)
 
 #map a directory of trajSave_aircraft.csv files to trajSave_dataframe.csv file
-function csv_to_dataframe(files::Vector{ASCIIString}, feature_map::Vector{LookupCallback}, feature_names::Vector{ASCIIString}; outdir::ASCIIString="./")
+function csv_to_dataframe{T<:AbstractString}(files::Vector{T}, feature_map::Vector{LookupCallback}, feature_names::Vector{T}; outdir::AbstractString="./")
   @assert length(feature_map) == length(feature_names)
   sort!(files)
   grouped_files = Iterators.groupby(x -> split(x, "_aircraft")[1], files) |> collect
@@ -79,7 +79,7 @@ function csv_to_dataframe(files::Vector{ASCIIString}, feature_map::Vector{Lookup
       feature_frame(f, feature_map, convert(Vector{Symbol}, append(feature_names, "_$j")))
     end
     D = hcat(D_...)
-    df_file = split(grouped_files[i][1], "_aircraft")[1] * "_dataframe.csv"
+    df_file = split(grouped_files[i][1], "_aircraft")[1] * "_dataframe.csv.gz"
     df_file = joinpath(outdir, basename(df_file))
     outfiles[i] = df_file
     writetable(df_file, D)

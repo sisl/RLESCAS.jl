@@ -30,41 +30,44 @@
 # HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-# *****************************************************************************
+# ***********************************************i******************************
 
-include(Pkg.dir("RLESCAS/src/clustering/clustering.jl"))
+include(Pkg.dir("RLESCAS/src/converters/json_to_csv.jl"))
 
-const CSV_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_manual_clustering")
-const CLUSTERS_DIR = Pkg.dir("RLESCAS/src/clustering/data/dasc_clusters")
-const DF_OUT = Pkg.dir("Datasets/data/dasc_manual/")
-
-using ClusterResults
 using RLESUtils.FileUtils
-using DataFrames
 
-function to_crfiles(in_dir::AbstractString, out_dir::AbstractString)
-  files = readdir_ext("txt", in_dir)
-  for file in files
-    cr = open(load_csv, file)
-    outfile = replace(basename(file), ".txt", ".json")
-    save_result(cr, joinpath(out_dir, outfile))
+#read a directory of jsons and output csvs
+function convert2csvs(in_dir::AbstractString, out_dir::AbstractString)
+  if !isdir(out_dir) #create output dir if it doesn't exist
+    mkpath(out_dir)
+  end
+
+  files = readdirGZs(in_dir)
+  for f in files
+    println("file = ", f)
+    json_to_csv(f)
+  end
+  csvfiles = readdir_ext(".csv", in_dir) #readdir only gives basenames
+  for src in csvfiles
+    dst = joinpath(out_dir, basename(src))
+    mv(src, dst, remove_destination=true)
   end
 end
 
-function to_dataframes(in_dir::AbstractString, out_dir::AbstractString)
-  files = readdir_ext("json", in_dir)
-  for file in files
-    cr = load_result(file)
-    D = DataFrame()
-    D[:encounter_id] = map(x -> parse(Int64, x), cr.names)
-    D[:label] = cr.labels
-    outfile = string(splitext(basename(file))[1], ".csv.gz")
-    outfile = joinpath(out_dir, outfile)
-    writetable(outfile, D)
-  end
-end
+function encounter_meta(in_dir::AbstractString, out_dir::AbstractString)
+  files = readdirGZs(in_dir)
+  colnames = Symbol[:encounter_id, :nmac]
+  coltypes = Type[Int64, Bool]
 
-function script_manuals()
-  to_crfiles(CSV_DIR, CLUSTERS_DIR)
-  to_dataframes(CLUSTERS_DIR, DF_OUT)
+  D = DataFrame(coltypes, colnames, 0)
+  for f in files
+    id = get_id(f)
+    push!(D, [id, is_nmac(f)])
+  end
+
+  if !isdir(out_dir) #create output dir if it doesn't exist
+    mkpath(out_dir)
+  end
+  outfile = joinpath(out_dir, "encounter_meta.csv.gz")
+  writetable(outfile, D)
 end
