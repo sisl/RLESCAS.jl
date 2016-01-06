@@ -51,6 +51,7 @@ using TikzQTrees
 using TreeExplainVis
 using RLESUtils: RNGWrapper, Obj2Dict, FileUtils, StringUtils, ArrayUtils, Observers, Loggers
 using GrammaticalEvolution
+using CPUTime
 using Iterators
 using DataFrames
 using DataFramesMeta
@@ -59,31 +60,34 @@ using StatsBase
 const W_ENT = 100 #entropy
 const W_LEN = 0.1 #
 
-const GENOME_SIZE = 500
-const MAXWRAPS = 2
+const GENOME_SIZE = 20
+const MAXWRAPS = 0
 const DEFAULTCODE = :(eval(false))
 const TOP_PERCENT = 0.5
 const PROB_MUTATION = 0.2
 const MUTATION_RATE = 0.2
 const VERBOSITY = 1
 const MAXVALUE = 1000
+const MAXCODELENGTH = 1000000 #disable for now
 
-const DATASET = dataset("dasc")
-const MANUALS = "dasc_manual"
-const DATASET_META = dataset("dasc_meta", "encounter_meta")
+#const MANUALS = "dasc_manual"
+#const DATASET = dataset("dasc")
+#const DATASET_META = dataset("dasc_meta", "encounter_meta")
+const DATASET = dataset("libcas098_small")
+const DATASET_META = dataset("libcas098_small_meta", "encounter_meta")
 
 const MAN_JOSH1 = "josh1"
 const MAN_JOSH2 = "josh2"
 const MAN_MYKEL = "mykel"
 
-const WRAP_MEMBERS = 30
+const LIMIT_MEMBERS = 30
 const HIST_NBINS = 40
 const HIST_EDGES = linspace(0.0, 200.0, HIST_NBINS + 1)
 const HIST_MIDS = Base.midpoints(HIST_EDGES) |> collect
 
 function TESTMODE(testing::Bool)
   global POP_SIZE = testing ? 50 : 5000
-  global MAXITERATIONS = testing ? 3 : 50
+  global MAXITERATIONS = testing ? 3 : 20
   global STOP_N = MAXITERATIONS #testing ? 3 : 10 #early stop
   global MAXDEPTH = testing ? 2 : 4
 end
@@ -124,10 +128,15 @@ function stop(tracker::Vector{Float64}, iter::Int64, fitness::Float64)
 end
 
 function get_fitness{T}(code::Expr, Dl::DFSetLabeled{T})
+  codelen = length(string(code))
+  if codelen > MAXCODELENGTH #avoid long evaluations on long codes
+    return realmax(Float64)
+  end
+
   f = to_function(code)
   predicts = map(f, Dl.records)
   _, _, ent_post = get_metrics(predicts, Dl.labels)
-  return W_ENT * ent_post + W_LEN * length(string(code))
+  return W_ENT * ent_post + W_LEN * codelen
 end
 
 function get_truth{T}(members::Vector{Int64}, Dl::DFSetLabeled{T})
@@ -204,17 +213,11 @@ const FMT_NATURAL = get_format_natural(COLNAMES_FULL)
 
 function get_name(node::DTNode, Dl::DFSetLabeled{Int64})
   members = sort(Dl.names[node.members], by=x->parse(Int64, x))
-  tmp = ASCIIString[]
-  if length(members) <= WRAP_MEMBERS
-    push!(tmp, join(members, ",")) #push all of it
+  members_text = if length(members) <= LIMIT_MEMBERS
+    "members=" * join(members, ",")
   else
-    for mems in partition(members, WRAP_MEMBERS) #split
-      push!(tmp, join(mems, ","))
-    end
+    "members=" * join(members[1:LIMIT_MEMBERS], ",") * ", and $(length(members)-LIMIT_MEMBERS) more."
   end
-  members_text = "members=" * join(tmp, "\\\\")
-  #matched = ""
-  #mismatched = ""
   label = "label=$(node.label)"
   confidence = "confidence=" * string(signif(node.confidence, 3))
   if isdefined(node.split_rule, :code)
@@ -489,3 +492,48 @@ function script3_vis(fileroot::AbstractString="nmacs_vs_nonnmacs")
   log_vis(logs, "$(fileroot)_logs")
 end
 
+function timing_test(iterations::Int64=100;
+                     seed::Int64=1,
+                     data::DFSet=DATASET,
+                     data_meta::DataFrame=DATASET_META,
+                     grammar::Grammar=create_grammar(),
+                     genome_size::Int64=GENOME_SIZE,
+                     maxvalue::Int64=MAXVALUE,
+                     maxwraps::Int64=MAXWRAPS)
+  rsg = RSG(1, seed)
+  set_global(rsg)
+
+  logs = TaggedDFLogger()
+  add_folder!(logs, "rand_ind_time", [Int64, Float64], ["iter", "rand_ind_time_s"])
+  add_folder!(logs, "transform_time", [Int64, Float64], ["iter", "transform_time_s"])
+  add_folder!(logs, "fitness_time", [Int64, Float64], ["iter", "fitness_time_s"])
+  add_folder!(logs, "code", [Int64, ASCIIString], ["iter", "code"])
+  observer = Observer()
+  add_observer(observer, "rand_ind_time", push!_f(logs, "rand_ind_time"))
+  add_observer(observer, "transform_time", push!_f(logs, "transform_time"))
+  add_observer(observer, "fitness_time", push!_f(logs, "fitness_time"))
+  add_observer(observer, "code", push!_f(logs, "code"))
+
+  Dl = nmacs_vs_nonnmacs(data, data_meta)
+
+  for i = 1:iterations
+    CPUtic()
+    ind = ExampleIndividual(genome_size, maxvalue)
+    @notify_observer(observer, "rand_ind_time", [i, CPUtoq()])
+    CPUtic()
+    code = try
+      GrammaticalEvolution.transform(grammar, ind, maxwraps=maxwraps)
+    catch
+      DEFAULTCODE
+    end
+    @notify_observer(observer, "transform_time", [i, CPUtoq()])
+    CPUtic()
+    try
+      get_fitness(code, Dl)
+    end
+    @notify_observer(observer, "fitness_time", [i, CPUtoq()])
+    @notify_observer(observer, "code", [i, string(code)])
+  end
+  save_log("timingtest_logs.txt", logs)
+  return logs
+end

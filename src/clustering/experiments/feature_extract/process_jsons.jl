@@ -55,6 +55,10 @@ function convert2csvs(in_dir::AbstractString, out_dir::AbstractString)
 end
 
 function encounter_meta(in_dir::AbstractString, out_dir::AbstractString)
+  if !isdir(out_dir) #create output dir if it doesn't exist
+    mkpath(out_dir)
+  end
+
   files = readdirGZs(in_dir)
   colnames = Symbol[:encounter_id, :nmac]
   coltypes = Type[Int64, Bool]
@@ -63,10 +67,6 @@ function encounter_meta(in_dir::AbstractString, out_dir::AbstractString)
   for f in files
     id = get_id(f)
     push!(D, [id, is_nmac(f)])
-  end
-
-  if !isdir(out_dir) #create output dir if it doesn't exist
-    mkpath(out_dir)
   end
   outfile = joinpath(out_dir, "encounter_meta.csv.gz")
   writetable(outfile, D)

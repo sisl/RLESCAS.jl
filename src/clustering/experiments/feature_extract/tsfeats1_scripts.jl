@@ -43,7 +43,7 @@ const DASC_META = Pkg.dir("Datasets/data/dasc_meta")
 const LIBCAS098_SMALL_JSON = Pkg.dir("RLESCAS/src/clustering/data/libcas098_small/json")
 const LIBCAS098_SMALL_CSV = Pkg.dir("RLESCAS/src/clustering/data/libcas098_small/csv")
 const LIBCAS098_SMALL_OUT = Pkg.dir("Datasets/data/libcas098_small")
-const LIBCAS098_META = Pkg.dir("Datasets/data/libcas098_small_meta")
+const LIBCAS098_SMALL_META = Pkg.dir("Datasets/data/libcas098_small_meta")
 
 function script_dasc(fromjson::Bool=true)
   if fromjson

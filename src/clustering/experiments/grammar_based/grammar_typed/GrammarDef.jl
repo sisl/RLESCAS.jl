@@ -207,12 +207,21 @@ globally(v::AbstractVector{Bool}) = all(v)
 implies(v1::AbstractVector{Bool}, v2::AbstractVector{Bool}) = !v1 | v2
 
 sign_(v1::RealVec, v2::RealVec) = (sign(v1) .* sign(v2)) .>= 0.0 #same sign, 0 matches any sign
-count_(v::AbstractVector{Bool}) = Float64[count(identity, v[t:end]) for t = 1:endof(v)]
+
 count_eq(v::AbstractVector{Bool}, b::Real) = count_(v) .== b
 count_lt(v::AbstractVector{Bool}, b::Real) = count_(v) .< b
 count_lte(v::AbstractVector{Bool}, b::Real) = count_(v) .<= b
 count_gt(v::AbstractVector{Bool}, b::Real) = count_(v) .> b
 count_gte(v::AbstractVector{Bool}, b::Real) = count_(v) .>= b
+
+function count_(v::AbstractVector{Bool})
+  A = Array(Float64, length(v))
+  A[end] = Float64(v[end])
+  for i = (length(v) - 1) : -1 : 1 #reverse cumsum
+    A[i] = Float64(v[i]) + A[i + 1]
+  end
+  return A
+end
 
 #shorthands used in grammar to reduce impact on code length
 dfeq = diff_eq

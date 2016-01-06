@@ -147,6 +147,10 @@ const ADD_FEATURE_NAMES = ASCIIString[
   ]
 
 function csvs2dataframes(in_dir::AbstractString, out_dir::AbstractString)
+  if !isdir(out_dir) #create output dir if it doesn't exist
+    mkpath(out_dir)
+  end
+
   csvfiles = readdir_ext("csv", in_dir)
   df_files = csv_to_dataframe(csvfiles, FEATURE_MAP, FEATURE_NAMES, outdir=out_dir)
   add_features!(df_files, ADD_FEATURE_MAP, ADD_FEATURE_NAMES, overwrite=true)
@@ -193,6 +197,10 @@ function name_from_id(filename::AbstractString, ext::AbstractString=".csv.gz")
 end
 
 function mv_files(in_dir::AbstractString, out_dir::AbstractString, get_new_name::Function)
+  if !isdir(out_dir) #create output dir if it doesn't exist
+    mkpath(out_dir)
+  end
+
   files = readdir(in_dir)
   for f in files
     fileroot, ext = splitext(f)
