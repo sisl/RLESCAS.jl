@@ -249,7 +249,7 @@ function feat_type_ids(D::DataFrame; verbose::Bool=false)
   return (bin_ids, real_ids)
 end
 
-function to_function(code::Expr)
+function to_function(code::Union{Symbol, Expr})
   @eval f(D) = $code
   return f
 end

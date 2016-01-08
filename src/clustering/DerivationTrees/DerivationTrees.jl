@@ -36,13 +36,13 @@
 #Warning: not all rules are supported
 module DerivationTrees
 
-export DerivTreeParams, DerivationTree, DerivTreeNode, getvalue, empty!, length, maxlength
-export initialize!, step!, isterminal, actionspace
+export DerivTreeParams, DerivationTree, DerivTreeNode, get_expr, empty!, length, maxlength
+export initialize!, step!, isterminal, actionspace, iscomplete
+export IncompleteException
 
+using RLESUtils.Observers
 using GrammaticalEvolution
 using DataStructures
-
-using Debug
 
 import Base: empty!, length
 
@@ -50,6 +50,7 @@ typealias DecisionRule Union{OrRule, RangeRule} #rules that require a decision
 
 type DerivTreeParams
   grammar::Grammar
+  maxsteps::Int64
 end
 
 type DerivTreeNode
@@ -69,16 +70,22 @@ type DerivationTree
   opennodes::Stack
   nsteps::Int64 #track number of steps taken
   maxdepth::Int64 #track max tree depth
+  observer::Observer
 end
 
-function DerivationTree(p::DerivTreeParams)
+function DerivationTree(p::DerivTreeParams; observer::Observer=Observer())
   root = DerivTreeNode(p.grammar.rules[:start])
-  tree = DerivationTree(p, root, Stack(DerivTreeNode), 0, 0)
+  tree = DerivationTree(p, root, Stack(DerivTreeNode), 0, 0, observer)
   return tree
 end
 
+immutable IncompleteException <: Exception end
+
 function reset!(tree::DerivationTree)
   empty!(tree.opennodes)
+  tree.nsteps = 0
+  tree.maxdepth = 0
+
   p = tree.params
   root = tree.root
   root.cmd = ""
@@ -89,12 +96,14 @@ function reset!(tree::DerivationTree)
 end
 
 function initialize!(tree::DerivationTree)
+  @notify_observer(tree.observer, "verbose1", ["initialize! called"])
   reset!(tree)
   push!(tree.opennodes, tree.root)
   process_non_decisions!(tree)
 end
 
 function step!(tree::DerivationTree, a::Int64)
+  @notify_observer(tree.observer, "verbose1", ["step! called"])
   opennodes = tree.opennodes
   if isempty(opennodes)
     return #we're done
@@ -105,7 +114,11 @@ function step!(tree::DerivationTree, a::Int64)
   process_non_decisions!(tree)
 end
 
-isterminal(tree::DerivationTree) = isempty(tree.opennodes)
+function isterminal(tree::DerivationTree)
+  return iscomplete(tree) || tree.nsteps > tree.params.maxsteps
+end
+
+iscomplete(tree::DerivationTree) = isempty(tree.opennodes)
 
 function process_non_decisions!(tree::DerivationTree)
   opennodes = tree.opennodes
@@ -152,8 +165,11 @@ function process!(tree::DerivationTree, node::DerivTreeNode, rule::ExprRule)
     if isa(arg, Rule)
       child_node = DerivTreeNode(arg, node.depth + 1)
       push!(node.children, child_node)
-      push!(tree.opennodes, child_node)
     end
+  end
+  #load stack in reverse order
+  for i = length(node.children):-1:1
+    push!(tree.opennodes, node.children[i])
   end
 end
 
@@ -176,31 +192,31 @@ function process!(tree::DerivationTree, node::DerivTreeNode, x)
 end
 
 ###########################
-### getvalue
+### get_expr
 
-function getvalue(tree::DerivationTree, defaultval::Symbol=symbol(false)) #entry
-  return isempty(tree.opennodes) ? getvalue(tree.root) : defaultval
+function get_expr(tree::DerivationTree) #entry
+  return iscomplete(tree) ? get_expr(tree.root) : throw(IncompleteException())
 end
 
-getvalue(node::DerivTreeNode) = getvalue(node, node.rule)
-getvalue(node::DerivTreeNode, rule::Terminal) = rule.value
+get_expr(node::DerivTreeNode) = get_expr(node, node.rule)
+get_expr(node::DerivTreeNode, rule::Terminal) = rule.value
 
-function getvalue(node::DerivTreeNode, rule::RangeRule)
+function get_expr(node::DerivTreeNode, rule::RangeRule)
   return ((node.action - 1) % length(rule.range)) + rule.range.start
 end
 
-function getvalue(node::DerivTreeNode, rule::OrRule)
+function get_expr(node::DerivTreeNode, rule::OrRule)
   child_node = node.children[1]
-  return getvalue(child_node, child_node.rule)
+  return get_expr(child_node, child_node.rule)
 end
 
-function getvalue(node::DerivTreeNode, rule::ExprRule)
+function get_expr(node::DerivTreeNode, rule::ExprRule)
   xs = Any[]
   child_i = 1
   for arg in rule.args
     if isa(arg, Rule)
       child_node = node.children[child_i]
-      push!(xs, getvalue(child_node, child_node.rule))
+      push!(xs, get_expr(child_node, child_node.rule))
       child_i += 1
     else
       push!(xs, arg)
@@ -213,7 +229,7 @@ end
 ###
 function actionspace(tree::DerivationTree)
   if isempty(tree.opennodes)
-    return 0:0
+    return 0:-1 #special -1 action for terminal state
   end
   node = top(tree.opennodes)
   return actionspace(node, node.rule)

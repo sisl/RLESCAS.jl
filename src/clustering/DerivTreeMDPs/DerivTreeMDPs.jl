@@ -34,126 +34,206 @@
 
 module DerivTreeMDPs
 
-using DerivationTrees
+using Reexport
+@reexport using DerivationTrees
+using RLESUtils.Observers
 using POMDPs
+using GrammaticalEvolution
+using Iterators
 
-import Base: ==, hash
+export DerivTreeMDPParams, DerivTreeState, DerivTreeAction, DerivTreeMDP, DerivTreeStateSpace, DerivTreeActionSpace
+export DerivTreeTransitionDistr, discount, n_actions, actions, domain, reward, sync!, step!
+export create_state, create_action, create_transition_distribution
+
+import DerivationTrees.step!
+import Base: ==, hash, rand!, copy!, push!
 
 type DerivTreeMDPParams
+  grammar::Grammar
+  reward::Function #r = reward(tree::DerivationTree)
   discount::Float64
 end
+DerivTreeMDPParams(grammar::Grammar, reward_fn::Function) = DerivTreeMDPParams(grammar, reward_fn, 1.0)
 
-type DerivTreeState <: State
+type DerivTreeState <: State #make sure this is deepcopyable
   past_actions::Vector{Int64} #actions taken since initialize!
-  nstep::Int64 #number of times step! has been called
 end
-DerivTreeState() = DerivTreeState(Int64[], 0)
+DerivTreeState() = DerivTreeState(Int64[])
 
 type DerivTreeAction <: Action
-  action::Int64
+  action_id::Int64
 end
 DerivTreeAction() = DerivTreeAction(-1)
 
 type DerivTreeMDP <: POMDP
   params::DerivTreeMDPParams
-  tree::DerivationTree
+  tree::DerivationTree #true state of the sim
+  current_state::DerivTreeState #for syncing purposes
+  all_actions::Vector{DerivTreeAction}
+  observer::Observer
 end
 
-function DerivTreeMDP(p::DerivTreeParams)
-  return DerivTreeMDP()
+function DerivTreeMDP(p::DerivTreeMDPParams, tree::DerivationTree; observer::Observer=Observer())
+  all_actions = generate_all_actions(p.grammar)
+  return DerivTreeMDP(p, tree, DerivTreeState(), all_actions, observer)
 end
 
 type DerivTreeStateSpace <: AbstractSpace
-
+  mdp::DerivTreeMDP
+  action_id::Int64
 end
 
 type DerivTreeActionSpace <: AbstractSpace
-  actions::Vector{Int64}
+  mdp::DerivTreeMDP
+  action_ids::Vector{Int64}
 end
 
 type DerivTreeTransitionDistr <: AbstractDistribution
   mdp::DerivTreeMDP
-  action::Int64
+  current_state::DerivTreeState
+  action::DerivTreeAction
 end
 
-get_actions(action_space::DerivTreeActionSpace) = action_space.actions
-set_actions!(action_space::DerivTreeActionSpace, actions::Vector{Int64}) = action_space.actions = actions
+DerivTreeTransitionDistr(mdp) = DerivTreeTransitionDistr(mdp, DerivTreeState(), DerivTreeAction())
+
+function generate_all_actions(grammar::Grammar)
+  return [DerivTreeAction(i) for i = 1:maxlength(grammar)]
+end
 
 # returns the discount factor
-discount(mdp::DerivTreeMDP) = mdp.params.discount
+POMDPs.discount(mdp::DerivTreeMDP) = mdp.params.discount
 
 # returns the nubmer of actions in the problem
-n_actions(mdp::DerivTreeMDP) = length(actionspace(mdp.tree))
-
-# returns the action space
-actions(mdp::DerivTreeMDP) = DerivTreeActionSpace(collect(1:maxlength(grammar))) #entire actionspace
-
-# fills the action space with the actions availiable from state s
-function actions(mdp::DerivTreeMDP, s::State, as::ActionSpace)
+function POMDPs.n_actions(mdp::DerivTreeMDP, s::DerivTreeState)
+  @notify_observer(mdp.observer, "verbose2", ["n_actions called"])
   #check that mdp is in sync with state
-  @assert mdp.current_state == s
-  set_actions!(as.vals, collect(actionspace(mdp.tree))) #reachable action space
+  sync!(mdp, s)
+  return length(actionspace(mdp.tree))
 end
 
-function domain(action_space::DerivTreeActionSpace)
-  return imap(DerivTreeAction, get_actions(action_space))
+#add to POMDPs.jl
+#fallback when needed
+#function actions(mdp::DerivTreeMDP, s::State, as::AbstractSpace; fallback::Bool=true)
+#  return fallback ? actions(mdp) : error("actions and fallback not defined")
+#end
+
+# returns the action space for the entire problem
+POMDPs.actions(mdp::DerivTreeMDP) = DerivTreeActionSpace(mdp, collect(1:length(mdp.all_actions)))
+
+# fills the action space with the actions availiable from state s
+using Debug
+function POMDPs.actions(mdp::DerivTreeMDP, s::DerivTreeState, as::DerivTreeActionSpace)
+  @notify_observer(mdp.observer, "verbose2", ["actions called"])
+  #check that mdp is in sync with state
+  sync!(mdp, s)
+  as.action_ids = collect(actionspace(mdp.tree)) #reachable actions
+  return as
+end
+
+function POMDPs.domain(action_space::DerivTreeActionSpace)
+  @notify_observer(action_space.mdp.observer, "verbose2", ["domain called"])
+  all_actions = action_space.mdp.all_actions
+  ids = action_space.action_ids
+  return imap(id -> all_actions[id], ids) #iterator avoids allocation
 end
 
 # fills d with neighboring states reachable from the s,a pair
-function transition(mdp::DerivTreeMDP, s::State, a::Action, d::AbstractDistribution)
+function POMDPs.transition(mdp::DerivTreeMDP, s::DerivTreeState, a::DerivTreeAction, d::DerivTreeTransitionDistr)
+  @notify_observer(mdp.observer, "verbose2", ["transition called"])
   #check that mdp is in sync with state
-  @assert mdp.current_state == s
+  sync!(mdp, s)
+  #what's needed for the rand! call
   d.mdp = mdp
-  d.action = a.action
+  copy!(d.current_state, s)
+  d.action = a
+  return d
 end
 
-# fills s with random sample from distribution d
-function rand!(rng::AbstractRNG, s::State, d::AbstractDistribution)
+# fills sp with random sample from distribution d
+function POMDPs.rand!(rng::AbstractRNG, sp::DerivTreeState, d::DerivTreeTransitionDistr)
+  return step!(d.mdp, d.current_state, sp, d.action)
+end
+
+function step!(mdp::DerivTreeMDP, s::DerivTreeState, sp::DerivTreeState, a::DerivTreeAction)
+  @notify_observer(mdp.observer, "verbose1", ["mdp step! called"])
   #check that mdp is in sync with state
-  @assert d.mdp.current_state == s
-  step!(d.mdp.tree, d.action) #deterministic transition
+  sync!(mdp, s)
+  step!(mdp.tree, a.action_id) #deterministic transition
+  copy!(sp, s)
+  push!(sp, a)
+  copy!(mdp.current_state, sp) #update sync obj
+  return sp
 end
 
 # returns the immediate reward of being in state s and performing action a
-function reward(mdp::DerivTreeMDP, s::State, a::Action)
+POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState, a::DerivTreeAction) = reward(mdp, s)
+
+function POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState)
+  @notify_observer(mdp.observer, "verbose2", ["reward called"])
   #check that mdp is in sync with state
-  @assert mdp.current_state == s
-  return p.reward(mdp.tree)
+  sync!(mdp, s)
+  return mdp.params.reward(mdp.tree)
 end
 
 # returns a boolean indicating if state s is terminal
-function isterminal(mdp::DerivTreeMDP, s::State)
+function POMDPs.isterminal(mdp::DerivTreeMDP, s::DerivTreeState)
+  @notify_observer(mdp.observer, "verbose2", ["isterminal called"])
   #check that mdp is in sync with state
-  @assert mdp.current_state == s
-  return isterminal(mdp.tree)
+  sync!(mdp, s)
+  return DerivationTrees.isterminal(mdp.tree)
 end
 
 # initializes a model state
-create_state(mdp::DerivTreeMDP) = DerivTreeState()
+POMDPs.create_state(mdp::DerivTreeMDP) = DerivTreeState()
 
 # initializes a model action
-create_action(mdp::DerivTreeMDP) = DerivTreeAction()
+POMDPs.create_action(mdp::DerivTreeMDP) = DerivTreeAction()
 
 # initializes a distirbution over states
-create_transition_distribution(mdp::DerivTreeMDP) = DerivTreeTransitionDistr()
+POMDPs.create_transition_distribution(mdp::DerivTreeMDP) = DerivTreeTransitionDistr(mdp)
 
 # if you want to use a random policy you need to implement an action space sampling function
 # fills action a with a random action form action_space
-function rand!(rng::AbstractRNG, a::Action, action_space::AbstractSpace)
-  a.action = rand(rng, get_actions(action_space))
+function POMDPs.rand!(rng::AbstractRNG, a::DerivTreeAction, action_space::DerivTreeActionSpace)
+  a.action_id = rand(rng, action_space.action_ids)
+  return a
 end
 
 #equate all fields
 function ==(s1::DerivTreeState, s2::DerivTreeState)
   s1.past_actions == s2.past_actions
-  s1.nstep == s2.nstep
 end
 
 #hash all fields
 function hash(s::DerivTreeState)
-  h = reduce(hash, map(UInt64, s.past_actions))
-  h = hash(h, UInt64(s.nstep))
+  h = hash(DerivTreeState)
+  for a in s.past_actions
+    h = hash(h, UInt64(a))
+  end
   return h
 end
+
+function sync!(mdp::DerivTreeMDP, s::DerivTreeState)
+  @notify_observer(mdp.observer, "verbose2", ["sync! called current=$(mdp.current_state.past_actions), s=$(s.past_actions)"])
+  #if sync'd, we're done
+  mdp.current_state == s && return
+  @notify_observer(mdp.observer, "verbose1", ["sync'ing"])
+  #resync
+  initialize!(mdp.tree)
+  reset!(mdp.current_state)
+  for a in s.past_actions
+    step!(mdp.tree, a)
+  end
+end
+
+reset!(s::DerivTreeState) = empty!(s.past_actions)
+
+function copy!(dst::DerivTreeState, src::DerivTreeState)
+  resize!(dst.past_actions, length(src.past_actions))
+  copy!(dst.past_actions, src.past_actions)
+  return dst
+end
+
+push!(s::DerivTreeState, a::DerivTreeAction) = push!(s.past_actions, a.action_id)
 
 end #module

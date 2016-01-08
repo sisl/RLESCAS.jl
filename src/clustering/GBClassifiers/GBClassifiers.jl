@@ -185,7 +185,18 @@ function genetic_search(p::GeneticSearchParams, Dl::DFSetLabeled)
     end
     iter += 1
   end
+  actual_iters = iter - 1
   @notify_observer(p.observer, "computeinfo", Any[startstamp, string(now()), gethostname(), get_SHA(dirname(@__FILE__))])
+  @notify_observer(p.observer, "parameters", Any[p.genome_size,
+                                                 p.pop_size,
+                                                 p.maxwraps,
+                                                 p.top_percent,
+                                                 p.prob_mutation,
+                                                 p.mutation_rate,
+                                                 string(p.default_code),
+                                                 p.max_iters,
+                                                 actual_iters])
+
   ind = pop[1]
   return CodeClassifier(ind.fitness, ind.code)
 end

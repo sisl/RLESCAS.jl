@@ -70,11 +70,11 @@ const VERBOSITY = 1
 const MAXVALUE = 1000
 const MAXCODELENGTH = 1000000 #disable for now
 
-#const MANUALS = "dasc_manual"
-#const DATASET = dataset("dasc")
-#const DATASET_META = dataset("dasc_meta", "encounter_meta")
-const DATASET = dataset("libcas098_small")
-const DATASET_META = dataset("libcas098_small_meta", "encounter_meta")
+const MANUALS = "dasc_manual"
+const DATASET = dataset("dasc")
+const DATASET_META = dataset("dasc_meta", "encounter_meta")
+#const DATASET = dataset("libcas098_small")
+#const DATASET_META = dataset("libcas098_small_meta", "encounter_meta")
 
 const MAN_JOSH1 = "josh1"
 const MAN_JOSH2 = "josh2"
@@ -88,7 +88,7 @@ const HIST_MIDS = Base.midpoints(HIST_EDGES) |> collect
 function TESTMODE(testing::Bool)
   global POP_SIZE = testing ? 50 : 5000
   global MAXITERATIONS = testing ? 3 : 20
-  global STOP_N = MAXITERATIONS #testing ? 3 : 10 #early stop
+  global STOP_N = testing ? 3 : 20 #early stop
   global MAXDEPTH = testing ? 2 : 4
 end
 
@@ -185,6 +185,7 @@ function get_splitter(members::Vector{Int64}, Dl::DFSetLabeled{Int64},
                end)
   add_observer(observer, "iteration_time", append_push!_f(logs, "iteration_time", decision_id))
   add_observer(observer, "computeinfo", append_push!_f(logs, "computeinfo", decision_id))
+  add_observer(observer, "parameters", append_push!_f(logs, "parameters", decision_id))
 
   Dl_sub = Dl[members]
   classifier = train(gb_params, Dl_sub)
@@ -258,6 +259,10 @@ function define_logger()
               ["iter", "iteration_time_s", "decision_id"])
   add_folder!(logger, "computeinfo", [ASCIIString, ASCIIString, ASCIIString, ASCIIString, Int64],
               ["startdatetime", "enddatetime", "hostname", "git_hash", "decision_id"])
+  add_folder!(logger, "parameters",
+              [Int64, Int64, Int64, Float64, Float64, Float64, ASCIIString, Int64, Int64, Int64],
+              ["genome_size", "pop_size", "maxwraps", "top_percent", "prob_mutation",
+               "mutation_rate", "default_code", "max_iters", "actual_iters", "decision_id"])
   return logger
 end
 
@@ -479,7 +484,9 @@ function script3(; seed::Int64=1,
   return dtree, logs
 end
 
-function script3_vis(fileroot::AbstractString="nmacs_vs_nonnmacs")
+function script3_vis(fileroot::AbstractString="nmacs_vs_nonnmacs";
+                     data::DFSet=DATASET,
+                     data_meta::DataFrame=DATASET_META)
   #load data
   Dl = nmacs_vs_nonnmacs(data, data_meta)
 
