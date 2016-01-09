@@ -37,29 +37,25 @@ include(Pkg.dir("RLESCAS/src/clustering/experiments/grammar_based/grammar_typed/
 
 using GrammarDef
 using Datasets
-using DerivTreeMDPs
-using DerivationTreeVis
 using TikzQTrees
 using DataFrameSets
-using RLESUtils.Observers
-using GrammaticalEvolution
-using FastAnonymous
 
-using MCTS
+using ExprSearch
 
-import DerivationTrees.isterminal
-
-#const MANUALS = "dasc_manual"
-#const DATASET = dataset("dasc")
-#const DATASET_META = dataset("dasc_meta", "encounter_meta")
-const DATASET = dataset("libcas098_small")
-const DATASET_META = dataset("libcas098_small_meta", "encounter_meta")
+const MANUALS = "dasc_manual"
+const DATASET = dataset("dasc")
+const DATASET_META = dataset("dasc_meta", "encounter_meta")
+#const DATASET = dataset("libcas098_small")
+#const DATASET_META = dataset("libcas098_small_meta", "encounter_meta")
 
 const MAXSTEPS = 20
 const DISCOUNT = 1.0
 const MAXCODELENGTH = 1000000 #disable for now
 const MAX_NEG_REWARD = -2000.0
-const STEP_REWARD = -0.01 #use step reward instead of discount to not discount neg rewards
+const STEP_REWARD = 0.0 #use step reward instead of discount to not discount neg rewards
+const N_ITERS = 2000
+const SEARCHDEPTH = 40
+const EXPLORATIONCONST = 30.0
 
 ################
 ###callbacks for vis
@@ -187,15 +183,11 @@ function get_fitness{T}(code::Union{Expr,Symbol}, Dl::DFSetLabeled{T})
   return W_ENT * ent_post + W_LEN * codelen
 end
 
-function tree_reward{T}(tree::DerivationTree, Dl::DFSetLabeled{T})
+function DerivTreeMDPs.get_reward{T}(tree::DerivationTree, Dl::DFSetLabeled{T})
   reward = if iscomplete(tree)
     code = get_expr(tree)
-    r = -get_fitness(code, Dl)
-    #println("complete=", code)
-    #println("reward=", r)
-    r
+    -get_fitness(code, Dl)
   elseif isterminal(tree) #not-compilable
-    #println("terminal reward=", MAX_NEG_REWARD)
     MAX_NEG_REWARD
   else #each step
     #STEP_REWARD
@@ -237,41 +229,25 @@ end
 
 function script3(; seed=1,
                  data::DFSet=DATASET,
-                 data_meta::DataFrame=DATASET_META)
+                 data_meta::DataFrame=DATASET_META,
+                 n_iters::Int64=N_ITERS,
+                 searchdepth::Int64=SEARCHDEPTH,
+                 exploration_const::Float64=EXPLORATIONCONST)
   srand(seed)
 
   Dl = nmacs_vs_nonnmacs(data, data_meta)
 
   grammar = create_grammar()
   tree_params = DerivTreeParams(grammar, MAXSTEPS)
-  tree = DerivationTree(tree_params)
+  mdp_params = DerivTreeMDPParams(grammar)
 
-  tree_reward_f = x -> tree_reward(x, Dl) #@anon doesn't return a function...
-  mdp_params = DerivTreeMDPParams(grammar, tree_reward_f)
+  observer = Observer()
+  add_observer(observer, "verbose1", x->println(x[1]))
+  add_observer(observer, "verbose2", x->println("  ", x[1]))
 
-  mdp_observer = Observer()
-  #add_observer(mdp_observer, "verbose1", x->println(x[1]))
-  #add_observer(mdp_observer, "verbose2", x->println("  ", x[1]))
+  mcts_params = MCTSESParams(tree_params, mdp_params, n_iters, searchdepth, exploration_const, observer)
 
-  mdp = DerivTreeMDP(mdp_params, tree, observer=mdp_observer)
+  result = exprsearch(mcts_params, Dl)
 
-  solver = MCTSSolver(n_iterations=2000, depth=40, exploration_constant=30.0)
-  policy = MCTSPolicy(solver, mdp)
-
-  initialize!(tree)
-  s = create_state(mdp)
-  sp = create_state(mdp)
-
-  i = 1
-  while !isterminal(tree) && i < 30
-    println("step ", i)
-    a = action(policy, s)
-    println("action", a)
-    step!(mdp, s, sp, a)
-    copy!(s, sp)
-    i += 1
-  end
-  println("final reward=", tree_reward(tree, Dl))
-  println("final code=", string(get_expr(tree)))
-  return tree
+  return result
 end
