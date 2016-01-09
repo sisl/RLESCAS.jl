@@ -53,7 +53,7 @@ const DISCOUNT = 1.0
 const MAXCODELENGTH = 1000000 #disable for now
 const MAX_NEG_REWARD = -2000.0
 const STEP_REWARD = 0.0 #use step reward instead of discount to not discount neg rewards
-const N_ITERS = 2000
+const N_ITERS = 200
 const SEARCHDEPTH = 40
 const EXPLORATIONCONST = 30.0
 
@@ -183,17 +183,22 @@ function get_fitness{T}(code::Union{Expr,Symbol}, Dl::DFSetLabeled{T})
   return W_ENT * ent_post + W_LEN * codelen
 end
 
-function DerivTreeMDPs.get_reward{T}(tree::DerivationTree, Dl::DFSetLabeled{T})
-  reward = if iscomplete(tree)
-    code = get_expr(tree)
-    -get_fitness(code, Dl)
-  elseif isterminal(tree) #not-compilable
-    MAX_NEG_REWARD
-  else #each step
-    #STEP_REWARD
-    0.0
+function define_reward{T}(Dl::DFSetLabeled{T})
+  ex = quote
+    function DerivTreeMDPs.get_reward(tree::DerivationTree)
+      reward = if iscomplete(tree)
+        code = get_expr(tree)
+        -get_fitness(code, $Dl)
+      elseif isterminal(tree) #not-compilable
+        MAX_NEG_REWARD
+      else #each step
+        #STEP_REWARD
+        0.0
+      end
+      return reward
+    end
   end
-  return reward
+  eval(ex)
 end
 
 ############
@@ -237,6 +242,8 @@ function script3(; seed=1,
 
   Dl = nmacs_vs_nonnmacs(data, data_meta)
 
+  define_reward(Dl)
+
   grammar = create_grammar()
   tree_params = DerivTreeParams(grammar, MAXSTEPS)
   mdp_params = DerivTreeMDPParams(grammar)
@@ -247,7 +254,7 @@ function script3(; seed=1,
 
   mcts_params = MCTSESParams(tree_params, mdp_params, n_iters, searchdepth, exploration_const, observer)
 
-  result = exprsearch(mcts_params, Dl)
+  result = exprsearch(mcts_params)
 
   return result
 end
