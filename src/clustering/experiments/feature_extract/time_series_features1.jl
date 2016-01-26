@@ -42,7 +42,7 @@ using DataFrames
 const FEATURE_MAP = LookupCallback[
   LookupCallback("ra_detailed.ra_active", x -> Bool(x)),
   LookupCallback("ra_detailed.ownInput.dz", x -> Float64(x)),
-  LookupCallback(["ra_detailed.ownInput.z", "ra_detailed.intruderInput[1].z"], (z1, z2) -> Float64(z2 - z1)),
+  LookupCallback(["ra_detailed.ownInput.z", "ra_detailed.intruderInput[1].z"], (z1, z2) -> Float64(z2 - z1)), #intruderInput.z is quantized!!!
   LookupCallback("ra_detailed.ownInput.psi", x -> Float64(x)),
   LookupCallback("ra_detailed.intruderInput[1].sr", x -> Float64(x)),
   LookupCallback("ra_detailed.intruderInput[1].chi", x -> Float64(x)),
@@ -76,7 +76,7 @@ const FEATURE_MAP = LookupCallback[
   LookupCallback("response.h_d", x -> Float64(x)),
   LookupCallback("response.psi_d", x -> Float64(x)),
   LookupCallback("adm.v", x -> Float64(x)),
-  LookupCallback("adm.h", x -> Float64(x))
+  LookupCallback("adm.h", x -> Float64(x)) #same as z
   ]
 
 const FEATURE_NAMES = ASCIIString[
@@ -138,12 +138,14 @@ end
 
 const ADD_FEATURE_MAP = LookupCallback[
   LookupCallback(["psi_1", "intr_chi_1", "psi_2", "intr_chi_2"], is_converging),
-  LookupCallback(["alt_diff_1"], abs)
+  LookupCallback(["h_1", "h_2"], (h1, h2) -> abs(h2 - h1)),
+  LookupCallback(["intr_sr_1", "abs_alt_diff"], (sr, altdiff) -> sqrt(sr^2 - altdiff^2))
   ]
 
 const ADD_FEATURE_NAMES = ASCIIString[
   "converging",
-  "abs_alt_diff"
+  "abs_alt_diff",
+  "horizontal_range"
   ]
 
 function csvs2dataframes(in_dir::AbstractString, out_dir::AbstractString)
