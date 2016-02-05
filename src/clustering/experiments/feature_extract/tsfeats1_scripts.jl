@@ -40,10 +40,10 @@ const DASC_CSV = Pkg.dir("RLESCAS/src/clustering/data/dasc/csv")
 const DASC_OUT = Pkg.dir("Datasets/data/dasc")
 const DASC_META = Pkg.dir("Datasets/data/dasc_meta")
 
-const LIBCAS098_SMALL_JSON = Pkg.dir("RLESCAS/src/clustering/data/libcas098_small/json")
-const LIBCAS098_SMALL_CSV = Pkg.dir("RLESCAS/src/clustering/data/libcas098_small/csv")
-const LIBCAS098_SMALL_OUT = Pkg.dir("Datasets/data/libcas098_small")
-const LIBCAS098_SMALL_META = Pkg.dir("Datasets/data/libcas098_small_meta")
+const LIBCAS098SMALL_JSON = Pkg.dir("RLESCAS/src/clustering/data/libcas098small/json")
+const LIBCAS098SMALL_CSV = Pkg.dir("RLESCAS/src/clustering/data/libcas098small/csv")
+const LIBCAS098SMALL_OUT = Pkg.dir("Datasets/data/libcas098small")
+const LIBCAS098SMALL_META = Pkg.dir("Datasets/data/libcas098small_meta")
 
 function script_dasc(fromjson::Bool=true)
   if fromjson
@@ -61,17 +61,17 @@ function script_dasc(fromjson::Bool=true)
 end
 
 #from APL 20151230, libcas0.9.8, MCTS iterations=500, testbatch
-function script_libcas098_small(fromjson::Bool=true)
+function script_libcas098small(fromjson::Bool=true)
   if fromjson
-    convert2csvs(LIBCAS098_SMALL_JSON, LIBCAS098_SMALL_CSV)
+    convert2csvs(LIBCAS098SMALL_JSON, LIBCAS098SMALL_CSV)
   end
 
   tmpdir = mktempdir()
-  csvs2dataframes(LIBCAS098_SMALL_CSV, tmpdir)
+  csvs2dataframes(LIBCAS098SMALL_CSV, tmpdir)
   correct_coc_stays!(tmpdir)
 
-  mv_files(tmpdir, LIBCAS098_SMALL_OUT, name_from_id)
-  add_encounter_info!(LIBCAS098_SMALL_OUT)
+  mv_files(tmpdir, LIBCAS098SMALL_OUT, name_from_id)
+  add_encounter_info!(LIBCAS098SMALL_OUT)
 
-  encounter_meta(LIBCAS098_SMALL_JSON, LIBCAS098_SMALL_META)
+  encounter_meta(LIBCAS098SMALL_JSON, LIBCAS098_SMALL_META)
 end
