@@ -36,21 +36,20 @@ using AdaptiveStressTesting
 using SISLES.GenerativeModel
 
 using CPUTime
-using Dates
 using RLESUtils: Obj2Dict, RunCases
 
 type MCTSStudy
-  fileroot::String
+  fileroot::ASCIIString
 end
 
 function MCTSStudy(;
-                   fileroot::String = "trajSaveMCTS")
+                   fileroot::AbstractString = "trajSaveMCTS")
   MCTSStudy(fileroot)
 end
 
 function trajSave(study_params::MCTSStudy,
                   cases::Cases=Cases(Case());
-                  outdir::String="./", postproc::Function=identity)
+                  outdir::AbstractString="./", postproc::Function=identity)
 
   pmap(case -> begin
          starttime_us = CPUtime_us()

@@ -44,7 +44,7 @@ function defineMCTSParams(;
                           alphap::Float64 = 0.0,
                           clear_nodes::Bool = true,
                           maxtime_s::Float64 = realmax(Float64),
-                          rng_seed::Uint64 = uint64(0)
+                          rng_seed::UInt64 = UInt64(0)
                           )
 
   return p = DPWParams(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed)

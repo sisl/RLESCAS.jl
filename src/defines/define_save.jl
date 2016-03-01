@@ -35,14 +35,14 @@
 using JSON
 using GZip
 
-typealias SaveDict Dict{String, Any}
+typealias SaveDict Dict{AbstractString, Any}
 
-function trajSave(fileroot::String, d::SaveDict; compress::Bool=true)
+function trajSave(fileroot::AbstractString, d::SaveDict; compress::Bool=true)
   if compress
-    outfile = string(fileroot, ".json.gz")
+    outfile = "$(fileroot).json.gz"
     f = GZip.open(outfile, "w")
   else
-    outfile = string(fileroot, ".json")
+    outfile = "$(fileroot).json"
     f = open(outfile, "w")
   end
   JSON.print(f, d)
@@ -50,7 +50,7 @@ function trajSave(fileroot::String, d::SaveDict; compress::Bool=true)
   return outfile
 end
 
-function trajLoad(infile::String)
+function trajLoad(infile::AbstractString)
   if isCompressedSave(infile)
     #compressed
     f = GZip.open(infile, "r")
@@ -65,22 +65,22 @@ function trajLoad(infile::String)
   return d
 end
 
-function readdirExt(ext::String, dir::String = ".")
+function readdirExt(ext::AbstractString, dir::AbstractString = ".")
   #ext should start with a '.' to be a valid extension
   @assert ext[1] == '.'
   files = readdir(dir)
   filter!(f -> splitext(f)[2] == ext, files)
-  return String[joinpath(dir, f) for f in files]
+  return ASCIIString[joinpath(dir, f) for f in files]
 end
 
-readdirJSONs(dir::String=".") = readdirExt(".json", dir)
-readdirGZs(dir::String=".") = readdirExt(".gz", dir)
-readdirSaves(dir::String=".") = vcat(readdirJSONs(dir), readdirGZs(dir))
-isRawSave(f::String) = splitext(f)[2] == ".json"
-isCompressedSave(f::String) = splitext(f)[2] == ".gz"
-isSave(f::String) = isRawSave(f) || isCompressedSave(f)
+readdirJSONs(dir::AbstractString=".") = readdirExt(".json", dir)
+readdirGZs(dir::AbstractString=".") = readdirExt(".gz", dir)
+readdirSaves(dir::AbstractString=".") = vcat(readdirJSONs(dir), readdirGZs(dir))
+isRawSave(f::AbstractString) = splitext(f)[2] == ".json"
+isCompressedSave(f::AbstractString) = splitext(f)[2] == ".gz"
+isSave(f::AbstractString) = isRawSave(f) || isCompressedSave(f)
 
-function getSaveFileRoot(f::String)
+function getSaveFileRoot(f::AbstractString)
   if isCompressedSave(f)
     j = splitext(f)[1] #contains .json, need to split again
     fileroot = splitext(j)[1]

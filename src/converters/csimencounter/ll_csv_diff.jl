@@ -43,7 +43,7 @@ using Base.Test
 
 function make_fieldmap(num_aircraft::Int)
 
-  M = OrderedDict{String, (Int64, String)}()
+  M = OrderedDict{ASCIIString, Tuple{Int64, ASCIIString}}()
 
   for i = 1:num_aircraft
 
@@ -116,7 +116,7 @@ end
 #assumes that both ids start counts at 0
 getll_id(listowner_id::Int, item::Int) = item >= listowner_id ? item + 1 : item
 
-function pgfplotField{T <: Real}(llvec::Vector{T}, slvec::Vector{T}, var_name::String = "")
+function pgfplotField{T <: Real}(llvec::Vector{T}, slvec::Vector{T}, var_name::AbstractString = "")
 
   g = GroupPlot(2, 1, groupStyle = "horizontal sep = 2.2cm, vertical sep = 2.2cm")
 
@@ -149,7 +149,7 @@ function pgfplotField{T <: Real}(llvec::Vector{T}, slvec::Vector{T}, var_name::S
   return tp
 end
 
-function getvec(data::Array{Any, 2}, field::String)
+function getvec(data::Array{Any, 2}, field::AbstractString)
 
   v = []
   headers = data[1, :] # 1st row is headers
@@ -178,7 +178,7 @@ function demote_vectype(v::Vector)
 end
 
 import Base.convert
-function convert{T <: String}(::Type{Vector{Float64}}, v::Vector{T})
+function convert{T<:AbstractString}(::Type{Vector{Float64}}, v::Vector{T})
 
   vv = map(lowercase, v)
   vv = map(parse, vv)
@@ -187,12 +187,12 @@ function convert{T <: String}(::Type{Vector{Float64}}, v::Vector{T})
   return vv
 end
 
-function namegen(fileroot::String, indices::Vector{Int64}, extension::String)
+function namegen(fileroot::AbstractString, indices::Vector{Int64}, extension::AbstractString)
   map(i -> string(fileroot, i, extension), indices)
 end
 
-function reorder2ll{T <: String}(sislesfiles::Vector{T}, llfile::String;
-                                  outfile::String = "reorderedcsv.csv")
+function reorder2ll{T<:AbstractString}(sislesfiles::Vector{T}, llfile::AbstractString;
+                                  outfile::AbstractString = "reorderedcsv.csv")
 
   num_aircraft = length(sislesfiles)
   fieldmap = make_fieldmap(num_aircraft)
@@ -235,7 +235,7 @@ function reorder2ll{T <: String}(sislesfiles::Vector{T}, llfile::String;
   return outcsv
 end
 
-function reorderedcsvdiff(slcsv::String, llcsv::String; thresh::Float64=1.0, use_ll_names::Bool=false)
+function reorderedcsvdiff(slcsv::AbstractString, llcsv::AbstractString; thresh::Float64=1.0, use_ll_names::Bool=false)
 
   fileroot, fileext = splitext(slcsv)
   outfile = string(fileroot, "_emph", fileext)
@@ -265,9 +265,9 @@ function reorderedcsvdiff(slcsv::String, llcsv::String; thresh::Float64=1.0, use
   return sldat
 end
 
-function ll_csv_diff{T <: String}(sislesfiles::Vector{T}, llfile::String;
+function ll_csv_diff{T<:AbstractString}(sislesfiles::Vector{T}, llfile::AbstractString;
                                   slskipfirst::Bool = false,
-                                  outfile::String = "csvdiff.pdf")
+                                  outfile::AbstractString = "csvdiff.pdf")
 
   num_aircraft = length(sislesfiles)
   fieldmap = make_fieldmap(num_aircraft)
@@ -275,7 +275,7 @@ function ll_csv_diff{T <: String}(sislesfiles::Vector{T}, llfile::String;
   lldat = readdlm(llfile)
   sldats = map(readcsv, sislesfiles)
 
-  firstdiff = (String,Int64)[]
+  firstdiff = Tuple{ASCIIString,Int64}[]
 
   # skip units row
   map!(d -> d[[1,3:end], :], sldats)

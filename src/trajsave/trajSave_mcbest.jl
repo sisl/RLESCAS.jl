@@ -36,18 +36,17 @@ using AdaptiveStressTesting
 using SISLES.GenerativeModel
 
 using CPUTime
-using Dates
 using RLESUtils: Obj2Dict, RunCases
 
 type MCBestStudy
-  fileroot::String
+  fileroot::ASCIIString
   trial::Int64
   nsamples::Int64
   maxtime_s::Float64
 end
 
 function MCBestStudy(;
-                     fileroot::String = "trajSaveMCBEST",
+                     fileroot::AbstractString = "trajSaveMCBEST",
                      trial::Int64 = 0,
                      nsamples::Int64 = 50,
                      maxtime_s::Float64 = realmax(Float64))
@@ -63,7 +62,7 @@ MCBestStudyResults() = MCBestStudyResults(0, Float64[])
 
 function trajSave(study_params::MCBestStudy,
                   cases::Cases = Cases(Case());
-                  outdir::String = "./", postproc::Function=identity)
+                  outdir::AbstractString = "./", postproc::Function=identity)
 
   pmap(case -> begin
          starttime_us = CPUtime_us()

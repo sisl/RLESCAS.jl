@@ -32,13 +32,13 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-function renamefiles{T<:String}(filenames::Vector{T}, searchreplaces::(String, String)...)
+function renamefiles{T<:AbstractString}(filenames::Vector{T}, searchreplaces::Tuple{AbstractString, AbstractString}...)
   # The batch version of renamefile
 
   map(f -> renamefile(f, searchreplaces...), filenames)
 end
 
-function renamefile(srcname::String, searchreplaces::(String, String)...)
+function renamefile(srcname::AbstractString, searchreplaces::Tuple{AbstractString, AbstractString}...)
   # Takes the input filename, performs all the string search and replaces (in order passed in)
   # then renames the file to the new name
 

@@ -36,13 +36,11 @@ include("../defines/define_save.jl")
 include("../helpers/save_helpers.jl")
 
 function calc_catranges(catlengths::Vector{Int64})
-
-  cl = [1, cumsum(catlengths) + 1]
-
-  return Range[cl[i] : (cl[i+1] - 1) for i = 1 : length(catlengths)]
+  cl = [1; cumsum(catlengths) + 1]
+  return Range[cl[i]:(cl[i+1] - 1) for i = 1:length(catlengths)]
 end
 
-function json_to_csv{T<:String}(savefile::String,
+function json_to_csv{T<:AbstractString}(savefile::AbstractString,
                                 categories::Vector{T} = ["command", "sensor", "ra", "ra_detailed", "response",
                                                        "adm", "wm"])
 
@@ -53,8 +51,8 @@ function json_to_csv{T<:String}(savefile::String,
   t_end = maximum([length(sorted_times(d, c, 1)) for c in categories])
   num_aircraft = sv_num_aircraft(d)
 
-  header = convert(Array{String}, vcat([map(s->"$c.$s", sv_simlog_names(d, c)) for c = categories]...))
-  units = convert(Array{String}, vcat([map(u->"$u", sv_simlog_units(d, c)) for c = categories]...))
+  header = convert(Array{ASCIIString}, vcat([map(s->"$c.$s", sv_simlog_names(d, c)) for c = categories]...))
+  units = convert(Array{ASCIIString}, vcat([map(u->"$u", sv_simlog_units(d, c)) for c = categories]...))
   data = Array(Any, t_end, length(header), num_aircraft)
   fill!(data, "n/a")
 

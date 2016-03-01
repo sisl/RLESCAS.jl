@@ -36,7 +36,7 @@ using RLESUtils.Obj2Dict
 using SISLES.GenerativeModel
 
 #runtype captions
-function vis_runtype_caps(d::SaveDict, run_type::String)
+function vis_runtype_caps(d::SaveDict, run_type::AbstractString)
   if run_type == "ONCE"
     cap = "Encounter. "
   elseif run_type == "MCBEST"

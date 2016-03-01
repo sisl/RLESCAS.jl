@@ -37,7 +37,7 @@ using RLESUtils: Obj2Dict, RNGWrapper
 
 include("../defines/define_save.jl")
 
-function fill_to_max_time(filename::String)
+function fill_to_max_time(filename::AbstractString)
   d = trajLoad(filename)
 
   # disable ending on nmac
@@ -58,13 +58,13 @@ function fill_to_max_time(filename::String)
   action_seq = vcat(action_seq, actions_to_append)
 
   d["sim_log"]["action_seq"] = Obj2Dict.to_dict(action_seq)
-  outfilename = trajSave(string(getSaveFileRoot(filename), "_filled"), d, compress = isCompressedSave(filename))
+  outfilename = trajSave(string(getSaveFileRoot(filename), "_filled"), d, compress=isCompressedSave(filename))
   println("File: ", filename, "; Steps appended: ", steps_to_append)
 
   return outfilename
 end
 
-function fill_replay(filename::String; overwrite::Bool=false)
+function fill_replay(filename::AbstractString; overwrite::Bool=false)
   fillfile = fill_to_max_time(filename)
   if overwrite
     outfile = trajReplay(fillfile, fileroot=getSaveFileRoot(filename))
@@ -75,4 +75,4 @@ function fill_replay(filename::String; overwrite::Bool=false)
   return outfile
 end
 
-fill_replay{T <: String}(filenames::Vector{T}) = map(fill_replay, filenames)
+fill_replay{T<:AbstractString}(filenames::Vector{T}) = map(fill_replay, filenames)

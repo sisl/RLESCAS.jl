@@ -34,9 +34,9 @@
 
 include("define_save.jl") #trajLoad
 
-function groupattributes(files::Vector{String}, getlabel::Function, getx::Function, gety::Function)
+function groupattributes{T<:AbstractString}(files::Vector{T}, getlabel::Function, getx::Function, gety::Function)
 
-  outdict = Dict{String, Vector{(Float64, Vector{Float64})}}()
+  outdict = Dict{ASCIIString, Vector{(Float64, Vector{Float64})}}()
 
   M = Array(Any, length(files), 3) #number of files by L,x,y
 
@@ -53,7 +53,7 @@ function groupattributes(files::Vector{String}, getlabel::Function, getx::Functi
     xyvecs = map(groupbycol(Mx, 2)) do tup #vector of (x, yvec)
       x, xinds = tup
 
-      return (float64(x), float64(Mx[xinds, 3])) #convert to float for plotting
+      return (Float64(x), Float64(Mx[xinds, 3])) #convert to float for plotting
     end
 
     sort!(xyvecs, by = v -> v[1]) #sort the x's of easier plotting
