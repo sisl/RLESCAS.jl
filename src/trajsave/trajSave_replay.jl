@@ -34,7 +34,7 @@
 
 using AdaptiveStressTesting
 using SISLES.GenerativeModel
-using RLESUtils: Obj2Dict, RunCases
+using RLESUtils, Obj2Dict, RunCases
 
 using CPUTime
 

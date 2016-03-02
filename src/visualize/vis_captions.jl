@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using RLESUtils.Obj2Dict
+using RLESUtils, Obj2Dict
 using SISLES.GenerativeModel
 
 #runtype captions

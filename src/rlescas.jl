@@ -32,7 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#Pick a scenario:
+module RLESCAS
+
 include("config/config_ACASX_GM.jl") #defineSim
 
 #Config AdaptiveStressTest
@@ -64,3 +65,5 @@ include("converters/json_to_waypoints.jl")
 include("helpers/fill_to_max_time.jl")
 
 include("tools/nmac_stats.jl")
+
+end #module

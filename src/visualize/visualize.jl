@@ -41,7 +41,7 @@ include("vis_captions.jl")
 using TikzPictures
 import PGFPlots: Plots, Axis, GroupPlot
 
-using RLESUtils.Obj2Dict
+using RLESUtils, Obj2Dict
 
 if !isdefined(:RA_STYLE_MAP)
   const RA_STYLE_MAP = [

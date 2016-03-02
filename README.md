@@ -10,6 +10,7 @@ The software requires Julia v0.3 and above.  It is currently untested on v0.4.  
 * In Julia, run Pkg.clone("https://github.com/sisl/rlescas.jl.git", "RLESCAS")
 * In Julia, run Pkg.clone("https://github.com/sisl/adaptivestresstesting.jl.git", "AdaptiveStressTesting")
 * In Julia, run Pkg.clone("https://github.com/sisl/rles-sisles.jl.git", "SISLES")
+* In Julia, run Pkg.clone("https://github.com/sisl/casinterface.jl.git", "CASInterface")
 * In Julia, run Pkg.clone("https://github.com/sisl/ccas.jl.git", "CCAS").  Follow the instructions on the CCAS wiki to configure.
 * In Julia, run Pkg.clone("https://github.com/sisl/rlesutils.jl.git", "RLESUtils")
 * In Julia, run Pkg.checkout("PGFPlots", "master").  PGFPlots requires some additional configuration.  Follow the installation instructions on the package documentation https://github.com/sisl/PGFPlots.jl.  Note: if you use the config file method to execute, and do not require pdf and tex outputs, then you can skip installation of the visualization tools.
@@ -76,7 +77,7 @@ The JSON output file contains all the information from the run.  All other file 
 
 The recommended method to interact with the JSON file is to use the advanced mode in RLESCAS.
 
-Start Julia in $PKGDIR/RLESCAS/src and run: 
+Start Julia in $PKGDIR/RLESCAS/src and run:
 
 ```
 #!julia
@@ -131,7 +132,7 @@ sim_log contains all the simulation logs (those defined in define_log.jl)
 * "run_info" gives information about the sim outcome
 * "CAS_info" logs the output string of libcas
 * "initial" gives the initial state of the aircraft
-* "action_seq" logs the action seeds of the final trajectory in Obj2Dict format. i.e., 
+* "action_seq" logs the action seeds of the final trajectory in Obj2Dict format. i.e.,
 
 ```
 #!julia

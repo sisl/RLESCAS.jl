@@ -36,7 +36,7 @@ using AdaptiveStressTesting
 using SISLES.GenerativeModel
 
 using CPUTime
-using RLESUtils: Obj2Dict, RunCases
+using RLESUtils, Obj2Dict, RunCases
 
 type MCTSStudy
   fileroot::ASCIIString

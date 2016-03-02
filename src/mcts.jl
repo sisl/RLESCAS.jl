@@ -7,7 +7,7 @@
 # platform is licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License. You
 # may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0. Unless required by applicable
+# http://www.apache.org/licenses/LICENSE-2.0. Unless @everywhered by applicable
 # law or agreed to in writing, software distributed under the License is
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied. See the License for the specific language
@@ -33,7 +33,7 @@
 # *****************************************************************************
 
 using ConfParser
-using RLESUtils: RunCases
+using RLESUtils, RunCases
 
 function parseargs(args::Vector{UTF8String})
   #arg1 = config file
@@ -101,7 +101,7 @@ function mcts_main()
     v = convert(Array{ASCIIString}, v)
     if k == "number_of_aircraft"
       check(length(v) == 1, "config: number_of_aircraft: invalid number of parameters ($(length(v)))")
-      config["sim_params.num_aircraft"] = [int(v[1])]
+      config["sim_params.num_aircraft"] = [parse(Int,v[1])]
     elseif k == "encounter_equipage"
       check(length(v) == 1)
       config["sim_params.encounter_equipage"] = [symbol(v[1])]
@@ -131,7 +131,7 @@ function mcts_main()
       config["sim_params.transition_sample_file"] = [transition]
     elseif k == "mcts_iterations"
       check(length(v) == 1, "config: mcts_iterations: invalid number of parameters ($(length(v)))")
-      mcts_iterations = int(v[1])
+      mcts_iterations = parse(Int,v[1])
       config["mcts_params.n"] = [mcts_iterations]
     elseif k == "libcas"
       check(length(v) == 1, "config: libcas: invalid number of parameters ($(length(v)))")
@@ -168,7 +168,7 @@ function mcts_main()
   cases = generate_cases(collect(config)...)
   config_seeds!(cases) #seed each encounter with a different init_seed
 
-  function postproc(filename::String)
+  function postproc(filename::AbstractString)
     #fill and add supplementary to all files
     fill_replay(filename, overwrite=true)
     add_supplementary(filename)
@@ -220,9 +220,9 @@ function parse_ranges(ranges::Vector{ASCIIString})
   for subexpr in ranges
     s = split(subexpr, ['-', ':'])
     if length(s) == 1
-      push!(out, int(s[1]))
+      push!(out, parse(Int,s[1]))
     elseif length(s) == 2
-      r = int(s[1]):int(s[2])
+      r = parse(Int,s[1]):parse(Int,s[2])
       out = vcat(out, r)
     else
       error("parse_ranges: invalid range expression")
@@ -241,8 +241,8 @@ end
 
 #vary the encounter seed and init seed with the encounter number
 function config_seeds!(cases::Cases)
-  add_field!(cases, "ast_params.init_seed", x -> int64(x), ["sim_params.encounter_number"])
-  add_field!(cases, "sim_params.encounter_seed", x -> uint64(x), ["sim_params.encounter_number"])
+  add_field!(cases, "ast_params.init_seed", x -> Int64(x), ["sim_params.encounter_number"])
+  add_field!(cases, "sim_params.encounter_seed", x -> UInt64(x), ["sim_params.encounter_number"])
   return cases
 end
 

@@ -33,7 +33,7 @@
 # *****************************************************************************
 
 using AdaptiveStressTesting: ASTAction
-using RLESUtils: Obj2Dict, RNGWrapper
+using RLESUtils, Obj2Dict, RNGWrapper
 
 include("../defines/define_save.jl")
 
