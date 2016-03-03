@@ -21,19 +21,17 @@ The software requires Julia v0.3 and above.  It is currently untested on v0.4.  
 
 ###Method 1: Command-Line###
 
-At a command prompt, navigate to $PKGDIR/RLESCAS/test and run julia ../src/mcts.jl config_2ac.ini.  The output will be under ./results.
+At a command prompt, navigate to ``PKGDIR/RLESCAS/test`` and run ``julia ../src/mcts.jl config_2ac.ini``.  The output will be placed under ``./results``.
 
 This command can be run from anywhere as long as the relative paths to the files are correct.  First argument is the mcts.jl file that is the main entry for command-line access.  Second argument is the configuration file.  See below for more details on the config file.  Output directory is specified in config.
 
-RLESCAS is able to parallelize computations.  (This is the recommended way to run RLESCAS.) To use multiple processors, use the -p Julia option.  e.g., To specify 4 cores, run julia -p 4 ../src/mcts.jl config_2ac.ini
+RLESCAS is able to parallelize computations.  (This is the recommended way to run RLESCAS.) To use multiple processors, use the -p Julia option.  e.g., To specify 4 cores, run ``julia -p 4 ../src/mcts.jl config_2ac.ini``
 
-Sometimes it is useful to be able to execute from within Julia (e.g., better error messages when debugging).  You can emulate the above command line call by navigating to $PKGDIR/RLESCAS/test and from within Julia run include("runtests.jl").  Edit runtests.jl with the desired config file.
+Sometimes it is useful to be able to execute from within Julia (e.g., better error messages when debugging).  You can emulate the above command line call by navigating to ``$PKGDIR/RLESCAS/test`` and from within Julia run ``include("runtests.jl")``.  Edit ``runtests.jl`` with the desired config file.
 
 ###Method 2: Advanced###
 
-The full RLESCAS environment is available for advanced users/developers.  Navigate to $PKGDIR/RLESCAS/src, start Julia, and run include("RLESCAS.jl").
-
-The full environment includes visualization tools, so you will need to have PGFPlots properly configured.
+The full RLESCAS environment is available for advanced users/developers.  ``using RLESCAS`` Many of the functions are available but may not be exported.
 
 ## Config File ##
 
@@ -49,11 +47,15 @@ encounters = 1-2,5-6  ; Encounters numbers to run.  Uses dashes to denote ranges
 mcts_iterations = 10  ; Number of inner-loop iterations for MCTS.  Default 4000.  For testing, use 10.
 libcas = ../../CCAS/libcas0.8.6/lib/libcas.dll  ; libcas library
 libcas_config = ../../CCAS/libcas0.8.6/parameters/0.8.5.standard.r13.xa.config.txt  ; libcas config file
-output_filters = nmacs_only  ; If nmacs_only is specified, formats listed in "outputs" field are outputted only for nmac encounters.  Leave blank to output all formats for all encounters.
+output_filters = nmacs_only  ; If nmacs_only is specified, formats listed in "outputs" field are outputted only for nmac encounters.  Leave blank to output for all encounters.
 outputs = tex, pdf, scripted, waypoints, label270_text, csv, summary  ; Output formats.  See description below
 output_dir = ./results  ; output directory
+encounter_model = LLCEMDBN ; LLCEM encounter model with the DBN for transitions
+encounter_equipage = EvE ; Equipage of the aircraft
+response_model = ICAO; pilot response model, ICAO = deterministic 5s-3s model
+cas_model = CCAS; collision avoidance model, CCAS = libccas interface to libcas
+dynamics_model = LLADM ; Lincoln Lab aircraft dynamics model
 ```
-
 
 ### Output Formats ###
 
