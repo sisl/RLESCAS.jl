@@ -59,7 +59,7 @@ function addObservers!(simLog::SimLog, ast::AdaptiveStressTest)
   return simLog #not required, but returned for convenience
 end
 
-function check_key!{T<:AbstractString}(d::SimLogDict,k::AbstractString; subkey::Union{T,Void}=nothing)
+function check_key!(d::SimLogDict,k::AbstractString; subkey::Union{AbstractString,Void}=nothing)
   #add it if it doesn't exist
   if !haskey(d, k)
     d[k] = SimLogDict()

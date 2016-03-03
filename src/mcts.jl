@@ -32,6 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+using RLESCAS
 using ConfParser
 using RLESUtils, RunCases
 
@@ -47,30 +48,6 @@ end
 #override
 function retrieve_block(s::ConfParse, block::ASCIIString)
   haskey(s._data, block) ? s._data[block] : []
-end
-
-function init()
-  require(Pkg.dir("RLESCAS/src/config/config_ACASX_GM.jl")) #defineSim
-
-  #Config AdaptiveStressTest
-  require(Pkg.dir("RLESCAS/src/config/config_ast.jl")) #defineAST
-
-  #Config MCTS solver
-  require(Pkg.dir("RLESCAS/src/config/config_mcts.jl")) #defineMCTS
-
-  require(Pkg.dir("RLESCAS/src/defines/define_log.jl")) #SimLog
-  require(Pkg.dir("RLESCAS/src/defines/define_save.jl")) #trajSave, trajLoad and helpers
-  require(Pkg.dir("RLESCAS/src/defines/save_types.jl")) #ComputeInfo
-  require(Pkg.dir("RLESCAS/src/helpers/save_helpers.jl"))
-
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_common.jl"))
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_once.jl"))
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcbest.jl"))
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_mcts.jl"))
-  require(Pkg.dir("RLESCAS/src/trajsave/trajSave_replay.jl"))
-
-  require(Pkg.dir("RLESCAS/src/helpers/add_supplementary.jl")) #add label270
-  require(Pkg.dir("RLESCAS/src/helpers/fill_to_max_time.jl"))
 end
 
 function check(condition::Bool, errormsg::ASCIIString="check failed")
@@ -91,8 +68,6 @@ function mcts_main()
   outputs = ASCIIString[]
   output_dir = "./"
   quiet = false
-
-  init()
 
   #Process default block
   for (k, v) in retrieve_block(conf, "default")
@@ -123,11 +98,11 @@ function mcts_main()
       config["sim_params.encounter_number"] = encounters
     elseif k == "initial"
       check(length(v) == 1, "config: initial: invalid number of parameters ($(length(v)))")
-      initial = v[1]
+      initial = abspath(v[1])
       config["sim_params.initial_sample_file"] = [initial]
     elseif k == "transition"
       check(length(v) == 1, "config: transition: invalid number of parameters ($(length(v)))")
-      transition = v[1]
+      transition = abspath(v[1])
       config["sim_params.transition_sample_file"] = [transition]
     elseif k == "mcts_iterations"
       check(length(v) == 1, "config: mcts_iterations: invalid number of parameters ($(length(v)))")
@@ -135,15 +110,15 @@ function mcts_main()
       config["mcts_params.n"] = [mcts_iterations]
     elseif k == "libcas"
       check(length(v) == 1, "config: libcas: invalid number of parameters ($(length(v)))")
-      libcas = v[1]
+      libcas = abspath(v[1])
       config["sim_params.libcas"] = [libcas]
     elseif k == "libcas_config"
       check(length(v) == 1, "config: libcas_config: invalid number of parameters ($(length(v)))")
-      libcas_config = string(v[1])
+      libcas_config = abspath(v[1])
       config["sim_params.libcas_config"] = [libcas_config]
     elseif k == "output_dir"
       check(length(v) == 1, "config: output_dir: invalid number of parameters ($(length(v)))")
-      output_dir = v[1]
+      output_dir = abspath(v[1])
     elseif k == "output_filters"
       filters = map(x -> convert(ASCIIString, x), v)
       output_filters = vcat(output_filters, filters)
@@ -168,49 +143,8 @@ function mcts_main()
   cases = generate_cases(collect(config)...)
   config_seeds!(cases) #seed each encounter with a different init_seed
 
-  function postproc(filename::AbstractString)
-    #fill and add supplementary to all files
-    fill_replay(filename, overwrite=true)
-    add_supplementary(filename)
-    #filters
-    for f in output_filters
-      if f == "nmacs_only" && !nmacs_only(filename)
-        return #if it fails any of the filters, we're done
-      end
-    end
-
-    sort!(outputs)
-    #sorting prevents pdf from appearing after tex.  This works around tex being deleted as
-    #an intermediate file during the pdf process
-
-    for o in outputs
-      if o == "pdf"
-        include(Pkg.dir("RLESCAS/src/visualize/visualize.jl"))
-        trajPlot(filename, format="PDF")
-      elseif o == "tex"
-        include(Pkg.dir("RLESCAS/src/visualize/visualize.jl"))
-        trajPlot(filename, format="TEX")
-      elseif o == "scripted"
-        include(Pkg.dir("RLESCAS/src/converters/json_to_scripted.jl"))
-        json_to_scripted(filename)
-      elseif o == "waypoints"
-        include(Pkg.dir("RLESCAS/src/converters/json_to_waypoints.jl"))
-        json_to_waypoints(filename)
-      elseif o == "csv"
-        include(Pkg.dir("RLESCAS/src/converters/json_to_csv.jl"))
-        json_to_csv(filename)
-      elseif o == "label270_text"
-        include(Pkg.dir("RLESCAS/src/tools/label270_to_text.jl"))
-        label270_to_text(filename)
-      elseif o == "summary"
-        include(Pkg.dir("RLESCAS/src/tools/summarize.jl"))
-        summarize(filename)
-      else
-        warn("config: unrecognized output")
-      end
-    end
-  end
-  return rewards = trajSave(MCTSStudy(), cases, postproc=postproc, outdir=output_dir)
+  return rewards = trajSave(MCTSStudy(), cases, postproc=StandardPostProc(outputs, output_filters),
+                            outdir=output_dir)
 end
 
 function parse_ranges(ranges::Vector{ASCIIString})

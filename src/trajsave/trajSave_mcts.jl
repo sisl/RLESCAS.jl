@@ -49,7 +49,7 @@ end
 
 function trajSave(study_params::MCTSStudy,
                   cases::Cases=Cases(Case());
-                  outdir::AbstractString="./", postproc::Function=identity)
+                  outdir::AbstractString="./", postproc::PostProcessing=StandardPostProc())
 
   pmap(case -> begin
          starttime_us = CPUtime_us()
@@ -96,7 +96,7 @@ function trajSave(study_params::MCTSStudy,
          outfile = trajSave(outfileroot, sav)
 
          #callback for postprocessing
-         postproc(outfile)
+         postprocess(outfile, postproc)
 
          return reward
        end,

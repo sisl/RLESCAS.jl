@@ -34,6 +34,12 @@
 
 module RLESCAS
 
+export include_visualize, trajPlot
+export trajSave, MCTSStudy, fill_replay, add_supplementary, StandardPostProc, nmacs_only
+export json_to_scripted, json_to_waypoints, json_to_csv, label270_to_text, summarize
+
+const DIR = dirname(@__FILE__)
+
 include("config/config_ACASX_GM.jl") #defineSim
 
 #Config AdaptiveStressTest
@@ -46,8 +52,6 @@ include("defines/define_log.jl") #SimLog
 include("defines/define_save.jl") #trajSave, trajLoad and helpers
 include("defines/save_types.jl") #ComputeInfo
 include("helpers/save_helpers.jl")
-
-include("visualize/visualize.jl") #pgfplotLog
 
 include("trajsave/trajSave_common.jl")
 include("trajsave/trajSave_once.jl")
@@ -63,7 +67,12 @@ include("converters/json_to_scripted.jl")
 include("converters/json_to_waypoints.jl")
 
 include("helpers/fill_to_max_time.jl")
+include("tools/summarize.jl")
 
 include("tools/nmac_stats.jl")
+
+function include_visualize()
+  @eval include(joinpath(DIR, "visualize/visualize.jl")) #pgfplotLog
+end
 
 end #module

@@ -39,6 +39,7 @@ include("../helpers/TikzUtils.jl")
 include("vis_captions.jl")
 
 using TikzPictures
+import PGFPlots
 import PGFPlots: Plots, Axis, GroupPlot
 
 using RLESUtils, Obj2Dict

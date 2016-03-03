@@ -34,6 +34,14 @@
 
 using RLESUtils, RunCases
 
+abstract PostProcessing
+
+type StandardPostProc <: PostProcessing
+  formats::Vector{ASCIIString}
+  filters::Vector{ASCIIString}
+end
+StandardPostProc() = StandardPostProc(ASCIIString[], ASCIIString[])
+
 function extract_params!(paramObj, case::Case, key::AbstractString)
   #assumes format of key is: "key.field"
 
@@ -54,4 +62,45 @@ function extract_params!(paramObj, case::Case, key::AbstractString)
   end
 
   return paramObj
+end
+
+function postprocess(filename::AbstractString, opts::StandardPostProc)
+  formats = opts.formats
+  filters = opts.filters
+
+  sort!(formats)
+  #sorting prevents pdf from appearing after tex.  This works around tex being deleted as
+  #an intermediate file during the pdf process
+
+  #fill and add supplementary to all files
+  fill_replay(filename, overwrite=true)
+  add_supplementary(filename)
+  #filters
+  for f in filters
+    if f == "nmacs_only" && !nmacs_only(filename)
+      return #if it fails any of the filters, we're done
+    end
+  end
+
+  for f in formats
+    if f == "pdf"
+      include_visualize()
+      trajPlot(filename, format="PDF")
+    elseif f == "tex"
+      include_visualize()
+      trajPlot(filename, format="TEX")
+    elseif f == "scripted"
+      json_to_scripted(filename)
+    elseif f == "waypoints"
+      json_to_waypoints(filename)
+    elseif f == "csv"
+      json_to_csv(filename)
+    elseif f == "label270_text"
+      label270_to_text(filename)
+    elseif f == "summary"
+      summarize(filename)
+    else
+      warn("config: unrecognized output")
+    end
+  end
 end
