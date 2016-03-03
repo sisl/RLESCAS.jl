@@ -9,6 +9,7 @@ The software requires Julia v0.3 and above.  It is currently untested on v0.4.  
 
 * Pkg.clone("https://github.com/sisl/rlescas.jl.git", "RLESCAS")
 * Pkg.build("RLESCAS")
+* The CCAS package is installed automatically, but requires some additional setup.  Follow the instructions on the wiki at https://github.com/sisl/CCAS.jl.git.
 * PGFPlots is installed automatically but may require some additional configuration.  Follow the installation instructions on the package documentation https://github.com/sisl/PGFPlots.jl.  Note: if you use the config file method to execute, and do not require pdf and tex outputs, then you can skip installation of the visualization tools.
 * To be able to generate PDFs, you'll need lualatex and also aircraftshapes.sty.  For the latter, get aircraftshapes.sty from https://github.com/sisl/aircraftshapes and include it into your tex system.  For Windows (for MikTex2.9), put the aircraftshapes.sty file into "C:\Program Files\MiKTeX 2.9\tex\latex\aircraftshapes" folder.  Lualatex is included in MikTex distribution.
 
