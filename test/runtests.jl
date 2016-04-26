@@ -32,7 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#emulates calling from command line
-empty!(ARGS)
-push!(ARGS, "config_2ac.ini")
-include("../src/mcts.jl")
+function runscript(inifile::AbstractString="config_2ac_short.ini")
+  #emulates calling from command line
+  empty!(ARGS)
+  push!(ARGS, inifile)
+  include("../src/mcts.jl")
+end
+
