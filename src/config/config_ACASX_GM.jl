@@ -51,14 +51,16 @@ function defineSimParams(;encounter_number::Int64 = 1,
                          command_method::Symbol = :DBN,
                          initial_sample_file::AbstractString = Pkg.dir("RLESCAS/encounters/initial.txt"),
                          transition_sample_file::AbstractString = Pkg.dir("RLESCAS/encounters/transition.txt"),
-                         libcas::AbstractString = Pkg.dir("CCAS/libcas0.8.6/lib/libcas"), #empty if using :ADD
-                         libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.8.6/parameters/0.8.5.standard.r13.xa.config.txt")
+                         #libcas::AbstractString = Pkg.dir("CCAS/libcas0.8.6/lib/libcas"), #empty if using :ADD
+                         #libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.8.6/parameters/0.8.5.standard.r13.xa.config.txt")
                          #libcas::AbstractString = Pkg.dir("CCAS/libcas0.9.0/lib/libcas"),
                          #libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.9.0/parameters/0.9.0.r14.rev2_3_4candidate07_active.config.txt")
                          #libcas::AbstractString = Pkg.dir("CCAS/libcas0.9.2/lib/libcas"),
                          #libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.9.2/parameters/0.9.2.r14.rev3_7candidate08_active.config.txt")
-                         #libcas::AbstractString = Pkg.dir("CCAS/libcas0.9.3/lib/libcas"),
-                         #libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.9.3/parameters/0.9.3.standard.r14.xa.config.txt")
+                         libcas::AbstractString = Pkg.dir("CCAS/libcas0.9.3/lib/libcas"),
+                         libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.9.3/parameters/0.9.3.standard.r14.xa.config.txt")
+                         #libcas::AbstractString = Pkg.dir("CCAS/libcas0.10.0/lib/libcas"),
+                         #libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.10.0/parameters/0.10.0.standard.r15_pre25iter93.xa.tcas.config.txt")
                          )
   p = ACASX_GM_params()
 

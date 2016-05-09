@@ -32,8 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("../rlescas.jl")
+using RLESCAS
+using SISLES.GenerativeModel
 
+#TODO: remove all the hardcodings in here
 
 function print_results(results)
   println("\n")
@@ -46,15 +48,14 @@ function print_results(results)
 
 end
 
-
 function test_sim()
   res = Array(Any, 7, 2)
 
   p = defineSimParams()
   sim = defineSim(p)
   initialize(sim)
-  step(sim)
-  step(sim)
+  update(sim)
+  update(sim)
 
   #test 1
   tic();
@@ -68,13 +69,13 @@ function test_sim()
 
   #test 3
   tic();
-  step(sim)
-  res[3, :] = ["1st step1(sim)", toq()]
+  update(sim)
+  res[3, :] = ["1st update1(sim)", toq()]
 
   #test 4
   tic();
-  step(sim)
-  res[4, :] = ["1st step2(sim)", toq()]
+  update(sim)
+  res[4, :] = ["1st update2(sim)", toq()]
 
   #test 5
   tic();
@@ -83,13 +84,13 @@ function test_sim()
 
   #test 6
   tic();
-  step(sim)
-  res[6, :] = ["2nd step1(sim)", toq()]
+  update(sim)
+  res[6, :] = ["2nd update1(sim)", toq()]
 
   #test 7
   tic();
-  step(sim)
-  res[7, :] = ["2nd step2(sim)", toq()]
+  update(sim)
+  res[7, :] = ["2nd update2(sim)", toq()]
 
   return res
 end
@@ -100,67 +101,67 @@ function test_simcomponents()
   p = defineSimParams()
   sim = defineSim(p)
   initialize(sim)
-  step(sim)
-  step(sim)
+  update(sim)
+  update(sim)
 
   sim = defineSim(p)
   initialize(sim)
 
   #test 1
   tic();
-  EncounterDBN.step(sim.em)
-  res[1, :] = ["1st step(em)", toq()]
+  EncounterDBN.update(sim.em)
+  res[1, :] = ["1st update(em)", toq()]
 
   states = WorldModel.getAll(sim.wm)
   command = EncounterDBN.get(sim.em, 1)
 
   #test 2
   tic();
-  output = Sensor.step(sim.sr[1], states)
-  res[2, :] = ["1st step(sr)", toq()]
+  output = Sensor.update(sim.sr[1], states)
+  res[2, :] = ["1st update(sr)", toq()]
 
   #test 3
   tic();
-  RA = CollisionAvoidanceSystem.step(sim.cas[1], output)
-  res[3, :] = ["1st step(cas)", toq()]
+  RA = CollisionAvoidanceSystem.update(sim.cas[1], output)
+  res[3, :] = ["1st update(cas)", toq()]
 
   #test 4
   tic();
-  response = PilotResponse.step(sim.pr[1], command, RA)
-  res[4, :] = ["1st step(pr)", toq()]
+  response = PilotResponse.update(sim.pr[1], command, RA)
+  res[4, :] = ["1st update(pr)", toq()]
 
   #test 5
   tic();
-  state = DynamicModel.step(sim.dm[1], response)
-  res[5, :] = ["1st step(dm)", toq()]
+  state = DynamicModel.update(sim.dm[1], response)
+  res[5, :] = ["1st update(dm)", toq()]
 
   #test 6
   tic();
-  EncounterDBN.step(sim.em)
-  res[6, :] = ["2nd step(em)", toq()]
+  EncounterDBN.update(sim.em)
+  res[6, :] = ["2nd update(em)", toq()]
 
   states = WorldModel.getAll(sim.wm)
   command = EncounterDBN.get(sim.em, 1)
 
   #test 7
   tic();
-  output = Sensor.step(sim.sr[1], states)
-  res[7, :] = ["2nd step(sr)", toq()]
+  output = Sensor.update(sim.sr[1], states)
+  res[7, :] = ["2nd update(sr)", toq()]
 
   #test 8
   tic();
-  RA = CollisionAvoidanceSystem.step(sim.cas[1], output)
-  res[8, :] = ["2nd step(cas)", toq()]
+  RA = CollisionAvoidanceSystem.update(sim.cas[1], output)
+  res[8, :] = ["2nd update(cas)", toq()]
 
   #test 9
   tic();
-  response = PilotResponse.step(sim.pr[1], command, RA)
-  res[9, :] = ["2nd step(pr)", toq()]
+  response = PilotResponse.update(sim.pr[1], command, RA)
+  res[9, :] = ["2nd update(pr)", toq()]
 
   #test 10
   tic();
-  state = DynamicModel.step(sim.dm[1], response)
-  res[10, :] = ["2nd step(dm)", toq()]
+  state = DynamicModel.update(sim.dm[1], response)
+  res[10, :] = ["2nd update(dm)", toq()]
 
 
   return res
@@ -172,14 +173,14 @@ function test_rollout()
   p = defineSimParams()
   sim = defineSim(p)
   initialize(sim)
-  step(sim)
-  step(sim)
+  update(sim)
+  update(sim)
 
   #test1 single
   tic();
   initialize(sim)
   for t = 1:50
-    step(sim)
+    update(sim)
   end
   res[1, :] = ["rollout1", toq()]
 
@@ -188,7 +189,7 @@ function test_rollout()
   initialize(sim)
   for i = 1:10
     for t = 1:50
-      step(sim)
+      update(sim)
     end
   end
   res[2, :] = ["rollout10", toq()]
@@ -198,7 +199,7 @@ function test_rollout()
   initialize(sim)
   for i = 1:100
     for t = 1:50
-      step(sim)
+      update(sim)
     end
   end
   res[3, :] = ["rollout100", toq()]
@@ -206,12 +207,12 @@ function test_rollout()
   return res
 end
 
-function est_runtime(results::Array{Any, 2}, iterations::Int, nsteps::Int=50)
+function est_runtime(results::Array{Any, 2}, iterations::Int=3000, nsteps::Int=50)
   init_time = results[5, 2]
-  step1 = results[6, 2]
-  step2 = results[7, 2]
+  update1 = results[6, 2]
+  update2 = results[7, 2]
 
-  runtime = (init_time + step1 + (nsteps - 1) * step2) * iterations * nsteps
+  runtime = (init_time + update1 + (nsteps - 1) * update2) * iterations * nsteps
   println("estimated runtime: $runtime seconds or $(runtime/3600.0) hours")
 
   return runtime
@@ -235,6 +236,8 @@ function test_main()
   results = vcat(results, res)
 
   print_results(results)
+
+  runtime = est_runtime(results)
 
   return results
 end
