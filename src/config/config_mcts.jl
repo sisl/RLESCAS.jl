@@ -35,7 +35,7 @@
 using AdaptiveStressTesting
 
 function defineMCTSParams(;
-                          d::Int64 = 50,
+                          d::Int64 = 51,
                           ec::Float64 = 100.0,
                           n::Int64 = 1000,
                           k::Float64 = 0.5,

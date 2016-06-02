@@ -35,7 +35,7 @@
 module RLESCAS
 
 export include_visualize, trajPlot
-export trajSave, MCTSStudy, fill_replay, add_supplementary, StandardPostProc, nmacs_only
+export trajSave, trajLoad, MCTSStudy, fill_replay, add_supplementary, StandardPostProc, nmacs_only
 export json_to_scripted, json_to_waypoints, json_to_csv, label270_to_text, summarize
 export defineSimParams, defineSim
 
