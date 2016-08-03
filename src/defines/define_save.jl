@@ -35,7 +35,7 @@
 using JSON
 using GZip
 
-typealias SaveDict Dict{AbstractString, Any}
+typealias SaveDict Dict{ASCIIString,Any}
 
 function trajSave(fileroot::AbstractString, d::SaveDict; compress::Bool=true)
   if compress
@@ -62,6 +62,7 @@ function trajLoad(infile::AbstractString)
   end
   d = JSON.parse(f)
   close(f)
+  d = convert(SaveDict, d)
   return d
 end
 
