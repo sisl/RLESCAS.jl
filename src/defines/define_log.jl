@@ -39,6 +39,8 @@ using RLESUtils, Obj2Dict
 const ENABLE_ROUNDING = true
 const ROUND_NDECIMALS = 9
 
+#FIXME: This is not a great way to do logs.  Consider switching to the Loggers framework in RLESUtils that is based on DataFrames. 
+
 #TODO: consider using OrderedDicts to preserve time order.  For now use sortByTime()
 typealias SimLog Dict{ASCIIString, Any}
 typealias SimLogDict Dict{ASCIIString, Any}
