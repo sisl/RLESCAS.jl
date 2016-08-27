@@ -52,7 +52,7 @@ function trajSave(study_params::MCTSStudy,
                   outdir::AbstractString="./", 
                   postproc::PostProcessing=StandardPostProc())
 
-  map(case -> begin
+  pmap(case -> begin
          starttime_us = CPUtime_us()
          startnow = string(now())
 
