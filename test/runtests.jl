@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-function runscript(inifile::AbstractString="config_2ac_short.ini")
+function runscript(inifile::AbstractString="config_2ac_quicktest.ini")
   #emulates calling from command line
   empty!(ARGS)
   push!(ARGS, inifile)

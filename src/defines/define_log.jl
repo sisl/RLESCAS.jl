@@ -151,10 +151,10 @@ function extract_initial(i, aem::CorrAEMDBN)
                       enable = ENABLE_ROUNDING)
 end
 
-extract_initial_names(aem::StarDBN) = ASCIIString["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
-extract_initial_units(aem::StarDBN) = ASCIIString["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
+extract_initial_names(aem::Union{StarDBN,SideOnDBN}) = ASCIIString["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
+extract_initial_units(aem::Union{StarDBN,SideOnDBN}) = ASCIIString["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
 
-function extract_initial(i, aem::StarDBN)
+function extract_initial(i, aem::Union{StarDBN,SideOnDBN})
   # initial
   # airspeed, ft/s, double
   # north position, ft, double

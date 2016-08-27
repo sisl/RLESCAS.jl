@@ -49,9 +49,10 @@ end
 
 function trajSave(study_params::MCTSStudy,
                   cases::Cases=Cases(Case());
-                  outdir::AbstractString="./", postproc::PostProcessing=StandardPostProc())
+                  outdir::AbstractString="./", 
+                  postproc::PostProcessing=StandardPostProc())
 
-  pmap(case -> begin
+  map(case -> begin
          starttime_us = CPUtime_us()
          startnow = string(now())
 

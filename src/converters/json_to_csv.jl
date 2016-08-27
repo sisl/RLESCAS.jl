@@ -41,8 +41,8 @@ function calc_catranges(catlengths::Vector{Int64})
 end
 
 function json_to_csv{T<:AbstractString}(savefile::AbstractString,
-                                categories::Vector{T} = ["command", "sensor", "ra", "ra_detailed", "response",
-                                                       "adm", "wm"])
+    categories::Vector{T}=["command", "sensor", "ra", "ra_detailed", "response",
+    "adm", "wm"])
 
   d = trajLoad(savefile)
 
