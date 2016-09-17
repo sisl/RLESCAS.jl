@@ -32,62 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module RLESCAS
+plot_nmacs(dir::AbstractString=".") = plot_nmacs(readdirGZs(dir))
 
-export include_visualize, trajPlot
-export trajSave, trajLoad, MCTSStudy, fill_replay, add_supplementary, StandardPostProc, nmacs_only
-export json_to_scripted, json_to_waypoints, json_to_csv, label270_to_text, summarize
-export defineSimParams, defineSim
-export sv_simlog_names, sv_simlog_units, sv_simlog_data_vid, sv_simlog_tdata,
-    sv_simlog_tdata_vid_f, sv_lookup_id, sorted_times, sv_sim_steps, sv_num_steps, 
-    sv_num_aircraft, sv_run_type, sv_reward, sv_nmac, sv_hmd, sv_vmd,
-    sv_command_method, sv_md_time, sv_encounter_id, sv_mcts_iterations, is_nmac,
-    nmacs_only, contains_only 
-export fill_to_max_time, fill_replay
-export json_to_csv, json_to_scripted, json_to_waypoints
-export summarize
-export trajPlot
-export readdirExt, readdirGZs, readdirJSONs, readdirSaves
-export plot_nmacs
-
-export initialize, step
-
-const DIR = dirname(@__FILE__)
-
-include("config/config_ACASX_GM.jl") #defineSim
-
-#Config AdaptiveStressTest
-include("config/config_ast.jl") #defineAST
-
-#Config MCTS solver
-include("config/config_mcts.jl") #defineMCTS
-
-include("defines/define_log.jl") #SimLog
-include("defines/define_save.jl") #trajSave, trajLoad and helpers
-include("defines/save_types.jl") #ComputeInfo
-include("helpers/save_helpers.jl")
-
-include("trajsave/trajSave_common.jl")
-include("trajsave/trajSave_once.jl")
-include("trajsave/trajSave_mcbest.jl")
-include("trajsave/trajSave_mcts.jl")
-include("trajsave/trajSave_replay.jl")
-
-include("helpers/add_supplementary.jl") #add label270
-include("tools/label270_to_text.jl")
-include("tools/summarize.jl")
-include("converters/json_to_csv.jl")
-include("converters/json_to_scripted.jl")
-include("converters/json_to_waypoints.jl")
-
-include("helpers/fill_to_max_time.jl")
-include("tools/summarize.jl")
-include("tools/nmac_stats.jl")
-
-include("helpers/plot_nmacs.jl")
-
-function include_visualize()
-  @eval include(joinpath(DIR, "visualize/visualize.jl")) #pgfplotLog
+function plot_nmacs{T<:AbstractString}(files::Vector{T})
+    map!(f->replace(f, "\\", "/"), files)
+    filter!(is_nmac, files)
+    trajPlot(files)
 end
-
-end #module
