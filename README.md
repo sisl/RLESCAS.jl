@@ -28,7 +28,7 @@ At a command prompt, navigate to ``$PKGDIR/RLESCAS/test`` and run ``julia ../src
 
 This command can be run from anywhere as long as the relative paths to the files are correct.  First argument is the mcts.jl file that is the main entry for command-line access.  Second argument is the configuration file.  See below for more details on the config file.  Output directory is specified in config.
 
-RLESCAS is able to parallelize computations.  (This is the recommended way to run RLESCAS.) To use multiple processors, use the -p Julia option.  e.g., To specify 4 cores, run ``julia -p 4 ../src/mcts.jl config_2ac.ini``
+RLESCAS is able to parallelize computations.  (This is the recommended way to run RLESCAS.) To use multiple processors, use the -p Julia option.  e.g., To specify 4 cores, run ``julia -p 4 ../src/mcts.jl config_2ac_fulltest.ini``
 
 Sometimes it is useful to be able to execute from within Julia (e.g., better error messages when debugging).  You can emulate the above command line call by navigating to ``$PKGDIR/RLESCAS/test`` and from within Julia run ``include("runtests.jl")``.  Edit ``runtests.jl`` with the desired config file.
 
