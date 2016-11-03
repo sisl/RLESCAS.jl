@@ -1,23 +1,30 @@
 # Reinforcement Learning Encounter Simulator (RLES) for Collision Avoidance Systems #
 Author: Ritchie Lee (ritchie.lee@sv.cmu.edu)
 
-RLESCAS is a Julia package for applying Monte Carlo tree search (MCTS) to check collision avoidance systems.
+RLESCAS is a Julia package for applying Monte Carlo tree search (MCTS) to stress test collision avoidance systems, e.g., for near mid-air collisions (NMACs).
 
 ## Installation ##
 
-The software requires Julia v0.3 and above.  It is currently untested on v0.4.  Requires 64-bit Julia.
+The software requires Julia v0.4 (tested on v0.4.6).  It is currently untested on v0.5 (but will soon be migrated up).  Requires 64-bit Julia.
 
 * Pkg.clone("https://github.com/sisl/rlescas.jl.git", "RLESCAS")
 * Pkg.build("RLESCAS")
-* The CCAS package is installed automatically, but requires some additional setup.  Follow the instructions on the wiki at https://github.com/sisl/CCAS.jl.git.
+* The CCAS package is installed automatically, but requires some additional setup.  Follow the installation instructions on the wiki at https://github.com/sisl/CCAS.jl.git.
 * PGFPlots is installed automatically but may require some additional configuration.  Follow the installation instructions on the package documentation https://github.com/sisl/PGFPlots.jl.  Note: if you use the config file method to execute, and do not require pdf and tex outputs, then you can skip installation of the visualization tools.
-* To be able to generate PDFs, you'll need lualatex and also aircraftshapes.sty.  For the latter, get aircraftshapes.sty from https://github.com/sisl/aircraftshapes and include it into your tex system.  For Windows (for MikTex2.9), put the aircraftshapes.sty file into "C:\Program Files\MiKTeX 2.9\tex\latex\aircraftshapes" folder.  Lualatex is included in MikTex distribution.
+* To be able to generate PDFs, you'll need lualatex and also aircraftshapes.sty.  For the latter, get aircraftshapes.sty from https://github.com/sisl/aircraftshapes and include it into your tex system.  For TexLive, put the file under ~/texmf/aircraftshapes/ where ~ is your user/home directory.  For MikTex2.9 in Windows, put the aircraftshapes.sty file into "C:\Program Files\MiKTeX 2.9\tex\latex\aircraftshapes" folder. Lualatex is included in both distributions.  TexLive is recommended. 
+
+### Dependencies ###
+
+* AdaptiveStressTesting.jl - MCTS stress testing framework 
+* RLES-SISLES.jl - Encounter simulator
+* CCAS.jl - a wrapper for libcas (ACAS X library)
+* RLESUtils.jl - a collection of support tools
 
 ## Usage ##
 
 ###Method 1: Command-Line###
 
-At a command prompt, navigate to ``PKGDIR/RLESCAS/test`` and run ``julia ../src/mcts.jl config_2ac.ini``.  The output will be placed under ``./results``.
+At a command prompt, navigate to ``$PKGDIR/RLESCAS/test`` and run ``julia ../src/mcts.jl config_2ac_quicktest.ini``.  The output will be placed under ``./results``.
 
 This command can be run from anywhere as long as the relative paths to the files are correct.  First argument is the mcts.jl file that is the main entry for command-line access.  Second argument is the configuration file.  See below for more details on the config file.  Output directory is specified in config.
 
@@ -27,30 +34,29 @@ Sometimes it is useful to be able to execute from within Julia (e.g., better err
 
 ###Method 2: Advanced###
 
-The full RLESCAS environment is available for advanced users/developers.  ``using RLESCAS`` Many of the functions are available but may not be exported.
+The full RLESCAS environment is available for advanced users/developers.  Type ``using RLESCAS`` in Julia.  call ``include_visualize()`` to enable visualization routines (requires pgfplots.jl and tikzpictures.jl).  Additional functions are available but may not be exported.
 
 ## Config File ##
-
 
 ```
 #!text
 
 ; This is a comment
-number_of_aircraft = 2  ; Number of aicraft can be 2 or 3.  Pairwise uses LLCEM.  Multithreat uses Star model
+number_of_aircraft = 2  
 initial = ../encounters/initial.txt  ; Encounter initial conditions file (for 2 aircraft only)
 transition = ../encounters/transition.txt  ; Encounter transitions file (for 2 aircraft only)
-encounters = 1-2,5-6  ; Encounters numbers to run.  Uses dashes to denote ranges, and commas to separate ranges.
-mcts_iterations = 10  ; Number of inner-loop iterations for MCTS.  Default 4000.  For testing, use 10.
+encounters = 1-2,5-6  ; Encounter numbers to run.  Uses dashes to denote ranges, and commas to separate ranges.
+mcts_iterations = 10  ; Number of inner-loop iterations for MCTS.  Default 3000.  For testing, use 10.
+encounter_model = LLCEMDBN ; LLCEMDBN=LLCEM init, StarDBN=Star init, HeadOnDBN=Head-on inits only, SideOnDBN=Perpendicular inits only 
+encounter_equipage = EvE ; Aircraft equippage, EvE=Equipped vs equipped 
+response_model = ICAO; pilot response model, ICAO=deterministic 5s-3s model
+cas_model = CCAS; collision avoidance model, CCAS=libccas interface to libcas
+dynamics_model = LLADM ; aircraft dynamics model LLADM=Lincoln Lab aircraft dynamics model
 libcas = ../../CCAS/libcas0.8.6/lib/libcas.dll  ; libcas library
 libcas_config = ../../CCAS/libcas0.8.6/parameters/0.8.5.standard.r13.xa.config.txt  ; libcas config file
 output_filters = nmacs_only  ; If nmacs_only is specified, formats listed in "outputs" field are outputted only for nmac encounters.  Leave blank to output for all encounters.
 outputs = tex, pdf, scripted, waypoints, label270_text, csv, summary  ; Output formats.  See description below
 output_dir = ./results  ; output directory
-encounter_model = LLCEMDBN ; LLCEM encounter model with the DBN for transitions
-encounter_equipage = EvE ; Equipage of the aircraft
-response_model = ICAO; pilot response model, ICAO = deterministic 5s-3s model
-cas_model = CCAS; collision avoidance model, CCAS = libccas interface to libcas
-dynamics_model = LLADM ; Lincoln Lab aircraft dynamics model
 ```
 
 ### Output Formats ###
@@ -71,6 +77,8 @@ dynamics_model = LLADM ; Lincoln Lab aircraft dynamics model
 
 ### JSON format ###
 
+Deprecation warning: This JSON format will be deprecated in future versions in favor of a more standard format.
+
 The JSON output file contains all the information from the run.  All other file formats can be generated from the JSON .  To save space, RLESCAS uses GZip to compress the JSON file to json.gz.  RLESCAS can read and write either file type.     Since JSON is in ASCII human-readable format, you could simply open it in a text editor to view or edit the contents.
 
 The recommended method to interact with the JSON file is to use the advanced mode in RLESCAS.
@@ -80,44 +88,20 @@ Start Julia in $PKGDIR/RLESCAS/src and run:
 ```
 #!julia
 
-include("rlescas.jl").
-d=trajLoad("trajSaveMCTS_ACASX_EvE_1.json.gz") #substitute your json.gz filename
+using RLESCAS
+d=trajLoad("trajSaveMCTS_ACASX_GM_1.json.gz") #substitute your json.gz filename
 
 ```
 
 **run_type** indicates the type of study: "MCTS", "MCBEST" or "ENC"
 
-**sim_params** contains the simulation parameters (e.g., number of aircraft, encounter file, libcas path, etc.) in Obj2Dict format.  To recover the object, use:
+**sim_params** contains the simulation parameters (e.g., number of aircraft, encounter file, libcas path, etc.)
 
-```
-#!julia
+**mdp_params** contains the mdp parameters (e.g., action_counter). 
 
-sim_params = Obj2Dict.to_obj(d["sim_params"])
-```
+**mcts_params** contains the MCTS DPW parameters (e.g., iterations, k, alpha, etc.)
 
-**mdp_params** contains the mdp parameters (e.g., action_counter) in Obj2Dict format.  To recover the object, use:
-
-```
-#!julia
-
-mdp_params = Obj2Dict.to_obj(d["mdp_params"])
-```
-
-**dpw_params** contains the MCTS DPW parameters (e.g., iterations, k, alpha, etc.) in Obj2Dict format.  To recover the object, use:
-
-```
-#!julia
-
-dpw_params = Obj2Dict.to_obj(d["dpw_params"])
-```
-
-**compute_info** contains the compute details of the run (e.g., start time, compute time, machine name, etc.) in Obj2Dict format.  To recover the object, use:
-
-```
-#!julia
-
-compute_info = Obj2Dict.to_obj(d["compute_info"])
-```
+**compute_info** contains the compute details of the run (e.g., start time, compute time, machine name, etc.)
 
 **sim_log**
 
@@ -130,13 +114,7 @@ sim_log contains all the simulation logs (those defined in define_log.jl)
 * "run_info" gives information about the sim outcome
 * "CAS_info" logs the output string of libcas
 * "initial" gives the initial state of the aircraft
-* "action_seq" logs the action seeds of the final trajectory in Obj2Dict format. i.e.,
-
-```
-#!julia
-
-action_seq = Obj2Dict.to_obj(d["sim_log"]["action_seq"])
-```
+* "action_seq" logs the action seeds of the final trajectory
 
 Each of the following fields is a dictionary organized first by field, then by aircraft (if applicable) then by time.  e.g., d["sim_log"]["ra"]["aircraft"]["1"]["time"]["5"], where in this example "ra" is the field, 1 is the aircraft number, and 5 is the time step.
 
