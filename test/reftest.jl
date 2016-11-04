@@ -43,8 +43,10 @@ include("runtests.jl")
 checks if quicktest results are same as reference set in repo
 returns true if all files are identical
 """
-function reftest()
-    runscript("config_2ac_quicktest.ini")
+function reftest(doquicktest::Bool=true)
+    if doquicktest
+        runscript("config_2ac_quicktest.ini")
+    end
     fs = readdir(REFDIR)
 
     for f in fs
