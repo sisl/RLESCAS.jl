@@ -50,7 +50,7 @@ function reftest(doquicktest::Bool=true)
     fs = readdir(REFDIR)
 
     for f in fs
-        if !isidentical(joinpath(REFDIR,f), joinpath(RESULDIR,f))
+        if !isidentical(joinpath(REFDIR,f), joinpath(RESULTDIR,f))
             return false
         end
     end
