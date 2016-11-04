@@ -1,6 +1,4 @@
 *.swp
-*.json.gz
-*.pdf
-*.tex
-*.csv
-*.txt
+*.bak
+*.log
+test/results/
