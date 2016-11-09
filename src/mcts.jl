@@ -32,6 +32,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+using Compat
+import Compat: ASCIIString, UTF8String
+
 using RLESCAS
 using ConfParser
 using RLESUtils, RunCases
@@ -79,19 +82,19 @@ function mcts_main()
       config["sim_params.num_aircraft"] = [parse(Int,v[1])]
     elseif k == "encounter_equipage"
       check(length(v) == 1)
-      config["sim_params.encounter_equipage"] = [symbol(v[1])]
+      config["sim_params.encounter_equipage"] = [Symbol(v[1])]
     elseif k == "encounter_model"
       check(length(v) == 1)
-      config["sim_params.encounter_model"] = [symbol(v[1])]
+      config["sim_params.encounter_model"] = [Symbol(v[1])]
     elseif k == "response_model"
       check(length(v) == 1)
-      config["sim_params.response_model"] = [symbol(v[1])]
+      config["sim_params.response_model"] = [Symbol(v[1])]
     elseif k == "cas_model"
       check(length(v) == 1)
-      config["sim_params.cas_model"] = [symbol(v[1])]
+      config["sim_params.cas_model"] = [Symbol(v[1])]
     elseif k == "dynamics_model"
       check(length(v) == 1)
-      config["sim_params.dynamics_model"] = [symbol(v[1])]
+      config["sim_params.dynamics_model"] = [Symbol(v[1])]
     elseif k == "encounters"
       check(length(v) >= 1, "config: encounters: invalid number of parameters ($(length(v)))")
       encounters = parse_ranges(v)

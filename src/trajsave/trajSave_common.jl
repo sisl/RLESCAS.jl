@@ -53,8 +53,8 @@ function extract_params!(paramObj, case::Case, key::AbstractString)
     end
 
     if k_[1] == key
-      if isdefined(paramObj, symbol(k_[2]))
-        paramObj.(symbol(k_[2])) = v
+      if isdefined(paramObj, Symbol(k_[2]))
+        setfield!(paramObj, Symbol(k_[2]), v)
       else
         warn("$(k_[2]) is not a member of type $(typeof(paramObj))")
       end
