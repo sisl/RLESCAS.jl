@@ -32,6 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+import Compat.ASCIIString
+
 using AdaptiveStressTesting
 using SISLES: Encounter, WorldModel, Sensor, CollisionAvoidanceSystem, PilotResponse
 using RLESUtils, Obj2Dict

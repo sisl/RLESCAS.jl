@@ -32,6 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+import Compat.ASCIIString
+
 using JSON
 using GZip
 
