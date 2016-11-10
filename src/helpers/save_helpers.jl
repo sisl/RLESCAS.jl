@@ -32,7 +32,21 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module SaveHelpers
+
 #provides an interface to SaveDict, so that underlying format changes don't affect end-users
+#TODO: deprecate this in favor of non-JSON file format
+#the function names are pretty horrible too...
+
+export sv_simlog_names, sv_simlog_units, sv_simlog_data, sv_simlog_data_vid
+export sv_simlog_tdata, sv_simlog_tdata_vid, sv_simlog_tdata_f, sv_simlog_tdata_vid_f
+export sv_lookup_id, sorted_times, sv_sim_steps, sv_num_steps, sv_num_aircraft, 
+    sv_run_type, sv_reward, sv_nmac, sv_hmd, sv_vmd, sv_command_method, sv_md_time, sv_encounter_id,
+    sv_mcts_iterations, is_nmac, nmacs_only, contains_only
+
+using RLESUtils, Obj2Dict
+
+using ..DefineSave
 
 sv_simlog_names(d::SaveDict, field::AbstractString) = d["sim_log"]["var_names"][field]
 sv_simlog_units(d::SaveDict, field::AbstractString) = d["sim_log"]["var_units"][field]
@@ -169,3 +183,5 @@ nmacs_only{T<:AbstractString}(files::Vector{T}) = filter(is_nmac, files)
 function contains_only{T<:AbstractString}(filenames::Vector{T}, substr::AbstractString)
   filter(f -> contains(f, substr), filenames)
 end
+
+end #module

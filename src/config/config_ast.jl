@@ -32,6 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module ConfigAST
+
+export defineASTParams, defineAST
+
 using SISLES
 using SISLES.GenerativeModel
 using AdaptiveStressTesting
@@ -54,3 +58,5 @@ function defineAST(sim::AbstractGenerativeModel, p::ASTParams)
   return AdaptiveStressTest(p, sim, GenerativeModel.initialize, GenerativeModel.update,
                  GenerativeModel.isterminal)
 end
+
+end #module

@@ -89,14 +89,19 @@
 #       [Encounter k]
 #           ...
 
-include("../defines/define_save.jl")
-include("../helpers/save_helpers.jl")
+module JSON_To_Scripted
+
+export json_to_scripted
+
+import Compat.ASCIIString
+
+using ..DefineSave
+using ..SaveHelpers
+
 include("corr_aem_save_scripts.jl")
 
 using JSON
 using Base.Test
-
-json_to_scripted_batch{T<:AbstractString}(filenames::Vector{T}) = map(json_to_scripted, filenames)
 
 function json_to_scripted{T<:AbstractString}(filenames::Vector{T}; outfile::AbstractString = "scripted.dat")
 
@@ -173,3 +178,5 @@ function json_to_scripted(filename::AbstractString)
 
   json_to_scripted([filename], outfile = string(getSaveFileRoot(filename), "_scripted.dat"))
 end
+
+end #module

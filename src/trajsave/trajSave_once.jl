@@ -32,11 +32,19 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module TrajSaveOnce
+
+export OnceStudy
+
+import Compat.ASCIIString
+
 using AdaptiveStressTesting
 using SISLES.GenerativeModel
 
 using CPUTime
 using RLESUtils, Obj2Dict, RunCases
+
+import ..DefineSave.trajSave
 
 type OnceStudy
   fileroot::ASCIIString
@@ -94,3 +102,5 @@ function trajSave(study_params::OnceStudy,
 
        cases)
 end
+
+end #module

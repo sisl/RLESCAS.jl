@@ -32,8 +32,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("../defines/define_save.jl")
-include("../helpers/save_helpers.jl")
+module Label270_To_Text
+
+export label270_to_text
+
+using ..DefineSave
+using ..SaveHelpers
 
 label270_to_text{T<:AbstractString}(infiles::Vector{T}) = pmap(label270_to_text, infiles)
 
@@ -67,3 +71,5 @@ function label270_to_text(infile::AbstractString)
 
   close(f)
 end
+
+end #module

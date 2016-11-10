@@ -32,6 +32,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module SaveTypes
+
+export ComputeInfo
+
+import Compat.ASCIIString
+
 type ComputeInfo
   start_time::ASCIIString  # timestamp at run start
   save_time::ASCIIString   # timestamp at file save
@@ -40,3 +46,5 @@ type ComputeInfo
 end
 
 ComputeInfo() = ComputeInfo("", "", "", -1.0)
+
+end #module

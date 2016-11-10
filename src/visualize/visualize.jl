@@ -32,11 +32,20 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("../defines/define_save.jl")
-include("../helpers/save_helpers.jl")
-include("../helpers/TikzUtils.jl")
+module Visualize
 
+export trajPlot
+
+import Compat.ASCIIString
+
+using ..DefineSave
+using ..SaveHelpers
+using ..AddSupplementary
+
+include("../helpers/TikzUtils.jl")
 include("vis_captions.jl")
+using .TikzUtils
+using .VisCaptions
 
 using TikzPictures
 import PGFPlots
@@ -44,22 +53,18 @@ import PGFPlots: Plots, Axis, GroupPlot
 
 using RLESUtils, Obj2Dict
 
-if !isdefined(:RA_STYLE_MAP)
-  const RA_STYLE_MAP = [
+const RA_STYLE_MAP = [
     ((ra, h_d) -> ra && abs(h_d) < 5, "mark options={color=gray}, mark=*"),
     ((ra, h_d) -> ra && 5 <= h_d < 30, "mark options={color=orange}, mark=*"),
     ((ra, h_d) -> ra && 30 <= h_d, "mark options={color=red}, mark=*"),
     ((ra, h_d) -> ra && -30 < h_d <= -5, "mark options={color=cyan}, mark=*"),
     ((ra, h_d) -> ra && h_d <= -30, "mark options={color=violet}, mark=*")
     ]
-end
 
-if !isdefined(:RESPONSE_STYLE_MAP)
-  const RESPONSE_STYLE_MAP = [
+const RESPONSE_STYLE_MAP = [
     (r -> r == "stay", "mark options={color=black}, mark=-"),
     (r -> r == "follow", "mark options={color=black}, mark=asterisk")
     ]
-end
 
 function pgfplotLog(sav::SaveDict)
 
@@ -494,3 +499,4 @@ function trajPlot(outfileroot::AbstractString, d::SaveDict; format::AbstractStri
   return td
 end
 
+end #module

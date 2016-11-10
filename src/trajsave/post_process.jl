@@ -32,79 +32,68 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module NMACStats
+module PostProcess
 
-export nmac_stats
+export PostProcessing, StandardPostProc, postprocess
 
 import Compat.ASCIIString
 
-using ..SaveHelpers
+using ..TrajSaveReplay
+using ..AddSupplementary
+using ..JSON_To_CSV
+using ..JSON_To_Scripted
+using ..JSON_To_Waypoints
+using ..Summarize
+using ..Label270_To_Text
+import ...RLESCAS
 
-const NMAC_STATS_ROUND_NDECIMALS = 2
+abstract PostProcessing
 
-function nmac_stats{T<:AbstractString}(infiles::Vector{T}, txtfile::AbstractString = "nmac_stats.txt")
+type StandardPostProc <: PostProcessing
+  formats::Vector{ASCIIString}
+  filters::Vector{ASCIIString}
+end
+StandardPostProc() = StandardPostProc(ASCIIString[], ASCIIString[])
 
-  stats = Dict{ASCIIString,Any}()
+function postprocess(filename::AbstractString, opts::StandardPostProc)
+  formats = opts.formats
+  filters = opts.filters
 
-  for file = infiles
+  sort!(formats)
+  #sorting prevents pdf from appearing after tex.  This works around tex being deleted as
+  #an intermediate file during the pdf process
 
-    d = trajLoad(file)
-    run_type = d["run_type"]
-
-    if !haskey(stats, run_type)
-      stats[run_type] = Dict{ASCIIString,Any}()
-      stats[run_type]["nmac_count"] = Int64(0)
-      stats[run_type]["nmac_encs_rewards"] = (Int64, Float64)[]
-      stats[run_type]["total_count"] = Int64(0)
+  #fill and add supplementary to all files
+  fill_replay(filename, overwrite=true)
+  add_supplementary(filename)
+  #filters
+  for f in filters
+    if f == "nmacs_only" && !nmacs_only(filename)
+      return #if it fails any of the filters, we're done
     end
-
-    @show file
-
-    if sv_nmac(d) #nmac occurred
-
-      #increment count
-      stats[run_type]["nmac_count"] += 1
-
-      enc_id, enctype = sv_encounter_id(d)
-
-      #add encounter to list
-      if enctype != "invalid"
-        push!(stats[run_type]["nmac_encs_rewards"],
-              (enc_id, sv_reward(d)))
-      else
-        error("nmac_stats: Invalid encounter id")
-      end
-    end
-
-    #increment total_count
-    stats[run_type]["total_count"] += 1
   end
 
-  #open file
-  f = open(txtfile, "w")
-
-  #sort the vectors
-  for run_type = keys(stats)
-
-    enc_rewards = stats[run_type]["nmac_encs_rewards"]
-    sort!(enc_rewards, by = x -> x[2], rev = true)
-    sorted_ids = [tup[1] for tup in enc_rewards]
-    sorted_rewards = [tup[2] for tup in enc_rewards]
-
-    if isopen(f)
-      println(f, "run type=$run_type")
-      println(f, "nmac count=$(stats[run_type]["nmac_count"])")
-      println(f, "total count=$(stats[run_type]["total_count"])")
-      println(f, "sorted nmac ids=$(sorted_ids)")
-      println(f, "sorted nmac rewards=$(round(sorted_rewards, NMAC_STATS_ROUND_NDECIMALS))")
-      println(f, "")
+  for f in formats
+    if f == "pdf"
+      RLESCAS.include_visualize()
+      RLESCAS.trajPlot(filename, format="PDF")
+    elseif f == "tex"
+      RLESCAS.include_visualize()
+      RLESCAS.trajPlot(filename, format="TEX")
+    elseif f == "scripted"
+      json_to_scripted(filename)
+    elseif f == "waypoints"
+      json_to_waypoints(filename)
+    elseif f == "csv"
+      json_to_csv(filename)
+    elseif f == "label270_text"
+      label270_to_text(filename)
+    elseif f == "summary"
+      summarize(filename)
+    else
+      warn("config: unrecognized output")
     end
-
   end
-
-  close(f)
-
-  return stats
 end
 
 end #module

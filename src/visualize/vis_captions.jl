@@ -32,8 +32,15 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module VisCaptions
+
+export vis_runtype_caps, vis_sim_caps, vis_runinfo_caps
+
 using RLESUtils, Obj2Dict
 using SISLES.GenerativeModel
+
+using ...DefineSave
+using ...SaveHelpers
 
 #runtype captions
 function vis_runtype_caps(d::SaveDict, run_type::AbstractString)
@@ -73,14 +80,4 @@ function vis_runinfo_caps(d::SaveDict)
   return "R=$r. vmd=$vmd. hmd=$hmd. md-time=$mdt. NMAC=$nmac. "
 end
 
-
-# Use this when Value types become available in 0.4
-##runtype captions
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"ONCE"}}) = "Encounter. "
-#
-#function vis_runtype_caps(d::SaveDict, ::Type{Val{"MCBEST"}})
-#
-#  "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
-#end
-#
-#vis_runtype_caps(d::SaveDict, ::Type{Val{"MCTS"}}) = "MCTS. N=$(Obj2Dict.to_obj(d["mcts_params"]).n). "
+end #module

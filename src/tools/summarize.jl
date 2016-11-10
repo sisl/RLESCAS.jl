@@ -32,8 +32,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("../defines/define_save.jl")
-include("../helpers/save_helpers.jl")
+module Summarize
+
+export summarize
+
+using ..DefineSave
+using ..SaveHelpers
 
 function summarize(filename::AbstractString; ndecimals::Int=2)
   d = trajLoad(filename)
@@ -55,3 +59,5 @@ function summarize(filename::AbstractString; ndecimals::Int=2)
 
   return outfilename
 end
+
+end #module

@@ -36,6 +36,10 @@
 # Based on visualization code originally written in Matlab provided by
 # Mykel Kochenderfer, mykel@stanford.edu
 
+module Label270
+
+export get_textual_label, get_code
+
 #code is an int with 4 digits corresponding to cc,vc,ua,da
 function get_textual_label(code::Int,prev_code::Int,crossing::Bool,full::Bool=true)
 
@@ -129,3 +133,5 @@ function get_code(cc::Int,vc::Int,ua::Int,da::Int)
   s = string(dcc[1],dvc[1],dua[1],dda[1])
   return code = parse(Int64, s)
 end
+
+end #module

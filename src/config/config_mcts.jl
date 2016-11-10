@@ -32,6 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module ConfigMCTS
+
+export defineMCTSParams
+
 using AdaptiveStressTesting
 
 function defineMCTSParams(;
@@ -50,3 +54,4 @@ function defineMCTSParams(;
   return p = DPWParams(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed)
 end
 
+end #module

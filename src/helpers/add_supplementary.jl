@@ -32,10 +32,13 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("../defines/define_save.jl")
+module AddSupplementary
 
-#dependencies
-include("label270.jl")
+export add_label270, add_supplementary
+
+using ..DefineSave
+using ..SaveHelpers
+using ..Label270
 
 add_label270{T<:AbstractString}(files::Vector{T}) = map(add_label270, files)
 function add_label270(file::AbstractString)
@@ -106,4 +109,4 @@ function add_supplementary(file::AbstractString)
   add_label270(file)
 end
 
-
+end #module

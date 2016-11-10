@@ -32,11 +32,27 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module TrajSaveMCTS
+
+export MCTSStudy
+
+import Compat.ASCIIString
+
 using AdaptiveStressTesting
-using SISLES.GenerativeModel
+using SISLES: GenerativeModel, notifyObserver
 
 using CPUTime
 using RLESUtils, Obj2Dict, RunCases
+
+using ..Config_ACASX_GM
+using ..ConfigAST
+using ..ConfigMCTS
+using ..DefineSave
+import ..DefineSave.trajSave
+using ..TrajSaveCommon
+using ..DefineLog
+using ..SaveTypes
+using ..PostProcess
 
 type MCTSStudy
   fileroot::ASCIIString
@@ -104,3 +120,5 @@ function trajSave(study_params::MCTSStudy,
 
        cases)
 end
+
+end #module

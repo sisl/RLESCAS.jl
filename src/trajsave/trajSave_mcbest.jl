@@ -32,11 +32,19 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module TrajSaveMCBest
+
+export MCBestStudy, MCBestStudyResults
+
+import Compat.ASCIIString
+
 using AdaptiveStressTesting
 using SISLES.GenerativeModel
 
 using CPUTime
 using RLESUtils, Obj2Dict, RunCases
+
+import ..DefineSave.trajSave
 
 type MCBestStudy
   fileroot::ASCIIString
@@ -126,3 +134,5 @@ function trajSave(study_params::MCBestStudy,
 
        cases)
 end
+
+end #module

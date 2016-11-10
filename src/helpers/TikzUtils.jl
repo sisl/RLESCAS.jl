@@ -32,6 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module TikzUtils
+
+export add_to_document!, use_geometry_package!, use_aircraftshapes_package!
+
 using TikzPictures
 
 add_to_document!(d::TikzDocument,tp::TikzPicture,cap::AbstractString) = push!(d, tp, caption=cap)
@@ -63,3 +67,5 @@ function use_aircraftshapes_package!(p::TikzPicture)
 
   return p
 end
+
+end #module

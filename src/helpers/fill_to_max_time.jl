@@ -32,10 +32,14 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module Fill_To_Max_Time
+
+export fill_to_max_time
+
 using AdaptiveStressTesting: ASTAction
 using RLESUtils, Obj2Dict, RNGWrapper
 
-include("../defines/define_save.jl")
+using ..DefineSave
 
 function fill_to_max_time(filename::AbstractString)
   d = trajLoad(filename)
@@ -64,15 +68,4 @@ function fill_to_max_time(filename::AbstractString)
   return outfilename
 end
 
-function fill_replay(filename::AbstractString; overwrite::Bool=false)
-  fillfile = fill_to_max_time(filename)
-  if overwrite
-    outfile = trajReplay(fillfile, fileroot=getSaveFileRoot(filename))
-  else
-    outfile = trajReplay(fillfile)
-  end
-  rm(fillfile) #delete intermediate fill file
-  return outfile
-end
-
-fill_replay{T<:AbstractString}(filenames::Vector{T}) = map(fill_replay, filenames)
+end #module

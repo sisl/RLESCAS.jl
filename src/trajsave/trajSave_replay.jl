@@ -32,11 +32,24 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using AdaptiveStressTesting
-using SISLES.GenerativeModel
-using RLESUtils, Obj2Dict, RunCases
+module TrajSaveReplay
 
+export trajReplay, fill_replay
+
+using AdaptiveStressTesting
+using SISLES: GenerativeModel, notifyObserver
+using RLESUtils, Obj2Dict, RunCases
 using CPUTime
+
+using ..Config_ACASX_GM
+using ..ConfigAST
+using ..ConfigMCTS
+using ..DefineSave
+using ..SaveHelpers
+using ..TrajSaveCommon
+using ..Fill_To_Max_Time
+using ..DefineLog
+using ..SaveTypes
 
 function trajReplay(savefile::AbstractString; fileroot::AbstractString="", case::Case=Case())
   d = trajLoad(savefile)
@@ -74,3 +87,18 @@ function trajReplay(d::SaveDict; fileroot::AbstractString = "", case::Case=Case(
 
   return outfilename
 end
+
+function fill_replay(filename::AbstractString; overwrite::Bool=false)
+  fillfile = fill_to_max_time(filename)
+  if overwrite
+    outfile = trajReplay(fillfile, fileroot=getSaveFileRoot(filename))
+  else
+    outfile = trajReplay(fillfile)
+  end
+  rm(fillfile) #delete intermediate fill file
+  return outfile
+end
+
+fill_replay{T<:AbstractString}(filenames::Vector{T}) = map(fill_replay, filenames)
+
+end #module

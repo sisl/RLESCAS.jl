@@ -34,60 +34,88 @@
 
 module RLESCAS
 
-export include_visualize, trajPlot
-export trajSave, trajLoad, MCTSStudy, fill_replay, add_supplementary, StandardPostProc, nmacs_only
-export json_to_scripted, json_to_waypoints, json_to_csv, label270_to_text, summarize
-export defineSimParams, defineSim
-export sv_simlog_names, sv_simlog_units, sv_simlog_data_vid, sv_simlog_tdata,
-    sv_simlog_tdata_vid_f, sv_lookup_id, sorted_times, sv_sim_steps, sv_num_steps, 
-    sv_num_aircraft, sv_run_type, sv_reward, sv_nmac, sv_hmd, sv_vmd,
-    sv_command_method, sv_md_time, sv_encounter_id, sv_mcts_iterations, is_nmac,
-    nmacs_only, contains_only 
-export fill_to_max_time, fill_replay
-export json_to_csv, json_to_scripted, json_to_waypoints
-export summarize
-export trajPlot
-export readdirExt, readdirGZs, readdirJSONs, readdirSaves
-export plot_nmacs
+export include_visualize
+#export trajSave, trajLoad, MCTSStudy, fill_replay, add_supplementary, StandardPostProc, nmacs_only
+#export json_to_scripted, json_to_waypoints, json_to_csv, label270_to_text, summarize
+#export defineSimParams, defineSim
+#export sv_simlog_names, sv_simlog_units, sv_simlog_data_vid, sv_simlog_tdata,
+    #sv_simlog_tdata_vid_f, sv_lookup_id, sorted_times, sv_sim_steps, sv_num_steps, 
+    #sv_num_aircraft, sv_run_type, sv_reward, sv_nmac, sv_hmd, sv_vmd,
+    #sv_command_method, sv_md_time, sv_encounter_id, sv_mcts_iterations, is_nmac,
+    #nmacs_only, contains_only 
+#export fill_to_max_time, fill_replay
+#export json_to_csv, json_to_scripted, json_to_waypoints
+#export summarize
+#export trajPlot
+#export readdirExt, readdirGZs, readdirJSONs, readdirSaves
+#export plot_nmacs
 
-export initialize, step
+#export initialize, step ###???
+
+using Reexport
 
 const DIR = dirname(@__FILE__)
 
 include("config/config_ACASX_GM.jl") #defineSim
+@reexport using .Config_ACASX_GM
 
 #Config AdaptiveStressTest
 include("config/config_ast.jl") #defineAST
+@reexport using .ConfigAST
 
 #Config MCTS solver
 include("config/config_mcts.jl") #defineMCTS
+@reexport using .ConfigMCTS
 
-include("defines/define_log.jl") #SimLog
 include("defines/define_save.jl") #trajSave, trajLoad and helpers
+@reexport using .DefineSave
+include("defines/define_log.jl") #SimLog
+@reexport using .DefineLog
 include("defines/save_types.jl") #ComputeInfo
+@reexport using .SaveTypes
 include("helpers/save_helpers.jl")
+@reexport using .SaveHelpers
 
-include("trajsave/trajSave_common.jl")
-include("trajsave/trajSave_once.jl")
-include("trajsave/trajSave_mcbest.jl")
-include("trajsave/trajSave_mcts.jl")
-include("trajsave/trajSave_replay.jl")
-
+include("helpers/label270.jl")
+@reexport using .Label270
 include("helpers/add_supplementary.jl") #add label270
+@reexport using .AddSupplementary
 include("tools/label270_to_text.jl")
+@reexport using .Label270_To_Text
 include("tools/summarize.jl")
+@reexport using .Summarize
 include("converters/json_to_csv.jl")
+@reexport using .JSON_To_CSV
 include("converters/json_to_scripted.jl")
+@reexport using .JSON_To_Scripted
 include("converters/json_to_waypoints.jl")
-
-include("helpers/fill_to_max_time.jl")
-include("tools/summarize.jl")
-include("tools/nmac_stats.jl")
+@reexport using .JSON_To_Waypoints
 
 include("helpers/plot_nmacs.jl")
+@reexport using .PlotNMACs
+
+include("visualize/visualize.jl")
 
 function include_visualize()
-  @eval include(joinpath(DIR, "visualize/visualize.jl")) #pgfplotLog
+  @eval @reexport using .Visualize 
 end
+
+include("trajsave/trajSave_common.jl")
+@reexport using .TrajSaveCommon
+include("helpers/fill_to_max_time.jl")
+@reexport using .Fill_To_Max_Time
+include("trajsave/trajSave_replay.jl")
+@reexport using .TrajSaveReplay
+include("trajsave/post_process.jl")
+@reexport using .PostProcess
+include("trajsave/trajSave_once.jl")
+@reexport using .TrajSaveOnce
+include("trajsave/trajSave_mcbest.jl")
+@reexport using .TrajSaveMCBest
+include("trajsave/trajSave_mcts.jl")
+@reexport using .TrajSaveMCTS
+
+include("tools/nmac_stats.jl")
+@reexport using .NMACStats
 
 end #module

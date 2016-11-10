@@ -80,13 +80,19 @@
 #       ...
 #       [Encounter k]
 
-include("../defines/define_save.jl")
-include("../helpers/save_helpers.jl")
+
+module JSON_To_Waypoints
+
+export json_to_waypoints
+
+import Compat.ASCIIString
+
+using ..DefineSave
+using ..SaveHelpers
+
 include("corr_aem_save_scripts.jl")
 
 using JSON
-
-json_to_waypoints_batch{T<:AbstractString}(filenames::Vector{T}) = pmap(f -> json_to_waypoints(f), filenames)
 
 function json_to_waypoints{T<:AbstractString}(filenames::Vector{T}; outfile::AbstractString = "waypoints.dat")
 
@@ -155,3 +161,5 @@ end
 function json_to_waypoints(filename::AbstractString)
   json_to_waypoints([filename], outfile = string(getSaveFileRoot(filename), "_waypoints.dat"))
 end
+
+end #module

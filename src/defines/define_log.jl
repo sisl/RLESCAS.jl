@@ -32,11 +32,18 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module DefineLog
+
+export SimLog, SimLogDict, addObservers!
+
 import Compat.ASCIIString
 
 using AdaptiveStressTesting
-using SISLES: Encounter, WorldModel, Sensor, CollisionAvoidanceSystem, PilotResponse
+using SISLES: Encounter, EncounterDBN, WorldModel, Sensor, CollisionAvoidanceSystem, 
+    DynamicModel, PilotResponse
 using RLESUtils, Obj2Dict
+
+using ..DefineSave
 
 const ENABLE_ROUNDING = true
 const ROUND_NDECIMALS = 9
@@ -762,3 +769,5 @@ end
 
 to_plusminus_180(x::AbstractFloat) = to_plusminus_b(x, 180.0)
 sortByTime(d::SimLogDict) = sort(collect(d), by = x -> int64(x[1]))
+
+end #module

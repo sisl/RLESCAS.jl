@@ -32,10 +32,16 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module DefineSave
+
+export trajSave, trajLoad, SaveDict, getSaveFileRoot
+export readdirJSONs, readdirGZs, readdirSaves, isRawSave, isCompressedSave, isSave
+
 import Compat.ASCIIString
 
 using JSON
 using GZip
+using RLESUtils, FileUtils
 
 typealias SaveDict Dict{ASCIIString,Any}
 
@@ -68,19 +74,11 @@ function trajLoad(infile::AbstractString)
   return d
 end
 
-function readdirExt(ext::AbstractString, dir::AbstractString = ".")
-  #ext should start with a '.' to be a valid extension
-  @assert ext[1] == '.'
-  files = readdir(dir)
-  filter!(f -> splitext(f)[2] == ext, files)
-  return ASCIIString[joinpath(dir, f) for f in files]
-end
-
-readdirJSONs(dir::AbstractString=".") = readdirExt(".json", dir)
-readdirGZs(dir::AbstractString=".") = readdirExt(".gz", dir)
+readdirJSONs(dir::AbstractString=".") = readdir_ext(".json", dir)
+readdirGZs(dir::AbstractString=".") = readdir_ext(".gz", dir)
 readdirSaves(dir::AbstractString=".") = vcat(readdirJSONs(dir), readdirGZs(dir))
 isRawSave(f::AbstractString) = splitext(f)[2] == ".json"
-isCompressedSave(f::AbstractString) = splitext(f)[2] == ".gz"
+isCompressedSave(f::AbstractString) = endswith(f, ".gz")
 isSave(f::AbstractString) = isRawSave(f) || isCompressedSave(f)
 
 function getSaveFileRoot(f::AbstractString)
@@ -92,3 +90,5 @@ function getSaveFileRoot(f::AbstractString)
   end
   return fileroot
 end
+
+end #module

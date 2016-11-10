@@ -32,6 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module Config_ACASX_GM
+
+export defineSimParams, defineSim
+
 using SISLES
 using SISLES.GenerativeModel
 
@@ -88,3 +92,5 @@ function defineSimParams(;encounter_number::Int64 = 1,
 end
 
 defineSim(p::ACASX_GM_params) = ACASX_GM(p)
+
+end #module

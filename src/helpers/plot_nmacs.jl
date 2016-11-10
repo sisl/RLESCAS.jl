@@ -32,6 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+module PlotNMACs
+
+export plot_nmacs
+
 plot_nmacs(dir::AbstractString=".") = plot_nmacs(readdirGZs(dir))
 
 function plot_nmacs{T<:AbstractString}(files::Vector{T})
@@ -39,3 +43,5 @@ function plot_nmacs{T<:AbstractString}(files::Vector{T})
     filter!(is_nmac, files)
     trajPlot(files)
 end
+
+end #module

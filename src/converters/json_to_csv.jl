@@ -32,8 +32,14 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("../defines/define_save.jl")
-include("../helpers/save_helpers.jl")
+module JSON_To_CSV
+
+export json_to_csv
+
+import Compat.ASCIIString
+
+using ..DefineSave
+using ..SaveHelpers
 
 function calc_catranges(catlengths::Vector{Int64})
   cl = [1; cumsum(catlengths) + 1]
@@ -66,11 +72,13 @@ function json_to_csv{T<:AbstractString}(savefile::AbstractString,
     fileroot = getSaveFileRoot(savefile)
     filename = string(fileroot, "_aircraft$i.csv")
     f = open(filename, "w")
-    writecsv(f, header')
-    writecsv(f, units')
+    writecsv(f, reshape(header, 1, length(header)))
+    writecsv(f, reshape(units, 1, length(units)))
     writecsv(f, data[:, :, i])
     close(f)
   end
 
   return header, units, data
 end
+
+end #module
