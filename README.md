@@ -5,13 +5,14 @@ RLESCAS is a Julia package for applying Monte Carlo tree search (MCTS) to stress
 
 ## Installation ##
 
-The software requires Julia v0.4 (tested on v0.4.6).  It is currently untested on v0.5 (but will soon be migrated up).  Requires 64-bit Julia.
+The software works best in Julia v0.5 (tested on v0.5.0).  It is compatible with Julia 0.4 (tested on 0.4.7) via the Compat.jl package.  Requires 64-bit Julia.
 
 * Pkg.clone("https://github.com/sisl/rlescas.jl.git", "RLESCAS")
 * Pkg.build("RLESCAS")
 * The CCAS package is installed automatically, but requires some additional setup.  Follow the installation instructions on the wiki at https://github.com/sisl/CCAS.jl.git.
 * PGFPlots is installed automatically but may require some additional configuration.  Follow the installation instructions on the package documentation https://github.com/sisl/PGFPlots.jl.  In particular, you'll need lualatex, which is part of TexLive or MikTex distributions (TexLive is recommended).  Note: if you use the config file method to execute, and do not require pdf and tex outputs, then you can skip installation of the visualization tools.
 * To be able to generate PDFs, you'll also need aircraftshapes.sty from https://github.com/sisl/aircraftshapes. Include it into your tex package system.  For TexLive, put the file under ~/texmf/tex/latex/aircraftshapes/.  For MikTex2.9 in Windows, put the aircraftshapes.sty file into "C:\Program Files\MiKTeX 2.9\tex\latex\aircraftshapes" folder. 
+* If you installed PGFPlots package, exit and restart julia, and type using PGFPlots to precompile the package.
 
 ### Dependencies ###
 
