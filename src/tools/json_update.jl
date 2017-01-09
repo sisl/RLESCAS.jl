@@ -32,27 +32,27 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using GZip
+module JsonUpdate
 
-function search_replace{T<:AbstractString}(files::Vector{T}, src::AbstractString, 
-    dst::AbstractString; outdir::AbstractString="./converted")
-    mkpath(outdir)
-    for file in files
-        fileroot, fileext = splitext(file)
-        if fileext == ".gz" #Gzip format
-            replace_text(file, src, dst, outdir, fopen=GZip.open)
-        else #assume ascii-compatible
-            replace_text(file, src, dst, outdir, fopen=open)
-        end
+export json_update1, json_update1_recur
+
+include("replace_tool.jl")
+
+"""
+Update from old json format to current
+Warning, overwrites files!
+"""
+function json_update1{T<:AbstractString}(files::Vector{T}; outdir::AbstractString="./")
+    search_replace(files, "dpw_params", "mcts_params"; outdir=outdir)
+    search_replace(files, "Uint64", "UInt64"; outdir=outdir)
+end
+
+function json_update1_recur(dir::AbstractString)
+    for (root, dirs, files) in walkdir(dir)
+        fs = filter(f->endswith(f, ".json.gz"), files)
+        fs = map(f->joinpath(root, f), fs)
+        json_update1(fs; outdir=root)
     end
 end
 
-function replace_text(file::AbstractString, src::AbstractString, dst::AbstractString, 
-    outdir::AbstractString; fopen::Function=open)
-    text = fopen(readall, file)
-    text = replace(text, src, dst)
-    fout = fopen(joinpath(outdir, basename(file)), "w")
-    write(fout, text)
-    close(fout)
-end
-
+end #module

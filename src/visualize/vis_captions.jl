@@ -64,7 +64,7 @@ function vis_sim_caps(d::SaveDict)
     d["sim_params"]["type"] == "ACASX_EvE_params"
     return "Enc=$(sv_encounter_id(d)[1]). Cmd=$(sv_command_method(d)). "
   elseif d["sim_params"]["type"] == "ACASX_Multi_params"
-    return "Enc-seed=$(sv_encounter_id(d)). "
+    return "Enc-seed=$(sv_encounter_id(d)[1]). "
   else
     return ""
   end
