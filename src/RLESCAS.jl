@@ -122,5 +122,7 @@ include("tools/json_update.jl")
 @reexport using .JsonUpdate
 include("tools/recursive_plot.jl")
 @reexport using .RecursivePlot
+include("tools/collage.jl")
+@reexport using .Collage
 
 end #module

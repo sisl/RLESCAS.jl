@@ -35,6 +35,7 @@
 module Visualize
 
 export trajPlot
+export pgfplot_hor, pgfplot_alt, pgfplot_heading, pgfplot_vrate
 
 import Compat.ASCIIString
 
@@ -66,56 +67,75 @@ const RESPONSE_STYLE_MAP = [
     (r -> r == "follow", "mark options={color=black}, mark=asterisk")
     ]
 
-function pgfplotLog(sav::SaveDict)
+#xy
+function pgfplot_hor(sav::SaveDict)
+    plotArray = vcat(pplot_line(sav, "wm", "x", "y"),
+        pplot_startpoint(sav, "wm", "x", "y", "top"), # label start point
+        pplot_aircraft_num(sav, "wm", "x", "y", startdist = 3.4)) # label aircraft numbers
+    xmin, xmax, ymin, ymax = manual_axis_equal(sav, "wm", "x", "y")
+    ax = Axis(plotArray,
+        xlabel = "x ($(sv_simlog_units(sav, "wm", "x")))",
+        ylabel = "y ($(sv_simlog_units(sav, "wm", "y")))",
+        title = "XY-Position",
+        style = "xmin=$xmin,xmax=$xmax,ymin=$ymin,ymax=$ymax,enlarge x limits=true," *
+            "enlarge y limits=true,axis equal,clip mode=individual")
+    ax
+end
 
+#altitude vs. time
+function pgfplot_alt(sav::SaveDict)
+    plotArray = vcat(pplot_z_label270s(sav), # label270 short
+        pplot_line(sav, "wm", "t", "z"),
+        pplot_startpoint(sav, "wm", "t", "z", "side", overrideangle = 0), # label start point
+        pplot_aircraft_num(sav, "wm", "t", "z", startdist = 3.4)) # label aircraft numbers
+
+    ax = Axis(plotArray,
+            xlabel = "time ($(sv_simlog_units(sav, "wm", "t")))",
+            ylabel = "h ($(sv_simlog_units(sav, "wm", "z")))",
+            title = "Altitude vs. Time",
+            style = "clip=false,clip mode=individual")
+    ax
+end
+
+#heading vs time
+function pgfplot_heading(sav::SaveDict)
+    plotArray = vcat(pplot_aircraft_num(sav, "adm", "t", "psi", fy = padded_diff), # label aircraft numbers
+        pplot_line(sav, "adm", "t", "psi", fy = padded_diff))
+    ax = Axis(plotArray,
+        xlabel = "time ($(sv_simlog_units(sav, "adm", "t")))",
+        ylabel = "psidot ($(sv_simlog_units(sav, "adm", "psi"))/s)",
+        title = "Heading Rate vs. Time")
+    ax
+end
+
+#vertical rate vs time
+function pgfplot_vrate(sav::SaveDict)
+    plotArray = vcat(pplot_aircraft_num(sav, "wm", "t", "vz"), # label aircraft numbers
+        pplot_line(sav, "wm", "t", "vz"))
+    ax = Axis(plotArray,
+        xlabel = "time ($(sv_simlog_units(sav, "wm", "t")))",
+        ylabel = "vh ($(sv_simlog_units(sav, "wm", "vz")))",
+        title = "Vertical Rate vs. Time")
+    ax
+end
+
+function pgfplotLog(sav::SaveDict)
   tps = TikzPicture[]
 
   #xy and tz group
   g = GroupPlot(2, 2, groupStyle = "horizontal sep = 2.2cm, vertical sep = 2.2cm")
 
   #xy
-  plotArray = vcat(pplot_line(sav, "wm", "x", "y"),
-                   pplot_startpoint(sav, "wm", "x", "y", "top"), # label start point
-                   pplot_aircraft_num(sav, "wm", "x", "y", startdist = 3.4)) # label aircraft numbers
-  xmin, xmax, ymin, ymax = manual_axis_equal(sav, "wm", "x", "y")
-  ax = Axis(plotArray,
-            xlabel = "x ($(sv_simlog_units(sav, "wm", "x")))",
-            ylabel = "y ($(sv_simlog_units(sav, "wm", "y")))",
-            title = "XY-Position",
-            style = "xmin=$xmin,xmax=$xmax,ymin=$ymin,ymax=$ymax,enlarge x limits=true," *
-                      "enlarge y limits=true,axis equal,clip mode=individual")
-  push!(g, ax)
+  push!(g, pgfplot_hor(sav))
 
   #altitude vs time
-  plotArray = vcat(pplot_z_label270s(sav), # label270 short
-                   pplot_line(sav, "wm", "t", "z"),
-                   pplot_startpoint(sav, "wm", "t", "z", "side", overrideangle = 0), # label start point
-                   pplot_aircraft_num(sav, "wm", "t", "z", startdist = 3.4)) # label aircraft numbers
-
-  ax = Axis(plotArray,
-            xlabel = "time ($(sv_simlog_units(sav, "wm", "t")))",
-            ylabel = "h ($(sv_simlog_units(sav, "wm", "z")))",
-            title = "Altitude vs. Time",
-            style = "clip=false,clip mode=individual")
-  push!(g, ax)
+  push!(g, pgfplot_alt(sav))
 
   #heading rate vs time
-  plotArray = vcat(pplot_aircraft_num(sav, "adm", "t", "psi", fy = padded_diff), # label aircraft numbers
-                   pplot_line(sav, "adm", "t", "psi", fy = padded_diff))
-  ax = Axis(plotArray,
-            xlabel = "time ($(sv_simlog_units(sav, "adm", "t")))",
-            ylabel = "psidot ($(sv_simlog_units(sav, "adm", "psi"))/s)",
-            title = "Heading Rate vs. Time")
-  push!(g, ax)
+  push!(g, pgfplot_heading(sav))
 
   #vertical rate vs time
-  plotArray = vcat(pplot_aircraft_num(sav, "wm", "t", "vz"), # label aircraft numbers
-                   pplot_line(sav, "wm", "t", "vz"))
-  ax = Axis(plotArray,
-            xlabel = "time ($(sv_simlog_units(sav, "wm", "t")))",
-            ylabel = "vh ($(sv_simlog_units(sav, "wm", "vz")))",
-            title = "Vertical Rate vs. Time")
-  push!(g, ax)
+  push!(g, pgfplot_vrate(sav))
 
   tp = PGFPlots.plot(g)
   use_geometry_package!(tp, landscape = true)
@@ -470,7 +490,10 @@ function trajPlot(savefile::AbstractString; format::AbstractString = "TEXPDF")
   return savefile
 end
 
+#TODO: should modify TikzPictures instead by adding a switch in PDF()
 function trajPlot(outfileroot::AbstractString, d::SaveDict; format::AbstractString = "TEXPDF")
+  #workaround, Tikzpictures/lualatex doesn't handle backslashes properly in path
+  outfileroot = replace(outfileroot, "\\", "/") 
 
   td = TikzDocument()
   tps = pgfplotLog(d)
@@ -481,6 +504,7 @@ function trajPlot(outfileroot::AbstractString, d::SaveDict; format::AbstractStri
 
   add_to_document!(td, tps, cap)
 
+  #TODO: this is quite ugly
   if format == "TEXPDF"
     outfile = string(outfileroot, ".pdf")
     TikzPictures.save(PDF(outfile), td)

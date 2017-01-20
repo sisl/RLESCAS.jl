@@ -32,66 +32,47 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module TikzUtils
+module Collage
 
-export add_to_document!, use_geometry_package!, use_aircraftshapes_package!, wrap_tikzpicture!,
-    lualatex_compile
+export collage
+
+using Compat
+using ..DefineSave
+using ..Visualize
+using ..Visualize.TikzUtils
 
 using TikzPictures
-using RLESUtils, FileUtils
+import PGFPlots
+import PGFPlots: Plots, Axis, GroupPlot
 
-function add_to_document!(d::TikzDocument, tp::TikzPicture, cap::AbstractString) 
-    push!(d, tp, caption=cap)
-end
+"""
+Make a collage out of the vertical profile plots of the first N json.gz files
+"""
+function collage{T<:AbstractString}(outfileroot::T, clusterdirs::Vector{T}, 
+    N::Int64)
 
-function add_to_document!(d::TikzDocument,tps::Array{TikzPicture,1},cap::AbstractString) 
-    [add_to_document!(d,tp,cap) for tp in tps]
-end
+    td = TikzDocument()
 
-function add_to_document!{T<:AbstractString}(d::TikzDocument,tpsTups::Array{Tuple{TikzPicture,T},1}) 
-    [add_to_document!(d,tps...) for tps in tpsTups]
-end
-
-function add_to_document!{T<:AbstractString}(d::TikzDocument, 
-    tpsTups::Array{Tuple{Vector{TikzPicture},T},1})  
-    [add_to_document!(d,tps...) for tps in tpsTups]
-end
-
-function use_geometry_package!(p::TikzPicture; margin::Float64 = 0.5, landscape::Bool = false)
-    # Adds margin enforcement to pdf file
-    # Adds capability for landscape
-    # margin in inches
-    # landscape false is portrait
-    orientation_str = landscape ? ",landscape" : ""
-    #prepend geometry package
-    p.preamble = "\\usepackage[margin=$(margin)in" * orientation_str * "]{geometry}\n" * p.preamble
-    p
-end
-
-function use_aircraftshapes_package!(p::TikzPicture)
-    #prepend aircraftshape package
-    p.preamble = "\\usepackage{aircraftshapes}\n" * p.preamble
-    p
-end
-
-function wrap_tikzpicture!(texfile::AbstractString, pre::AbstractString, post::AbstractString)
-    foldername = dirname(texfile)
-    if isempty(foldername)
-        foldername = "."
+    for dir in clusterdirs
+        fs = readdirGZs(dir)
+        NN = min(N, length(fs)) 
+        fs = fs[1:NN] 
+        g = GroupPlot(N, 1, groupStyle="horizontal sep=0.5cm")
+        for f in fs
+            sav = trajLoad(f)
+            ax = pgfplot_alt(sav)
+            push!(g, ax)
+        end
+        tp = PGFPlots.plot(g)
+        use_geometry_package!(tp, landscape=true)
+        use_aircraftshapes_package!(tp)
+        push!(td, tp)
     end
-    begintikz = "\\begin{tikzpicture}"
-    endtikz = "\\end{tikzpicture}"
-    replace_text(texfile, begintikz, pre * begintikz, foldername, fopen=open, inplace=true) 
-    replace_text(texfile, endtikz, endtikz * post, foldername, fopen=open, inplace=true) 
+    TikzPictures.save(TEX(outfileroot), td)
+    wrap_tikzpicture!("$(outfileroot).tex", "\\resizebox{\\textwidth}{!}{%\n", "\n}")
+    lualatex_compile("$(outfileroot).tex")
+    td
 end
 
-function lualatex_compile(texfile::AbstractString)
-    foldername = dirname(texfile)
-    if isempty(foldername)
-        foldername = "."
-    end
-    cmd = `lualatex --output-directory=$(foldername) $(texfile)`
-    success(cmd)
-end
 
 end #module
