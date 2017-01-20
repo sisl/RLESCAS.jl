@@ -40,6 +40,7 @@ using Compat
 using ..DefineSave
 using ..Visualize
 using ..Visualize.TikzUtils
+using ..SaveHelpers
 
 using TikzPictures
 import PGFPlots
@@ -53,20 +54,27 @@ function collage{T<:AbstractString}(outfileroot::T, clusterdirs::Vector{T},
 
     td = TikzDocument()
 
-    for dir in clusterdirs
+    enc_ids = Int64[]
+    for (i, dir) in enumerate(clusterdirs)
         fs = readdirGZs(dir)
         NN = min(N, length(fs)) 
         fs = fs[1:NN] 
         g = GroupPlot(N, 1, groupStyle="horizontal sep=0.5cm")
+        empty!(enc_ids)
         for f in fs
             sav = trajLoad(f)
             ax = pgfplot_alt(sav)
             push!(g, ax)
+            push!(enc_ids, sv_encounter_id(sav)[1])
+        end
+        for j = 1:N-NN #fill remaining with empty axis for scaling
+            push!(g, Axis())
         end
         tp = PGFPlots.plot(g)
         use_geometry_package!(tp, landscape=true)
         use_aircraftshapes_package!(tp)
-        push!(td, tp)
+        @compat cap = "Cluster $i: encounters=$(join(string.(enc_ids),","))"
+        push!(td, tp; caption=cap)
     end
     TikzPictures.save(TEX(outfileroot), td)
     wrap_tikzpicture!("$(outfileroot).tex", "\\resizebox{\\textwidth}{!}{%\n", "\n}")
