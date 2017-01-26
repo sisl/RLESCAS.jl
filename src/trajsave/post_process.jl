@@ -40,6 +40,7 @@ import Compat.ASCIIString
 
 using ..TrajSaveReplay
 using ..AddSupplementary
+using ..SaveHelpers
 using ..JSON_To_CSV
 using ..JSON_To_Scripted
 using ..JSON_To_Waypoints

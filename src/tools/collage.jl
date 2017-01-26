@@ -34,13 +34,15 @@
 
 module Collage
 
-export collage
+export collage, collage_compact
 
 using Compat
+import Compat.ASCIIString
 using ..DefineSave
 using ..Visualize
 using ..Visualize.TikzUtils
 using ..SaveHelpers
+using RLESUtils, FileUtils
 
 using TikzPictures
 import PGFPlots
@@ -48,18 +50,19 @@ import PGFPlots: Plots, Axis, GroupPlot
 
 """
 Make a collage out of the vertical profile plots of the first N json.gz files
+Expects clusterdirs to be in cluster number order
 """
 function collage{T<:AbstractString}(outfileroot::T, clusterdirs::Vector{T}, 
-    N::Int64)
+    ncols::Int64, nrows::Int64=1)
 
     td = TikzDocument()
-
     enc_ids = Int64[]
+    N = nrows * ncols
     for (i, dir) in enumerate(clusterdirs)
         fs = readdirGZs(dir)
         NN = min(N, length(fs)) 
         fs = fs[1:NN] 
-        g = GroupPlot(N, 1, groupStyle="horizontal sep=0.5cm")
+        g = GroupPlot(ncols, nrows, groupStyle="horizontal sep=0.5cm, vertical sep=0.5cm")
         empty!(enc_ids)
         for f in fs
             sav = trajLoad(f)
@@ -82,5 +85,45 @@ function collage{T<:AbstractString}(outfileroot::T, clusterdirs::Vector{T},
     td
 end
 
+"""
+Make a collage out of the vertical profile plots of the first N json.gz files
+compact version
+"""
+function collage_compact{T<:AbstractString}(outfileroot::T, clusterdirs::Vector{T}, 
+    N::Int64)
+
+    td = TikzDocument()
+    nclusters = length(clusterdirs)
+    g = GroupPlot(N, nclusters, groupStyle="horizontal sep=1.75cm, vertical sep=1.75cm")
+    enc_ids = Int64[]
+    caps = ASCIIString[] 
+    for (i, dir) in enumerate(clusterdirs)
+        fs = readdirGZs(dir)
+        NN = min(N, length(fs)) 
+        fs = fs[1:NN] 
+        empty!(enc_ids)
+        for f in fs
+            sav = trajLoad(f)
+            ax = pgfplot_alt(sav)
+            push!(g, ax)
+            push!(enc_ids, sv_encounter_id(sav)[1])
+        end
+        for j = 1:N-NN #fill remaining with empty axis for scaling
+            push!(g, Axis())
+        end
+        @compat push!(caps, "(Cluster $i: encounters=$(join(string.(enc_ids),",")))")
+    end
+    tp = PGFPlots.plot(g)
+    use_geometry_package!(tp, landscape=true)
+    use_aircraftshapes_package!(tp)
+    push!(td, tp)
+    TikzPictures.save(TEX(outfileroot), td)
+    wrap_tikzpicture!("$(outfileroot).tex", "\\resizebox{!}{0.95\\textheight}{%\n", "\n}")
+    lualatex_compile("$(outfileroot).tex")
+
+    #output encounter numbers to text file
+    textfile("$(outfileroot).txt", caps...)
+    td
+end
 
 end #module
