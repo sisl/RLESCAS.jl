@@ -156,8 +156,8 @@ sv_vmd(d::SaveDict) = d["sim_log"]["run_info"][sv_lookup_id(d, "run_info", "vmd"
 sv_command_method(d::SaveDict) = d["sim_params"]["data"]["command_method"]["data"]
 
 function sv_md_time(d::SaveDict)
-  t_index = d["sim_log"]["run_info"][sv_lookup_id(d, "run_info", "md_time")] #md_time is the index
-  sv_simlog_tdata_vid(d, "wm", 1, "t", [t_index])[1]
+  t = d["sim_log"]["run_info"][sv_lookup_id(d, "run_info", "md_time")] #md_time is the index
+  t
 end
 
 function sv_encounter_id(d::SaveDict)

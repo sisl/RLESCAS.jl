@@ -69,13 +69,13 @@ const RESPONSE_STYLE_MAP = [
 
 #xy
 function pgfplot_hor(sav::SaveDict)
-    plotArray = vcat(pplot_line(sav, "wm", "x", "y"),
-        pplot_startpoint(sav, "wm", "x", "y", "top"), # label start point
-        pplot_aircraft_num(sav, "wm", "x", "y", startdist = 3.4)) # label aircraft numbers
-    xmin, xmax, ymin, ymax = manual_axis_equal(sav, "wm", "x", "y")
+    plotArray = vcat(pplot_line(sav, "wm", "y", "x"),
+        pplot_startpoint(sav, "wm", "y", "x", "top"), # label start point
+        pplot_aircraft_num(sav, "wm", "y", "x", startdist = 3.4)) # label aircraft numbers
+    xmin, xmax, ymin, ymax = manual_axis_equal(sav, "wm", "y", "x")
     ax = Axis(plotArray,
-        xlabel = "x ($(sv_simlog_units(sav, "wm", "x")))",
-        ylabel = "y ($(sv_simlog_units(sav, "wm", "y")))",
+        ylabel = "x ($(sv_simlog_units(sav, "wm", "x")))",
+        xlabel = "y ($(sv_simlog_units(sav, "wm", "y")))",
         title = "XY-Position",
         style = "xmin=$xmin,xmax=$xmax,ymin=$ymin,ymax=$ymax,enlarge x limits=true," *
             "enlarge y limits=true,axis equal,clip mode=individual")
