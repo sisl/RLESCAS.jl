@@ -99,6 +99,10 @@ function mcts_main()
       check(length(v) >= 1, "config: encounters: invalid number of parameters ($(length(v)))")
       encounters = parse_ranges(v)
       config["sim_params.encounter_number"] = encounters
+    elseif k == "encounter_file"
+      check(length(v) == 1, "config: encounter_file: invalid number of parameters ($(length(v)))")
+      encounter_file = abspath(v[1])
+      config["sim_params.encounter_file"] = [encounter_file]
     elseif k == "initial"
       check(length(v) == 1, "config: initial: invalid number of parameters ($(length(v)))")
       initial = abspath(v[1])
