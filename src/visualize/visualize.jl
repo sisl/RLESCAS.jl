@@ -74,9 +74,9 @@ function pgfplot_hor(sav::SaveDict)
         pplot_aircraft_num(sav, "wm", "y", "x", startdist = 3.4)) # label aircraft numbers
     xmin, xmax, ymin, ymax = manual_axis_equal(sav, "wm", "y", "x")
     ax = Axis(plotArray,
-        ylabel = "x ($(sv_simlog_units(sav, "wm", "x")))",
-        xlabel = "y ($(sv_simlog_units(sav, "wm", "y")))",
-        title = "XY-Position",
+        ylabel = "N ($(sv_simlog_units(sav, "wm", "x")))",
+        xlabel = "E ($(sv_simlog_units(sav, "wm", "y")))",
+        title = "Horizontal Position",
         style = "xmin=$xmin,xmax=$xmax,ymin=$ymin,ymax=$ymax,enlarge x limits=true," *
             "enlarge y limits=true,axis equal,clip mode=individual")
     ax

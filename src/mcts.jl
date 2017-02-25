@@ -86,6 +86,9 @@ function mcts_main()
     elseif k == "encounter_model"
       check(length(v) == 1)
       config["sim_params.encounter_model"] = [Symbol(v[1])]
+    elseif k == "command_method"
+      check(length(v) == 1)
+      config["sim_params.command_method"] = [Symbol(v[1])]
     elseif k == "response_model"
       check(length(v) == 1)
       config["sim_params.response_model"] = [Symbol(v[1])]
