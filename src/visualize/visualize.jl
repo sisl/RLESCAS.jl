@@ -48,11 +48,12 @@ include("vis_captions.jl")
 using .TikzUtils
 using .VisCaptions
 
+using Iterators
 using TikzPictures
 import PGFPlots
 import PGFPlots: Plots, Axis, GroupPlot
 
-using RLESUtils, Obj2Dict
+using RLESUtils, Obj2Dict, MathUtils
 
 const RA_STYLE_MAP = [
     ((ra, h_d) -> ra && abs(h_d) < 5, "mark options={color=gray}, mark=*"),
@@ -99,8 +100,8 @@ end
 
 #heading vs time
 function pgfplot_heading(sav::SaveDict)
-    plotArray = vcat(pplot_aircraft_num(sav, "adm", "t", "psi", fy = padded_diff), # label aircraft numbers
-        pplot_line(sav, "adm", "t", "psi", fy = padded_diff))
+    plotArray = vcat(pplot_aircraft_num(sav, "adm", "t", "psi", fy=psidot_from_psi), # label aircraft numbers
+        pplot_line(sav, "adm", "t", "psi", fy=psidot_from_psi))
     ax = Axis(plotArray,
         xlabel = "time ($(sv_simlog_units(sav, "adm", "t")))",
         ylabel = "psidot ($(sv_simlog_units(sav, "adm", "psi"))/s)",
@@ -414,12 +415,10 @@ function pplot_line(sav, field::AbstractString,
   return plotArray
 end
 
-function padded_diff(x::Vector{Float64})
-  # Numerical differentiation with repeated last element so that output is same length as input
-
-  x1 = diff(x)
-
-  return vcat(x1, x1[end])
+function psidot_from_psi(psi::Vector{Float64})
+  # Numerical differentiation
+  psid = [angle_diff_rad(x1, x0) for (x0,x1) in partition(psi, 2, 1)]
+  vcat(psid, psid[end]) #repeat last element so output is same length
 end
 
 function get_ra_style(sav, aircraft_number::Int64)
