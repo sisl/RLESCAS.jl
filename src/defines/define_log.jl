@@ -670,7 +670,7 @@ function extract_response(pr::StochasticLinearPR)
 end
 
 extract_response_names(pr::LLDetPR) = ASCIIString["state", "timer", "t", "v_d", "h_d", "psi_d", "logProb"]
-extract_response_units(pr::LLDetPR) = ASCIIString["enum", "s", "s", "ft/s^2", "ft", "deg/s", "float"]
+extract_response_units(pr::LLDetPR) = ASCIIString["enum", "s", "s", "ft/s^2", "ft/s", "deg/s", "float"]
 
 function extract_response(pr::LLDetPR)
 
