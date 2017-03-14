@@ -117,12 +117,13 @@ include("trajsave/trajSave_mcts.jl")
 
 include("tools/nmac_stats.jl")
 @reexport using .NMACStats
-
 include("tools/json_update.jl")
 @reexport using .JsonUpdate
 include("tools/recursive_plot.jl")
 @reexport using .RecursivePlot
 include("tools/collage.jl")
 @reexport using .Collage
+include("tools/sortbylikelihood.jl")
+@reexport using .SortByLikelihood
 
 end #module
