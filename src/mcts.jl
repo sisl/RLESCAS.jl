@@ -64,6 +64,7 @@ function mcts_main()
   conf = ConfParse(configfile)
   parse_conf!(conf)
 
+  search_method = "mcts" #or "mcbest"
   number_of_aircraft = -1
   encounter_ranges = nothing
   config = Dict{ASCIIString,Vector{Any}}()
@@ -77,7 +78,10 @@ function mcts_main()
     #Obj2Dict doesn't work well with UTF8String and substring
     #work exclusively in ASCIIString
     v = convert(Array{ASCIIString}, v)
-    if k == "number_of_aircraft"
+    if k == "search_method"
+      check(length(v) == 1, "config: search_method: invalid number of parameters ($(length(v)))")
+      search_method = v[1]
+    elseif k == "number_of_aircraft"
       check(length(v) == 1, "config: number_of_aircraft: invalid number of parameters ($(length(v)))")
       config["sim_params.num_aircraft"] = [parse(Int,v[1])]
     elseif k == "encounter_equipage"
@@ -118,6 +122,10 @@ function mcts_main()
       check(length(v) == 1, "config: mcts_iterations: invalid number of parameters ($(length(v)))")
       mcts_iterations = parse(Int,v[1])
       config["mcts_params.n"] = [mcts_iterations]
+    elseif k == "mcbest_samples"
+      check(length(v) == 1, "config: mcbest_samples: invalid number of parameters ($(length(v)))")
+      mcbest_samples = parse(Int,v[1])
+      config["mcbest_params.n"] = [mcbest_samples]
     elseif k == "libcas"
       check(length(v) == 1, "config: libcas: invalid number of parameters ($(length(v)))")
       libcas = abspath(v[1])
@@ -146,15 +154,37 @@ function mcts_main()
   map_block!(config, conf, "simulation", "sim_params") # Process simulation block
   map_block!(config, conf, "ast", "ast_params") # Process ast block
   map_block!(config, conf, "mcts", "mcts_params") # Process mcts block
+  map_block!(config, conf, "mcbest", "mcbest_params") # Process mcbest block
   map_block!(config, conf, "study", "study_params") # Process study block
   map_block!(config, conf, "manual", "", separator = "") #don't prefix, directly apply, # Process manual block
+
+  if lowercase(search_method) == "mcts" #case insensitive
+      #make sure no mcbest_params
+      remove_by_key!(config, "mcbest_params.")
+      study = MCTSStudy()
+  elseif lowercase(search_method) == "mcbest"
+      #make sure no mcts_params
+      remove_by_key!(config, "mcts_params.")
+      study = MCBestStudy()
+  else
+      error("No such search method: $(search_method)");
+  end
 
   # Create the final config
   cases = generate_cases(collect(config)...)
   config_seeds!(cases) #seed each encounter with a different init_seed
 
-  return rewards = trajSave(MCTSStudy(), cases, postproc=StandardPostProc(outputs, output_filters),
+  return rewards = trajSave(study, cases, postproc=StandardPostProc(outputs, output_filters),
                             outdir=output_dir)
+end
+
+function remove_by_key!(config::Dict{ASCIIString,Vector{Any}}, searchkey::AbstractString)
+    for k in keys(config)
+        if contains(k, searchkey)
+            warn("config: ignoring incompatible key $k")
+            delete!(config, k)
+        end
+    end
 end
 
 function parse_ranges(ranges::Vector{ASCIIString})

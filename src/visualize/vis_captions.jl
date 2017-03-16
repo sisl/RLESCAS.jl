@@ -46,8 +46,8 @@ using ...SaveHelpers
 function vis_runtype_caps(d::SaveDict, run_type::AbstractString)
   if run_type == "ONCE"
     cap = "Encounter. "
-  elseif run_type == "MCBEST"
-    cap = "Best Monte Carlo. nsamples=$(Obj2Dict.to_obj(d["study_params"]).nsamples). "
+  elseif run_type == "MCBest"
+    cap = "MC. N=$(Obj2Dict.to_obj(d["mcbest_params"]).n). "
   elseif run_type == "MCTS"
     cap = "MCTS. N=$(sv_mcts_iterations(d)). "
   else

@@ -68,6 +68,7 @@ function trajSave(study_params::MCTSStudy,
                   outdir::AbstractString="./", 
                   postproc::PostProcessing=StandardPostProc())
 
+  println("Starting MCTS Study...")
   pmap(case -> begin
          starttime_us = CPUtime_us()
          startnow = string(now())
@@ -103,6 +104,7 @@ function trajSave(study_params::MCTSStudy,
          sav = SaveDict()
          sav["run_type"] = "MCTS"
          sav["compute_info"] = Obj2Dict.to_dict(compute_info)
+         sav["study_params"] = Obj2Dict.to_dict(study_params)
          sav["sim_params"] = Obj2Dict.to_dict(sim_params)
          sav["ast_params"] = Obj2Dict.to_dict(ast_params)
          sav["mcts_params"] = Obj2Dict.to_dict(mcts_params)

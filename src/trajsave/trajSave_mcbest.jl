@@ -39,30 +39,34 @@ export MCBestStudy, MCBestStudyResults
 import Compat.ASCIIString
 
 using AdaptiveStressTesting
-using SISLES.GenerativeModel
+using SISLES: GenerativeModel, notifyObserver
 
 using CPUTime
 using RLESUtils, Obj2Dict, RunCases
 
+using ..Config_ACASX_GM
+using ..ConfigAST
+using ..ConfigMCBest
+using ..DefineSave
 import ..DefineSave.trajSave
+using ..TrajSaveCommon
+using ..DefineLog
+using ..SaveTypes
+using ..PostProcess
 
 type MCBestStudy
   fileroot::ASCIIString
+  studytype::ASCIIString #timed or samples
   trial::Int64
-  nsamples::Int64
-  maxtime_s::Float64
 end
-
 function MCBestStudy(;
-                     fileroot::AbstractString = "trajSaveMCBEST",
-                     trial::Int64 = 0,
-                     nsamples::Int64 = 50,
-                     maxtime_s::Float64 = realmax(Float64))
-  MCBestStudy(fileroot, trial, nsamples, maxtime_s)
+                     fileroot::AbstractString="trajSaveMCBest",
+                     studytype::AbstractString="samples",
+                     trial::Int64=0);
+  MCBestStudy(fileroot, studytype, trial)
 end
 
 type MCBestStudyResults
-  nsamples::Int64    # actual number of samples used, i.e., when limited by time
   rewards::Vector{Float64}  #vector of all the rewards
 end
 
@@ -70,28 +74,31 @@ MCBestStudyResults() = MCBestStudyResults(0, Float64[])
 
 function trajSave(study_params::MCBestStudy,
                   cases::Cases = Cases(Case());
-                  outdir::AbstractString = "./", postproc::Function=identity)
+                  outdir::AbstractString = "./", 
+                  postproc::PostProcessing=StandardPostProc(),
+                  print_rate::Int64=1000)
 
+  println("Starting MCBest Study...")
   pmap(case -> begin
          starttime_us = CPUtime_us()
          startnow = string(now())
 
          sim_params = extract_params!(defineSimParams(), case, "sim_params")
          ast_params = extract_params!(defineASTParams(), case, "ast_params")
+         mcbest_params = extract_params!(defineMCBestParams(), case, "mcbest_params")
          study_params = extract_params!(study_params, case, "study_params")
 
          sim = defineSim(sim_params)
          ast = defineAST(sim, ast_params)
 
-         if study_params.maxtime_s != realmax(Float64)
-           results = sample_timed(ast, study_params.maxtime_s)
-         else
-           results = sample(ast, study_params.nsamples)
+         if study_params.studytype == "timed"
+           results = sample_timed(ast, mcbest_params.maxtime_s; print_rate=print_rate)
+         elseif study_params.studytype == "samples"
+           results = sample(ast, mcbest_params.n; print_rate=print_rate)
          end
-         nsamples = length(results)
          rewards = map(x -> x[1], results)
 
-         study_results = MCBestStudyResults(nsamples, rewards)
+         study_results = MCBestStudyResults(rewards)
          index = indmax(rewards)
          reward, action_seq = results[index]
 
@@ -99,12 +106,13 @@ function trajSave(study_params::MCBestStudy,
          simLog = SimLog()
          addObservers!(simLog, ast)
 
-         reward2, action_seq2 = play_sequence(ast, action_seq)
+         replay_reward, action_seq2 = play_sequence(ast, action_seq)
 
          notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
+         notifyObserver(sim, "action_seq", Any[action_seq])
 
          #sanity check replay
-         @assert reward2 == reward
+         @assert replay_reward == reward
          @assert action_seq2 == action_seq
 
          compute_info = ComputeInfo(startnow,
@@ -114,12 +122,13 @@ function trajSave(study_params::MCBestStudy,
 
          #Save
          sav = SaveDict()
-         sav["run_type"] = "MCBEST"
+         sav["run_type"] = "MCBest"
          sav["compute_info"] = Obj2Dict.to_dict(compute_info)
          sav["study_params"] = Obj2Dict.to_dict(study_params)
          sav["study_results"] = Obj2Dict.to_dict(study_results)
-         sav["sim_params"] = Obj2Dict.to_dict(ast.sim.params)
-         sav["ast_params"] = Obj2Dict.to_dict(ast.params)
+         sav["sim_params"] = Obj2Dict.to_dict(sim_params)
+         sav["ast_params"] = Obj2Dict.to_dict(ast_params)
+         sav["mcbest_params"] = Obj2Dict.to_dict(mcbest_params)
          sav["sim_log"] = simLog
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
@@ -127,7 +136,7 @@ function trajSave(study_params::MCBestStudy,
          outfile = trajSave(outfileroot, sav)
 
          #callback for postprocessing
-         postproc(outfile)
+         postprocess(outfile, postproc)
 
          return reward
        end,
