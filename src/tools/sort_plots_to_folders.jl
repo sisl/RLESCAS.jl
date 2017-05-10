@@ -32,6 +32,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+"""
+Trajplot jsons into two folders depending on an indicator vector.
+"""
 module SortPlotsToFolders
 
 export sort_plots_to_folders
@@ -45,11 +48,14 @@ const APL042017_10K_CASSIM_META = Pkg.dir("Datasets/data/APL042017_10K_cassim/_M
 
 function sort_plots_to_folders{T<:AbstractString}(files::Vector{T}, 
     indicator::Vector{Bool}, true_folder::AbstractString, 
-    false_folder::AbstractString; format::AbstractString="TEXPDF")
-    
+    false_folder::AbstractString; verbose::Bool=true,
+    format::AbstractString="TEXPDF")
+
+    @assert length(files) == length(indicator)    
     mkpath(true_folder)
     mkpath(false_folder)
     for i = 1:length(files)
+        verbose && println("file $i of $(length(files))")
         f = files[i]
         b = indicator[i]
         folder = b ? true_folder : false_folder
