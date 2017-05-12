@@ -40,6 +40,8 @@ using SISLES
 using SISLES.GenerativeModel
 using AdaptiveStressTesting
 
+const COST_ACCEL_NEAR_RA = -5000.0
+
 function defineASTParams(;
                          max_steps::Int64 = 51,
                          rsg_length::Int64 = 3,
@@ -54,9 +56,27 @@ function defineASTParams(;
   return p
 end
 
+function get_reward_custom(prob::Float64, event::Bool, terminal::Bool, dist::Float64,
+                            ast::AdaptiveStressTest) 
+  r = log(prob)
+
+  #penalize for maneuvering too close to RA
+  pr = ast.sim.pr
+  if any(pr[i].accel_near_RA for i=1:length(pr))
+    r += COST_ACCEL_NEAR_RA
+  end
+
+  if event
+    r += 0.0
+  elseif terminal #incur distance cost only if !event && terminal
+    r += -dist
+  end
+  return r
+end
+
 function defineAST(sim::AbstractGenerativeModel, p::ASTParams)
   return AdaptiveStressTest(p, sim, GenerativeModel.initialize, GenerativeModel.update,
-                 GenerativeModel.isterminal)
+                 GenerativeModel.isterminal, get_reward_custom)
 end
 
 end #module
