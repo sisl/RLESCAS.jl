@@ -81,7 +81,8 @@ function trajSave(study_params::MCTSStudy,
          sim = defineSim(sim_params)
          ast = defineAST(sim, ast_params)
 
-         reward, action_seq = stress_test(ast, mcts_params)
+         result = stress_test(ast, mcts_params)
+         reward, action_seq, q_vals = result.reward, result.action_seq, result.q_values
 
          #replay to get logs
          simLog = SimLog()
@@ -109,6 +110,7 @@ function trajSave(study_params::MCTSStudy,
          sav["ast_params"] = Obj2Dict.to_dict(ast_params)
          sav["mcts_params"] = Obj2Dict.to_dict(mcts_params)
          sav["sim_log"] = simLog
+         sav["q_values"] = Obj2Dict.to_dict(q_vals)
 
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
          outfileroot = joinpath(outdir, fileroot_)

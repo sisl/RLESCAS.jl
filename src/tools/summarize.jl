@@ -40,24 +40,28 @@ using ..DefineSave
 using ..SaveHelpers
 
 function summarize(filename::AbstractString; ndecimals::Int=2)
-  d = trajLoad(filename)
+    d = trajLoad(filename)
 
-  outfilename = string(getSaveFileRoot(filename), "_summary.txt")
-  f = open(outfilename, "w")
+    outfilename = string(getSaveFileRoot(filename), "_summary.txt")
+    f = open(outfilename, "w")
 
-  println(f, "encounter = $(sv_encounter_id(d)[1])")
-  println(f, "number of aircraft = $(sv_num_aircraft(d))")
-  println(f, "run type = $(sv_run_type(d))")
-  println(f, "nmac = $(sv_nmac(d))")
-  println(f, "reward = $(round(sv_reward(d), ndecimals))")
-  println(f, "hmd = $(round(sv_hmd(d), ndecimals))")
-  println(f, "vmd = $(round(sv_vmd(d), ndecimals))")
-  println(f, "md_time = $(sv_md_time(d))")
-  println(f, "logProbs = $(sv_simlog_tdata_vid(d,"logProb","logProb"))")
+    println(f, "encounter = $(sv_encounter_id(d)[1])")
+    println(f, "number of aircraft = $(sv_num_aircraft(d))")
+    println(f, "run type = $(sv_run_type(d))")
+    println(f, "nmac = $(sv_nmac(d))")
+    println(f, "reward = $(round(sv_reward(d), ndecimals))")
+    println(f, "hmd = $(round(sv_hmd(d), ndecimals))")
+    println(f, "vmd = $(round(sv_vmd(d), ndecimals))")
+    println(f, "md_time = $(sv_md_time(d))")
+    println(f, "logProbs = $(sv_simlog_tdata_vid(d,"logProb","logProb"))")
+    if sv_run_type(d) == "MCTS"
+        try
+            println(f, "q_values = $(sv_qvalues(d))")
+        end
+    end
 
-  close(f)
-
-  return outfilename
+    close(f)
+    outfilename
 end
 
 end #module

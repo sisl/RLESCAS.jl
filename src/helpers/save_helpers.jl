@@ -40,7 +40,7 @@ module SaveHelpers
 
 export sv_simlog_names, sv_simlog_units, sv_simlog_data, sv_simlog_data_vid
 export sv_simlog_tdata, sv_simlog_tdata_vid, sv_simlog_tdata_f, sv_simlog_tdata_vid_f
-export sv_lookup_id, sorted_times, sv_sim_steps, sv_num_steps, sv_num_aircraft, 
+export sv_lookup_id, sorted_times, sv_sim_steps, sv_num_steps, sv_num_aircraft, sv_qvalues, 
     sv_run_type, sv_reward, sv_nmac, sv_hmd, sv_vmd, sv_command_method, sv_md_time, sv_encounter_id,
     sv_mcts_iterations, is_nmac, nmacs_only, contains_only
 
@@ -154,6 +154,7 @@ sv_nmac(d::SaveDict) = d["sim_log"]["run_info"][sv_lookup_id(d, "run_info", "nma
 sv_hmd(d::SaveDict) = d["sim_log"]["run_info"][sv_lookup_id(d, "run_info", "hmd")]
 sv_vmd(d::SaveDict) = d["sim_log"]["run_info"][sv_lookup_id(d, "run_info", "vmd")]
 sv_command_method(d::SaveDict) = d["sim_params"]["data"]["command_method"]["data"]
+sv_qvalues(d::SaveDict) = Obj2Dict.to_obj(d["q_values"])
 
 function sv_md_time(d::SaveDict)
   t = d["sim_log"]["run_info"][sv_lookup_id(d, "run_info", "md_time")] #md_time is the index
