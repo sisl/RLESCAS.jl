@@ -41,6 +41,7 @@ using Obj2Dict
 using CPUTime
 using TikzPictures
 import PGFPlots: Plots,Axis
+using RLESUtils, PGFPlotUtils
 
 function cts_2ac_mcts_script(encounters::Vector{Int64}, maxtimes::Vector{Float64})
   #maxtimes are in seconds for the entire run (not per step)
@@ -77,7 +78,7 @@ end
 
 #TODO: implement saving these case gen dicts to/from json
 
-function cts_vis{T<:AbstractString}(files::Vector{T}; outfileroot::AbstractString = "cts_vis", format::AbstractString = "TEXPDF")
+function cts_vis{T<:AbstractString}(files::Vector{T}; outfileroot::AbstractString="cts_vis", format::Symbol=:TEXPDF)
 
   td = TikzDocument()
 
@@ -129,23 +130,8 @@ function cts_vis{T<:AbstractString}(files::Vector{T}; outfileroot::AbstractStrin
 
   end
   pgfplotcts_nmacs!(td, names, times, nmacs, ntrials)
-
-  if format == "TEXPDF"
-    outfile = string(outfileroot, ".pdf")
-    TikzPictures.save(PDF(outfile), td)
-    outfile = string(outfileroot, ".tex")
-    TikzPictures.save(TEX(outfile), td)
-  elseif format == "PDF"
-    outfile = string(outfileroot, ".pdf")
-    TikzPictures.save(PDF(outfile), td)
-  elseif format == "TEX"
-    outfile = string(outfileroot, ".tex")
-    TikzPictures.save(TEX(outfile), td)
-  else
-    warn("cts_vis::Format keyword not recognized. Only these are valid: PDF, TEX, or TEXPDF.")
-  end
-
-  return
+  plot_tikz(outfileroot, td, format=format)
+  nothing 
 end
 
 function gettime(d::SaveDict)

@@ -53,7 +53,7 @@ using TikzPictures
 import PGFPlots
 import PGFPlots: Plots, Axis, GroupPlot
 
-using RLESUtils, Obj2Dict, MathUtils
+using RLESUtils, Obj2Dict, MathUtils, PGFPlotUtils
 
 const RA_STYLE_MAP = [
     ((ra, h_d) -> ra && abs(h_d) < 5, "mark options={color=gray}, mark=*"),
@@ -472,12 +472,12 @@ function get_response_style(sav,aircraft_number::Int64)
   end
 end
 
-function trajPlot{T<:AbstractString}(savefiles::Vector{T}; format::AbstractString = "TEXPDF")
+function trajPlot{T<:AbstractString}(savefiles::Vector{T}; format::Symbol=:TEXPDF)
 
   map(f -> trajPlot(f, format = format), savefiles)
 end
 
-function trajPlot(savefile::AbstractString; format::AbstractString = "TEXPDF")
+function trajPlot(savefile::AbstractString; format::Symbol=:TEXPDF)
 
   # add suppl info and reload.  This avoids adding suppl info to all files
   add_supplementary(savefile)
@@ -489,8 +489,7 @@ function trajPlot(savefile::AbstractString; format::AbstractString = "TEXPDF")
   return savefile
 end
 
-#TODO: should modify TikzPictures instead by adding a switch in PDF()
-function trajPlot(outfileroot::AbstractString, d::SaveDict; format::AbstractString = "TEXPDF")
+function trajPlot(outfileroot::AbstractString, d::SaveDict; format::Symbol=:TEXPDF)
   #workaround, Tikzpictures/lualatex doesn't handle backslashes properly in path
   outfileroot = replace(outfileroot, "\\", "/") 
 
@@ -502,24 +501,8 @@ function trajPlot(outfileroot::AbstractString, d::SaveDict; format::AbstractStri
                vis_runinfo_caps(d))
 
   add_to_document!(td, tps, cap)
-
-  #TODO: this is quite ugly
-  if format == "TEXPDF"
-    outfile = string(outfileroot, ".pdf")
-    TikzPictures.save(PDF(outfile), td)
-    outfile = string(outfileroot, ".tex")
-    TikzPictures.save(TEX(outfile), td)
-  elseif format == "PDF"
-    outfile = string(outfileroot, ".pdf")
-    TikzPictures.save(PDF(outfile), td)
-  elseif format == "TEX"
-    outfile = string(outfileroot, ".tex")
-    TikzPictures.save(TEX(outfile), td)
-  else
-    warn("trajPlot::Format keyword not recognized. Only these are valid: PDF, TEX, or TEXPDF.")
-  end
-
-  return td
+  plot_tikz(outfileroot, td, format)
+  td
 end
 
 end #module

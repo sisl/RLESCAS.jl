@@ -41,6 +41,7 @@ export sort_plots_to_folders
 export script_APL042017_10K_cassim
 
 using DataFrames
+using RLESUtils, PGFPlotUtils
 using RLESCAS
 include_visualize()
 
@@ -49,7 +50,7 @@ const APL042017_10K_CASSIM_META = Pkg.dir("Datasets/data/APL042017_10K_cassim/_M
 function sort_plots_to_folders{T<:AbstractString}(files::Vector{T}, 
     indicator::Vector{Bool}, true_folder::AbstractString, 
     false_folder::AbstractString; verbose::Bool=true,
-    format::AbstractString="TEXPDF")
+    format::Symbol=:TEXPDF)
 
     @assert length(files) == length(indicator)    
     mkpath(true_folder)
