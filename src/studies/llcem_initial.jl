@@ -82,7 +82,9 @@ function llcem_initial_study(init_file::AbstractString, data_name::AbstractStrin
     m = load_meta(data_name)
     nmac_ids = find(m[:nmac])
     init = initial_to_DataFrame(init_file)
-    td = histogram_all_cols(init[nmac_ids,:]; discretization=:sqrt)
+    td = histogram_all_cols_sbs(init[nmac_ids,:], init; 
+        discretization=:sqrt,
+        datanames=["nmacs", "all"])
     plot_tikz(outfileroot, td, format)
 end
 
