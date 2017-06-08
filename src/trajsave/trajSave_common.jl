@@ -34,7 +34,7 @@
 
 module TrajSaveCommon
 
-export extract_params!
+export extract_params!, extract_params
 
 import Compat.ASCIIString
 
@@ -60,6 +60,20 @@ function extract_params!(paramObj, case::Case, key::AbstractString)
   end
 
   return paramObj
+end
+
+function extract_params(case::Case, key::AbstractString)
+    kwargs = Tuple{Symbol,Any}[]
+    for (k, v) in case
+        toks = split(k, '.')
+        if length(toks) < 2
+            warn("extract_params::dot separator not found in $k")
+        end
+        if toks[1] == key
+            push!(kwargs, (toks[2], v))
+        end
+    end
+    kwargs
 end
 
 end #module

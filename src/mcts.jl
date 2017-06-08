@@ -134,6 +134,14 @@ function mcts_main()
       check(length(v) == 1, "config: libcas_config: invalid number of parameters ($(length(v)))")
       libcas_config = abspath(v[1])
       config["sim_params.libcas_config"] = [libcas_config]
+    elseif k == "libcas2"
+      check(length(v) == 1, "config: libcas2: invalid number of parameters ($(length(v)))")
+      libcas2 = abspath(v[1])
+      config["sim_params.libcas2"] = [libcas2]
+    elseif k == "libcas2_config"
+      check(length(v) == 1, "config: libcas2_config: invalid number of parameters ($(length(v)))")
+      libcas2_config = abspath(v[1])
+      config["sim_params.libcas2_config"] = [libcas2_config]
     elseif k == "output_dir"
       check(length(v) == 1, "config: output_dir: invalid number of parameters ($(length(v)))")
       output_dir = abspath(v[1])

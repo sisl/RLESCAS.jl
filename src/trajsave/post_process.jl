@@ -77,10 +77,10 @@ function postprocess(filename::AbstractString, opts::StandardPostProc)
   for f in formats
     if f == "pdf"
       RLESCAS.include_visualize()
-      RLESCAS.trajPlot(filename, format="PDF")
+      RLESCAS.trajPlot(filename, format=:PDF)
     elseif f == "tex"
       RLESCAS.include_visualize()
-      RLESCAS.trajPlot(filename, format="TEX")
+      RLESCAS.trajPlot(filename, format=:TEX)
     elseif f == "scripted"
       json_to_scripted(filename)
     elseif f == "waypoints"

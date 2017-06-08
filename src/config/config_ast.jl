@@ -57,11 +57,11 @@ function defineASTParams(;
 end
 
 function get_reward_custom(prob::Float64, event::Bool, terminal::Bool, dist::Float64,
-                            ast::AdaptiveStressTest) 
+                            ast::AdaptiveStressTest, sim::AbstractGenerativeModel) 
   r = log(prob)
 
   #penalize for maneuvering too close to RA
-  pr = ast.sim.pr
+  pr = sim.pr
   if any(pr[i].accel_near_RA for i=1:length(pr))
     r += COST_ACCEL_NEAR_RA
   end
@@ -74,7 +74,7 @@ function get_reward_custom(prob::Float64, event::Bool, terminal::Bool, dist::Flo
   return r
 end
 
-function defineAST(sim::AbstractGenerativeModel, p::ASTParams)
+function defineAST(sim, p::ASTParams)
   return AdaptiveStressTest(p, sim, GenerativeModel.initialize, GenerativeModel.update,
                  GenerativeModel.isterminal, get_reward_custom)
 end

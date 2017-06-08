@@ -38,6 +38,7 @@ export defineSimParams, defineSim
 
 using SISLES
 using SISLES.GenerativeModel
+using AdaptiveStressTesting
 
 function defineSimParams(;encounter_number::Int64 = 1,
                          encounter_seed::UInt64 = UInt64(0),
@@ -65,8 +66,10 @@ function defineSimParams(;encounter_number::Int64 = 1,
                          #libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.9.3/parameters/0.9.3.standard.r14.xa.config.txt")
                          #libcas::AbstractString = Pkg.dir("CCAS/libcas0.10.0/lib/libcas"),
                          #libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.10.0/parameters/0.10.0.standard.r15_pre25iter93.xa.tcas.config.txt")
-                         libcas::AbstractString = Pkg.dir("CCAS/libcas0.10.1/lib/libcas.so"),
-                         libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.10.1/parameters/0.10.1.standard.r15mtf.tcas.xa.config.txt")
+                         libcas::AbstractString = Pkg.dir("CCAS/libcas0.10.1/lib/libcas"),
+                         libcas_config::AbstractString = Pkg.dir("CCAS/libcas0.10.1/parameters/0.10.1.standard.r15mtf.tcas.xa.config.txt"),
+                         libcas2::Union{Void,String}=nothing,
+                         libcas2_config::Union{Void,String}=nothing
                          )
   p = ACASX_GM_params()
 
@@ -88,9 +91,21 @@ function defineSimParams(;encounter_number::Int64 = 1,
   p.libcas = libcas
   p.libcas_config = libcas_config
 
-  return p
+  if libcas2 == nothing || libcas2_config == nothing 
+      return p #single sim run
+  end
+
+  p2 = deepcopy(p)
+  p2.libcas = libcas2
+  p2.libcas_config = libcas2_config
+
+  return (p, p2) #dual sim run
 end
 
+#single sim run
 defineSim(p::ACASX_GM_params) = ACASX_GM(p)
+
+#dual sim run
+defineSim(p::Tuple{ACASX_GM_params,ACASX_GM_params}) = DualSim(ACASX_GM(p[1]), ACASX_GM(p[2]))
 
 end #module

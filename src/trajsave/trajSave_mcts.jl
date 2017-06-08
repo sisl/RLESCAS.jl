@@ -73,9 +73,9 @@ function trajSave(study_params::MCTSStudy,
          starttime_us = CPUtime_us()
          startnow = string(now())
 
-         sim_params = extract_params!(defineSimParams(), case, "sim_params")
-         ast_params = extract_params!(defineASTParams(), case, "ast_params")
-         mcts_params = extract_params!(defineMCTSParams(), case, "mcts_params")
+         sim_params = defineSimParams(; extract_params(case, "sim_params")...)
+         ast_params = defineASTParams(; extract_params(case, "ast_params")...)
+         mcts_params = defineMCTSParams(; extract_params(case, "mcts_params")...)
          study_params = extract_params!(study_params, case, "study_params")
 
          sim = defineSim(sim_params)
@@ -85,7 +85,7 @@ function trajSave(study_params::MCTSStudy,
          reward, action_seq, q_vals = result.reward, result.action_seq, result.q_values
 
          #replay to get logs
-         simLog = SimLog()
+         simLog = SimLog() #TODO: replace the simlog system with the dataframe logger system
          addObservers!(simLog, ast)
          replay_reward, action_seq2 = play_sequence(ast, action_seq)
 
