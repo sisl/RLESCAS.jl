@@ -37,8 +37,8 @@ module TrajSaveReplay
 export trajReplay, fill_replay
 
 using AdaptiveStressTesting
-using SISLES: GenerativeModel, notifyObserver
-using RLESUtils, Obj2Dict, RunCases
+using SISLES: GenerativeModel
+using RLESUtils, Obj2Dict, RunCases, Observers
 using CPUTime
 
 using ..Config_ACASX_GM
@@ -72,8 +72,8 @@ function trajReplay(d::SaveDict; fileroot::AbstractString = "", case::Case=Case(
   addObservers!(simLog, ast)
 
   reward, action_seq2 = play_sequence(ast, action_seq)
-  notifyObserver(sim, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
-  notifyObserver(sim, "action_seq", Any[action_seq])
+  @notify_observer(sim.observer, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
+  @notify_observer(sim.observer, "action_seq", Any[action_seq])
 
   #Save
   sav = d #copy original

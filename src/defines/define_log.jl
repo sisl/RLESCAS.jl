@@ -34,520 +34,286 @@
 
 module DefineLog
 
-export SimLog, SimLogDict, addObservers!
-
-import Compat.ASCIIString
+export addObservers
 
 using AdaptiveStressTesting
+using SISLES
 using SISLES: Encounter, EncounterDBN, WorldModel, Sensor, CollisionAvoidanceSystem, 
-    DynamicModel, PilotResponse
-using RLESUtils, Obj2Dict
+    DynamicModel, PilotResponse, GenerativeModel
+using RLESUtils, Loggers
 
 using ..DefineSave
 
 const ENABLE_ROUNDING = true
 const ROUND_NDECIMALS = 9
 
-#FIXME: This is not a great way to do logs.  Consider switching to the Loggers framework in RLESUtils that is based on DataFrames. 
+function addObservers(sim::ACASX_GM)
+    clearObservers!(sim)
+    log = TaggedDFLogger()
+    #separate folders for each aircraft.  logs can be different.  e.g. 2 different CAS 
+    for i = 1:sim.params.num_aircraft
+        add_folder!(log, "CAS_info_$i", cas_info_types(sim.cas[i]),  cas_info_names(sim.cas[i]))
+        add_folder!(log, "Initial_$i", initial_types(sim.em),  initial_names(sim.em))
+        add_folder!(log, "Command_$i", command_types(sim.em.output_commands[i]), 
+            command_names(sim.em.output_commands[i]))
+        add_folder!(log, "Sensor_$i", sensor_types(sim.sr[i]),  sensor_names(sim.sr[i]))
+        add_folder!(log, "CAS_$i", cas_types(sim.cas[i]),  cas_names(sim.cas[i]))
+        add_folder!(log, "Response_$i", response_types(sim.pr[i]),  response_names(sim.pr[i]))
+        add_folder!(log, "Dynamics_$i", dynamics_types(sim.dm[i]),  dynamics_names(sim.dm[i]))
+        add_folder!(log, "WorldModel_$i", worldmodel_types(sim.wm),  worldmodel_names(sim.wm))
 
-#TODO: consider using OrderedDicts to preserve time order.  For now use sortByTime()
-typealias SimLog Dict{ASCIIString, Any}
-typealias SimLogDict Dict{ASCIIString, Any}
-
-function addObservers!(simLog::SimLog, ast::AdaptiveStressTest)
-  addObserver(ast.sim, "action_seq", x -> log_actions!(simLog, x))
-  addObserver(ast.sim, "CAS_info",   x -> log_cas_info!(simLog, x))
-  addObserver(ast.sim, "Initial",    x -> log_initial!(simLog, x))
-  addObserver(ast.sim, "Command",    x -> log_command!(simLog, x))
-  addObserver(ast.sim, "Sensor",     x -> log_sensor!(simLog, x))
-  addObserver(ast.sim, "CAS",        x -> log_ra!(simLog, x))
-  addObserver(ast.sim, "Response",   x -> log_response!(simLog, x))
-  addObserver(ast.sim, "Dynamics",   x -> log_adm!(simLog, x))
-  addObserver(ast.sim, "WorldModel", x -> log_wm!(simLog, x))
-  addObserver(ast.sim, "logProb",   x -> log_logProb!(simLog, x))
-  addObserver(ast.sim, "run_info",   x -> log_runinfo!(simLog, x))
-
-  return simLog #not required, but returned for convenience
-end
-
-function check_key!(d::SimLogDict,k::AbstractString; subkey::Union{AbstractString,Void}=nothing)
-  #add it if it doesn't exist
-  if !haskey(d, k)
-    d[k] = SimLogDict()
-    if subkey != nothing #option to create a subkey underneath
-      d[k][subkey] = SimLogDict()
+        addObserver(sim, "CAS_info_$i",   x->log_cas_info!(log, x))
+        addObserver(sim, "Initial_$i",    x->log_initial!(log, x))
+        addObserver(sim, "Command_$i",    x->log_command!(log, x))
+        addObserver(sim, "Sensor_$i",     x->log_sensor!(log, x))
+        addObserver(sim, "CAS_$i",        x->log_cas!(log, x))
+        addObserver(sim, "Response_$i",   x->log_response!(log, x))
+        addObserver(sim, "Dynamics_$i",   x->log_adm!(log, x))
     end
-  end
+    add_folder!(log, "logProb", logprob_types(), logprob_names()) 
+    add_folder!(log, "run_info", runinfo_types(), runinfo_names()) 
+    add_folder!(log, "action_seq", actionseq_types(), actionseq_names()) 
+
+    addObserver(sim, "WorldModel", x->log_wm!(log, x))
+    addObserver(sim, "logProb",   x->log_logProb!(log, x))
+    addObserver(sim, "run_info",   x->log_runinfo!(log, x))
+    addObserver(sim, "action_seq", x->log_actions!(log, x))
+
+    log
 end
 
-function log_cas_info!(simLog::SimLog, args)
-  #[CAS version]
-  cas = args[1]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "CAS_info")
-    simLog["var_names"]["CAS_info"] = extract_cas_info_names(cas)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "CAS_info")
-    simLog["var_units"]["CAS_info"] = extract_cas_info_units(cas)
-  end
-
-  check_key!(simLog, "CAS_info", subkey = "aircraft")
-
-  simLog["CAS_info"] = extract_cas_info(cas)
-
+function log_cas_info!(log::TaggedDFLogger, args)
+    #[CAS version]
+    i, cas = args 
+    push!(log, "CAS_info_$i", cas_info_data(cas))
 end
 
-extract_cas_info_names(cas::Union{ACASX_CCAS,ACASX_ADD}) = ASCIIString["version"]
-extract_cas_info_units(cas::Union{ACASX_CCAS,ACASX_ADD}) = ASCIIString["n/a"]
+cas_info_names(cas::Union{ACASX_CCAS,ACASX_ADD}) = String["version"] 
+cas_info_types(cas::Union{ACASX_CCAS,ACASX_ADD}) = [String] 
+cas_info_units(cas::Union{ACASX_CCAS,ACASX_ADD}) = String["n/a"]
+cas_info_data(cas::Union{ACASX_CCAS,ACASX_ADD}) = Any[cas.version]
 
-extract_cas_info(cas::Union{ACASX_CCAS,ACASX_ADD}) = Any[cas.version]
-
-function log_initial!(simLog::SimLog, args)
-
-  #[aircraft_number, time_index, initial]
-  aircraft_number = args[1]
-  t_index = args[2]
-  aem = args[3]
-
-  @assert t_index == 0
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "initial")
-    simLog["var_names"]["initial"] = extract_initial_names(aem)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "initial")
-    simLog["var_units"]["initial"] = extract_initial_units(aem)
-  end
-
-  check_key!(simLog, "initial", subkey = "aircraft")
-
-  simLog["initial"]["aircraft"]["$(aircraft_number)"] = extract_initial(aircraft_number, aem)
-
+function log_initial!(log::TaggedDFLogger, args)
+    #[aircraft_number, time_index, initial]
+    i, t, aem = args
+    @assert t_index == 0
+    push!(log, "Initial_$i", initial_data(i, aem))
 end
 
-extract_initial_names(aem::CorrAEMDBN) = ASCIIString["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
-extract_initial_units(aem::CorrAEMDBN) = ASCIIString["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
+initial_names(aem::CorrAEMDBN) = String["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
+initial_types(aem::CorrAEMDBN) = [Float64,Float64,Float64,Float64, Float64,Float64, 
+    Float64,Float64]
+initial_units(aem::CorrAEMDBN) = String["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
 
-function extract_initial(i, aem::CorrAEMDBN)
-  # initial
-  # airspeed, ft/s, double
-  # north position, ft, double
-  # east position, ft, double
-  # altitude, ft, double
-  # heading angle, degrees, double
-  # flight path angle, degrees, double
-  # roll angle, degrees, double
-  # airspeed acceleration, ft/s^2, double
+function initial_data(i, aem::CorrAEMDBN)
+    # initial
+    # airspeed, ft/s, double
+    # north position, ft, double
+    # east position, ft, double
+    # altitude, ft, double
+    # heading angle, degrees, double
+    # flight path angle, degrees, double
+    # roll angle, degrees, double
+    # airspeed acceleration, ft/s^2, double
 
-  t, x, y, h, v, psi = aem.aem.dynamic_states[i, 1, :]
-  t_n, x_n, y_n, h_n, v_n, psi_n, = aem.aem.dynamic_states[i, 2, :]
+    t, x, y, h, v, psi = aem.aem.dynamic_states[i, 1, :]
+    t_n, x_n, y_n, h_n, v_n, psi_n, = aem.aem.dynamic_states[i, 2, :]
 
-  t, v_d, h_d, psi_d = aem.aem.states[i, 1, :]
+    t, v_d, h_d, psi_d = aem.aem.states[i, 1, :]
 
-  theta = atand((h_n - h) / norm(x_n - x, y_n - y)) |> to_plusminus_180
-  phi = 0.0
+    theta = atand((h_n - h) / norm(x_n - x, y_n - y)) |> to_plusminus_180
+    phi = 0.0
 
-  return round_floats(Any[v, x, y, h, psi, theta, phi, v_d], ROUND_NDECIMALS,
+    return round_floats(Any[v, x, y, h, psi, theta, phi, v_d], ROUND_NDECIMALS,
                       enable = ENABLE_ROUNDING)
 end
 
-extract_initial_names(aem::Union{StarDBN,SideOnDBN}) = ASCIIString["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
-extract_initial_units(aem::Union{StarDBN,SideOnDBN}) = ASCIIString["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
+initial_names(aem::Union{StarDBN,SideOnDBN}) = String["v", "x", "y", "z", "psi", "theta", "phi", "v_d"]
+initial_types(aem::Union{StarDBN,SideOnDBN}) = [Float64,Float64,Float64,Float64,Float64,Float64,
+    Float64,Float64]
+initial_units(aem::Union{StarDBN,SideOnDBN}) = String["ft/s", "ft", "ft", "ft", "deg", "deg", "deg", "ft/s^2"]
 
-function extract_initial(i, aem::Union{StarDBN,SideOnDBN})
-  # initial
-  # airspeed, ft/s, double
-  # north position, ft, double
-  # east position, ft, double
-  # altitude, ft, double
-  # heading angle, degrees, double
-  # flight path angle, degrees, double
-  # roll angle, degrees, double
-  # airspeed acceleration, ft/s^2, double
+function initial(i, aem::Union{StarDBN,SideOnDBN})
+    # initial
+    # airspeed, ft/s, double
+    # north position, ft, double
+    # east position, ft, double
+    # altitude, ft, double
+    # heading angle, degrees, double
+    # flight path angle, degrees, double
+    # roll angle, degrees, double
+    # airspeed acceleration, ft/s^2, double
 
-  is = aem.initial_states[i]
-  t, x, y, h, v, psi = is.t, is.x, is.y, is.h, is.v, is.psi
+    is = aem.initial_states[i]
+    t, x, y, h, v, psi = is.t, is.x, is.y, is.h, is.v, is.psi
 
-  L, v_d, h_d, psi_d = aem.initial_commands[i]
+    L, v_d, h_d, psi_d = aem.initial_commands[i]
 
-  theta = atand(h_d / v)
-  phi = 0.0
+    theta = atand(h_d / v)
+    phi = 0.0
 
-  return round_floats(Any[v, x, y, h, psi, theta, phi, v_d], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
+    return round_floats(Any[v, x, y, h, psi, theta, phi, v_d], 
+        ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
-function log_command!(simLog::SimLog, args)
-
-  #[aircraft_number, time_index, command]
-  aircraft_number = args[1]
-  t_index = args[2]
-  command = args[3]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "command")
-    simLog["var_names"]["command"] = extract_command_names(command)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "command")
-    simLog["var_units"]["command"] = extract_command_units(command)
-  end
-
-  check_key!(simLog, "command", subkey = "aircraft")
-  d_a = simLog["command"]["aircraft"]
-
-  check_key!(d_a, "$(aircraft_number)", subkey = "time")
-  d_t = d_a["$(aircraft_number)"]["time"]
-
-  v = extract_command(command)
-  d_t["$(t_index)"] = v
-
-  #check to make sure we're in sync
-  #@assert t_index == length(d_t) + 1 #not called on initialize
+function log_command!(log::TaggedDFLogger, args)
+    #[aircraft_number, time_index, command]
+    i, t, command = args
+    push!(log, "Command_$i", command_data(command))
 end
 
-extract_command_names(command::CorrAEMCommand) = ASCIIString["h_d", "v_d", "psi_d"]
-extract_command_units(command::CorrAEMCommand) = ASCIIString["ft/s", "ft/s^2", "deg/s"]
+command_names(command::CorrAEMCommand) = String["t", "h_d", "v_d", "psi_d"]
+command_types(command::CorrAEMCommand) = [Int64, Float64, Float64, Float64] 
+command_units(command::CorrAEMCommand) = String["index", "ft/s", "ft/s^2", "deg/s"]
 
-function extract_command(command::CorrAEMCommand)
-
-  return round_floats(Any[command.h_d, command.v_d, command.psi_d], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
+function command_data(t::Int64, command::CorrAEMCommand)
+    round_floats(Any[t, command.h_d, command.v_d, command.psi_d], ROUND_NDECIMALS, 
+        enable=ENABLE_ROUNDING)
 end
 
-function log_adm!(simLog::SimLog, args)
-
-  #[aircraft_number, time_index, dynamics model]
-  aircraft_number = args[1]
-  t_index = args[2] #time index
-  adm = args[3]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "adm")
-    simLog["var_names"]["adm"] = extract_adm_names(adm)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "adm")
-    simLog["var_units"]["adm"] = extract_adm_units(adm)
-  end
-
-  check_key!(simLog, "adm", subkey = "aircraft")
-  d_a = simLog["adm"]["aircraft"]
-
-  check_key!(d_a, "$(aircraft_number)", subkey = "time")
-  d_t = d_a["$(aircraft_number)"]["time"]
-
-  v = extract_adm(adm)
-  d_t["$(t_index)"] = v
-
-  #check to make sure we're in sync
-  #@assert t_index == length(d_t) #make sure we're in sync
-
+function log_adm!(log::TaggedDFLogger, args)
+    #[aircraft_number, time_index, dynamics model]
+    i, t, adm = args
+    push!(log, "Dynamics_$i", dynamics_data(adm))
 end
 
-extract_adm_names(adm::SimpleADM) = ASCIIString["t", "x", "y", "h", "v", "psi"]
-extract_adm_units(adm::SimpleADM) = ASCIIString["s", "ft", "ft", "ft", "ft/s", "deg"]
+dynamics_names(adm::SimpleADM) = String["t", "x", "y", "h", "v", "psi"]
+dynamics_types(adm::SimpleADM) = [Int, Float64, Float64, Float64, Float64, Float64]
+dynamics_units(adm::SimpleADM) = String["s", "ft", "ft", "ft", "ft/s", "deg"]
 
-function extract_adm(adm::SimpleADM)
-
-  s = adm.state
-
-  return round_floats(Any[s.t, s.x, s.y, s.h, s.v, s.psi], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
+function dynamics_data(adm::SimpleADM)
+    s = adm.state
+    round_floats(Any[s.t, s.x, s.y, s.h, s.v, s.psi], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
-extract_adm_names(adm::LLADM) = ASCIIString["t", "v", "N", "E", "h", "psi", "theta", "phi", "a"]
-extract_adm_units(adm::LLADM) = ASCIIString["s", "ft/s", "ft", "ft", "ft", "rad", "rad", "rad", "ft/s^2"]
+dynamics_names(adm::LLADM) = String["t", "v", "N", "E", "h", "psi", "theta", "phi", "a"]
+dynamics_types(adm::LLADM) = [Int, Float64, Float64, Float64, Float64, Float64, Float64, Float64, 
+    Float64] 
+dynamics_units(adm::LLADM) = String["s", "ft/s", "ft", "ft", "ft", "rad", "rad", "rad", "ft/s^2"]
 
-function extract_adm(adm::LLADM)
-
-  s = adm.state
-
-  return round_floats(Any[s.t, s.v, s.N, s.E, s.h, s.psi, s.theta, s.phi, s.a], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
+function dynamics_data(adm::LLADM)
+    s = adm.state
+    round_floats(Any[s.t, s.v, s.N, s.E, s.h, s.psi, s.theta, s.phi, s.a], ROUND_NDECIMALS, 
+        enable=ENABLE_ROUNDING)
 end
 
-function log_wm!(simLog::SimLog, args)
-
-  #[time_index, world model]
-  t_index = args[1] #time index
-  wm = args[2]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "wm")
-    simLog["var_names"]["wm"] = extract_wm_names(wm)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "wm")
-    simLog["var_units"]["wm"] = extract_wm_units(wm)
-  end
-
-  check_key!(simLog, "wm", subkey = "aircraft")
-  d_a = simLog["wm"]["aircraft"]
-
-  for i = 1:wm.number_of_aircraft
-
-    check_key!(d_a, "$i", subkey = "time")
-    d_t = d_a["$i"]["time"]
-
-    v = extract_wm(wm,i) #[t, x,y,z,vx,vy,vz]
-    d_t["$(t_index)"] = v
-
-    #check to make sure we're in sync
-    #@assert t_index == length(d_t) #make sure we're in sync
-  end
-
+function log_wm!(log::TaggedDFLogger, args)
+    #[time_index, world model]
+    t, wm = args
+    for i = 1:wm.number_of_aircraft
+        push!(log, "WorldModel_$i", worldmodel_data(wm, i)) #[t, x,y,z,vx,vy,vz]
+    end
 end
 
-extract_wm_names(wm::AirSpace) = ASCIIString["t", "x", "y", "z", "vx", "vy", "vz"]
-extract_wm_units(wm::AirSpace) = ASCIIString["s", "ft", "ft", "ft", "ft/s", "ft/s", "ft/s"]
+worldmodel_names(wm::AirSpace) = String["t", "x", "y", "z", "vx", "vy", "vz"]
+worldmodel_types(wm::AirSpace) = [Int, Float64, Float64, Float64, Float64, Float64, Float64] 
+worldmodel_units(wm::AirSpace) = String["s", "ft", "ft", "ft", "ft/s", "ft/s", "ft/s"]
 
-function extract_wm(wm::AirSpace, aircraft_number::Int)
-
-  s = wm.states[aircraft_number]
-
-  return round_floats(Any[s.t, s.x, s.y, s.h, s.vx, s.vy, s.vh], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
+function worldmodel_data(wm::AirSpace, aircraft_number::Int)
+    s = wm.states[aircraft_number]
+    round_floats(Any[s.t, s.x, s.y, s.h, s.vx, s.vy, s.vh], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
-function log_sensor!(simLog::SimLog, args)
-
-  #[aircraft_number, time_index, cas]
-  aircraft_number = args[1]
-  t_index = args[2]
-  sr = args[3]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "sensor")
-    simLog["var_names"]["sensor"] = extract_sensor_names(sr)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "sensor")
-    simLog["var_units"]["sensor"] = extract_sensor_units(sr)
-  end
-
-  v = extract_sensor(sr)
-  check_key!(simLog, "sensor", subkey = "aircraft")
-  d_a = simLog["sensor"]["aircraft"]
-
-  check_key!(d_a, "$(aircraft_number)", subkey = "time")
-  d_t = d_a["$(aircraft_number)"]["time"]
-
-  d_t["$(t_index)"] = v
-
-  #check to make sure we're in sync
-  #@assert t_index == length(d_t)
-
+function log_sensor!(log::TaggedDFLogger, args)
+    #[aircraft_number, time_index, cas]
+    i, t, sr = args
+    push!(log, "Sensor_$i", sensor_data(t, sr))
 end
 
-extract_sensor_names(sr::Void) = ASCIIString[]
-extract_sensor_units(sr::Void) = ASCIIString[]
+sensor_names(sr::Void) = String["t"]
+sensor_types(sr::Void) = Type[Int64]
+sensor_units(sr::Void) = String["index"]
+sensor_data(t::Int64, sr::Void) = Any[] #input=[empty]
 
-extract_sensor(sr::Void) = Any[] #input=[empty]
-
-function extract_sensor_names(sr::SimpleTCASSensor)
-
-  v = ASCIIString["r", "r_d", "a", "a_d", "num_intruders"]
-
-  for i = 1:length(sr.output.h)
-    push!(v,"h_$i", "h_d_$i")
-  end
-
-  return v
+function sensor_names(sr::SimpleTCASSensor)
+    v = String["t", "r", "r_d", "a", "a_d", "num_intruders"]
+    for i = 1:length(sr.output.h)
+        push!(v,"h_$i", "h_d_$i")
+    end
+    v
 end
-
-function extract_sensor_units(sr::SimpleTCASSensor)
-
-  v = ASCIIString["ft", "ft/s", "ft", "ft/s", "integer"]
-
-  for i = 1:length(sr.output.h)
-    push!(v, "ft", "ft/s")
-  end
-
-  return v
+function sensor_types(sr::SimpleTCASSensor)
+    v = [Int, Float64, Float64, Float64, Float64, Int] 
+    for i = 1:length(sr.output.h)
+        push!(v, Float64, Float64)
+    end
+    v
 end
+function sensor_units(sr::SimpleTCASSensor)
+    v = String["index", "ft", "ft/s", "ft", "ft/s", "num"]
+    for i = 1:length(sr.output.h)
+        push!(v, "ft", "ft/s")
+    end
+    v
+end
+function sensor_data(t::Int64, sr::SimpleTCASSensor)
+    #input=[r,r_d, a, a_d],[num_intruders],[h,h_d for each intruder]
+    out = sr.output
+    num_intruders = length(out.h)
+    hhd = Float64[]
 
-function extract_sensor(sr::SimpleTCASSensor)
-  #input=[r,r_d, a, a_d],[num_intruders],[h,h_d for each intruder]
-  out = sr.output
-  num_intruders = length(out.h)
-  hhd = Float64[]
-
-  for (h, h_d) in zip(out.h, out.h_d)
-    push!(hhd, h, h_d)
-  end
-
-  return round_floats(vcat(Any[out.r, out.r_d, out.a, out.a_d],
+    for (h, h_d) in zip(out.h, out.h_d)
+        push!(hhd, h, h_d)
+    end
+    round_floats(vcat(Any[t, out.r, out.r_d, out.a, out.a_d],
                            num_intruders,
                            hhd), ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
-function extract_sensor_names(sr::ACASXSensor)
-
-  v = ASCIIString["dz", "z", "psi", "h", "modes", "num_intruders"]
-
-  for i=1:length(sr.output.intruders)
-    v = vcat(v, ASCIIString["valid_$i", "id_$i", "modes_$i", "sr_$i", "chi_$i", "z_$i", "cvc_$i", "vrc_$i", "vsb_$i"])
-  end
-
-  return v
+function sensor_names(sr::ACASXSensor)
+    v = String["t", "dz", "z", "psi", "h", "modes", "num_intruders"]
+    for i = 1:length(sr.output.intruders)
+        v = vcat(v, String["valid_$i", "id_$i", "modes_$i", "sr_$i", "chi_$i", "z_$i", 
+            "cvc_$i", "vrc_$i", "vsb_$i"])
+    end
+    v
+end
+function sensor_types(sr::ACASXSensor)
+    v = [Int64, Float64, Float64, Float64, Float64, Int64, Int64] 
+    for i = 1:length(sr.output.intruders)
+        v = vcat(v, [Bool, Int64, Int64, Float64, Float64, Float64, Int64, Int64, Int64])
+    end
+    v
+end
+function sensor_units(sr::ACASXSensor)
+    v = String["index", "ft/s", "ft", "rad", "ft", "n/a", "num"]
+    for i = 1:length(sr.output.intruders)
+        push!(v, "bool", "num", "n/a", "ft", "rad", "ft", "n/a", "n/a", "n/a")
+    end
+    v
 end
 
-function extract_sensor_units(sr::ACASXSensor)
-
-  v = ASCIIString["ft/s", "ft", "rad", "ft", "n/a", "integer"]
-
-  for i = 1:length(sr.output.intruders)
-    push!(v, "boolean", "integer", "n/a", "ft", "rad", "ft", "n/a", "n/a", "n/a")
-  end
-
-  return v
+function sensor_data(t::Int64, sr::ACASXSensor)
+    #input=[dz,z,psi,h,modes],[num_intruders],[valid,id,modes, 
+        #sr,chi,z,cvc,vrc,vsb for each intruder]
+    out = sr.output
+    own = out.ownInput
+    num_intruders = length(out.intruders)
+    intr_vec = Any[]
+    for intr in out.intruders
+        push!(intr_vec, intr.valid, intr.id, intr.modes, intr.sr, intr.chi, intr.z, 
+            intr.cvc, intr.vrc, intr.vsb)
+    end
+    round_floats(vcat(Any[t, own.dz, own.z, own.psi, own.h, own.modes], num_intruders, 
+        intr_vec), ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
-function extract_sensor(sr::ACASXSensor)
-
-  #input=[dz,z,psi,h,modes],[num_intruders],[valid,id,modes, sr,chi,z,cvc,vrc,vsb for each intruder]
-  out = sr.output
-  own = out.ownInput
-  num_intruders = length(out.intruders)
-
-  intr_vec = Any[]
-  for intr in out.intruders
-    push!(intr_vec, intr.valid, intr.id, intr.modes,
-                              intr.sr, intr.chi, intr.z, intr.cvc, intr.vrc, intr.vsb)
-  end
-
-  return round_floats(vcat(Any[own.dz, own.z, own.psi, own.h, own.modes],
-                           num_intruders,
-                           intr_vec), ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
+function log_cas!(log::TaggedDFLogger, args)
+    #[aircraft_number, time_index, cas]
+    i, t, cas = args
+    #state=[alarm,target_rate,dh_min,dh_max]
+    push!(log, "CAS_$i", cas_data(t, cas))
 end
 
-function log_ra!(simLog::SimLog, args)
-
-  #[aircraft_number, time_index, cas]
-  aircraft_number = args[1]
-  t_index = args[2]
-  cas = args[3]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "ra")
-    simLog["var_names"]["ra"] = extract_ra_names(cas)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "ra")
-    simLog["var_units"]["ra"] = extract_ra_units(cas)
-  end
-
-  #state=[alarm,target_rate,dh_min,dh_max]
-  v = extract_ra(cas)
-  check_key!(simLog, "ra", subkey = "aircraft")
-  d_a = simLog["ra"]["aircraft"]
-
-  check_key!(d_a, "$(aircraft_number)", subkey = "time")
-  d_t = d_a["$(aircraft_number)"]["time"]
-
-  d_t["$(t_index)"] = v
-
-  #check to make sure we're in sync
-  #@assert t_index == length(d_t)
-
-  log_ra_detailed!(simLog, args)
-
-end
-
-extract_ra_names(cas::Void) = ASCIIString["ra_active", "target_rate"]
-extract_ra_units(cas::Void) = ASCIIString["boolean", "ft/s"]
-
-extract_ra(cas::Void) = Any[false, false]
-
-extract_ra_names(cas::Union{SimpleTCAS,CoordSimpleTCAS}) = ASCIIString["ra_active", "target_rate"]
-extract_ra_units(cas::Union{SimpleTCAS,CoordSimpleTCAS}) = ASCIIString["boolean", "ft/s"]
-
-function extract_ra(cas::SimpleTCAS)
-  return Any[cas.b_TCAS_activated, cas.b_TCAS_activated ? cas.RA.h_d : 0.0]
-end
-
-extract_ra_names(cas::Union{ACASX_CCAS,ACASX_ADD}) = ASCIIString["ra_active", "alarm", "target_rate", "dh_min", "dh_max",
-                                      "crossing", "cc", "vc", "ua", "da"]
-extract_ra_units(cas::Union{ACASX_CCAS,ACASX_ADD}) = ASCIIString["boolean", "boolean", "ft/s", "ft/s", "ft/s",
-                                      "boolean", "n/a", "n/a", "n/a", "n/a"]
-
-function extract_ra(cas::Union{ACASX_CCAS,ACASX_ADD})
-
-  ra_active = (cas.output.dh_min > -9999.0 || cas.output.dh_max < 9999.0)::Bool
-  return round_floats(Any[ra_active,
-                          cas.output.alarm,
-                          cas.output.target_rate,
-                          cas.output.dh_min,
-                          cas.output.dh_max,
-                          cas.output.crossing,
-                          cas.output.cc,
-                          cas.output.vc,
-                          cas.output.ua,
-                          cas.output.da], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
-end
-
-function log_ra_detailed!(simLog::SimLog, args)
-
-  #[aircraft_number, time_index, cas]
-  aircraft_number = args[1]
-  t_index = args[2]
-  cas = args[3]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "ra_detailed")
-    simLog["var_names"]["ra_detailed"] = extract_ra_detailed_names(cas)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "ra_detailed")
-    simLog["var_units"]["ra_detailed"] = extract_ra_detailed_units(cas)
-  end
-
-  #state=[alarm,target_rate,dh_min,dh_max]
-  v = extract_ra_detailed(cas)
-  check_key!(simLog, "ra_detailed", subkey = "aircraft")
-  d_a = simLog["ra_detailed"]["aircraft"]
-
-  check_key!(d_a, "$(aircraft_number)", subkey = "time")
-  d_t = d_a["$(aircraft_number)"]["time"]
-
-  d_t["$(t_index)"] = v
-
-  #check to make sure we're in sync
-  #@assert t_index == length(d_t)
-
-end
-
-function extract_ra_detailed_names(cas::Union{ACASX_CCAS,ACASX_ADD})
-
-  vcat(["ra_active"], ["ownInput.dz", "ownInput.z", "ownInput.psi", "ownInput.h", "ownInput.modes"],
+function cas_names(cas::Union{ACASX_CCAS,ACASX_ADD})
+    vcat(["t", "ra_active"], ["ownInput.dz", "ownInput.z", "ownInput.psi", "ownInput.h", 
+        "ownInput.modes"],
          [["intruderInput[$i].valid", "intruderInput[$i].id", "intruderInput[$i].modes",
-         "intruderInput[$i].sr", "intruderInput[$i].chi", "intruderInput[$i].z", "intruderInput[$i].cvc",
-           "intruderInput[$i].vrc", "intruderInput[$i].vsb", "intruderInput[$i].equipage",
-           "intruderInput[$i].quant", "intruderInput[$i].sensitivity_index",
-           "intruderInput[$i].protection_mode"] for i = 1:cas.max_intruders]...,
+         "intruderInput[$i].sr", "intruderInput[$i].chi", "intruderInput[$i].z", 
+         "intruderInput[$i].cvc", "intruderInput[$i].vrc", "intruderInput[$i].vsb", 
+         "intruderInput[$i].equipage", "intruderInput[$i].quant", 
+         "intruderInput[$i].sensitivity_index", "intruderInput[$i].protection_mode"] 
+         for i = 1:cas.max_intruders]...,
          ["ownOutput.cc", "ownOutput.vc", "ownOutput.ua", "ownOutput.da", "ownOutput.target_rate",
           "ownOutput.turn_off_aurals", "ownOutput.crossing", "ownOutput.alarm", "ownOutput.alert",
           "ownOutput.dh_min", "ownOutput.dh_max", "ownOutput.sensitivity_index", "ownOutput.ddh"],
@@ -555,29 +321,32 @@ function extract_ra_detailed_names(cas::Union{ACASX_CCAS,ACASX_ADD})
           "intruderOutput[$i].vsb", "intruderOutput[$i].tds", "intruderOutput[$i].code"]
           for i = 1:cas.max_intruders]...)
 end
-
-function extract_ra_detailed_units(cas::Union{ACASX_CCAS,ACASX_ADD})
-
-  vcat(["boolean"], ["ft/s", "ft", "rad", "ft/s", "integer"],
-         [["boolean", "integer", "integer", "ft", "rad", "ft", "n/a", "n/a", "n/a", "enum",
-           "ft", "integer", "integer"] for i = 1:cas.max_intruders]...,
-         ["n/a", "n/a", "n/a", "n/a", "ft/s", "boolean", "boolean", "boolean", "boolean",
-          "ft/s", "ft/s", "integer", "ft/s^2"],
-         [["integer", "n/a", "n/a", "n/a", "n/a", "n/a"]
+function cas_types(cas::Union{ACASX_CCAS,ACASX_ADD})
+    vcat([Int64, Bool], [Float64, Float64, Float64, Float64, Int64], 
+         [[Bool, Int64, Int64, Float64, Float64, Float64, Int64, Int64, Int64, 
+         Int64, Int64,  Int64, Int64] for i = 1:cas.max_intruders]...,
+         [Int64, Int64, Int64, Int64, Float64, Bool, Bool, Bool, Bool, 
+         Float64, Float64, Int64, Float64], [[Int64, Int64, Int64,
+          Int64, Float64, Int64] for i = 1:cas.max_intruders]...)
+end
+function cas_units(cas::Union{ACASX_CCAS,ACASX_ADD})
+    vcat(["index", "bool"], ["ft/s", "ft", "rad", "ft/s", "num"],
+        [["bool", "num", "num", "ft", "rad", "ft", "n/a", "n/a", "n/a", "enum",
+           "ft", "num", "num"] for i = 1:cas.max_intruders]...,
+         ["n/a", "n/a", "n/a", "n/a", "ft/s", "bool", "bool", "bool", "boobool",
+          "ft/s", "ft/s", "num", "ft/s^2"],
+         [["num", "n/a", "n/a", "n/a", "n/a", "n/a"]
           for i = 1:cas.max_intruders]...)
 end
-
-function extract_ra_detailed(cas::Union{ACASX_CCAS,ACASX_ADD}) #log everything
-
-  ra_active = (cas.output.dh_min > -9999.0 || cas.output.dh_max < 9999.0)::Bool
-
-  ownInput = Any[cas.input.ownInput.dz,
+function cas_data(cas::Union{ACASX_CCAS,ACASX_ADD}) #log everything
+    ra_active = (cas.output.dh_min > -9999.0 || cas.output.dh_max < 9999.0)::Bool
+    ownInput = Any[cas.input.ownInput.dz,
              cas.input.ownInput.z,
              cas.input.ownInput.psi,
              cas.input.ownInput.h,
              cas.input.ownInput.modes]
 
-  intruderInputs = vcat([Any[cas.input.intruders[i].valid,
+    intruderInputs = vcat([Any[cas.input.intruders[i].valid,
                              cas.input.intruders[i].id,
                              cas.input.intruders[i].modes,
                              cas.input.intruders[i].sr,
@@ -592,7 +361,7 @@ function extract_ra_detailed(cas::Union{ACASX_CCAS,ACASX_ADD}) #log everything
                              cas.input.intruders[i].protection_mode]
                           for i=1:length(cas.input.intruders)]...)
 
-  ownOutput = Any[cas.output.cc,
+    ownOutput = Any[cas.output.cc,
                    cas.output.vc,
                    cas.output.ua,
                    cas.output.da,
@@ -606,7 +375,7 @@ function extract_ra_detailed(cas::Union{ACASX_CCAS,ACASX_ADD}) #log everything
                    cas.output.sensitivity_index,
                    cas.output.ddh]
 
-  intruderOutputs = vcat([Any[cas.output.intruders[i].id,
+    intruderOutputs = vcat([Any[cas.output.intruders[i].id,
                               cas.output.intruders[i].cvc,
                               cas.output.intruders[i].vrc,
                               cas.output.intruders[i].vsb,
@@ -614,52 +383,28 @@ function extract_ra_detailed(cas::Union{ACASX_CCAS,ACASX_ADD}) #log everything
                               cas.output.intruders[i].code]
                           for i=1:length(cas.output.intruders)]...)
 
-  return round_floats(vcat(ra_active,
+    round_floats(vcat(ra_active,
                            ownInput,
                            intruderInputs,
                            ownOutput,
                            intruderOutputs), ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
-function log_response!(simLog::SimLog, args)
-
-  #[aircraft_number, time_index, cas]
-  aircraft_number = args[1]
-  t_index = args[2]
-  pr = args[3]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "response")
-    simLog["var_names"]["response"] = extract_response_names(pr)
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "response")
-    simLog["var_units"]["response"] = extract_response_units(pr)
-  end
-
-  v = extract_response(pr)
-  check_key!(simLog, "response", subkey = "aircraft")
-  d_a = simLog["response"]["aircraft"]
-
-  check_key!(d_a, "$(aircraft_number)", subkey = "time")
-  d_t = d_a["$(aircraft_number)"]["time"]
-
-  d_t["$(t_index)"] = v
-
-  #check to make sure we're in sync
-  #@assert t_index == length(d_t)
-
+function log_response!(log::TaggedDFLogger, args)
+    #[aircraft_number, time_index, cas]
+    i, t, pr = args
+    push!(log, "Response_$i", response_data(t, pr))
 end
 
-extract_response_names(pr::StochasticLinearPR) = ASCIIString["state", "displayRA", "response", "v_d", "h_d", "psi_d", "logProb"]
-extract_response_units(pr::StochasticLinearPR) = ASCIIString["enum", "enum", "enum", "ft/s^2", "ft/s", "deg/s", "float"]
+response_names(pr::StochasticLinearPR) = String["t", "state", "displayRA", "response", 
+    "v_d", "h_d", "psi_d", "logProb"]
+response_types(pr::StochasticLinearPR) = [Int64, String, String, String, Float64, Float64, 
+    Float64, Float64] 
+response_units(pr::StochasticLinearPR) = String["enum", "enum", "enum", "ft/s^2", "ft/s", 
+    "deg/s", "float"]
 
-function extract_response(pr::StochasticLinearPR)
-
-  return round_floats(Any[pr.state,
+function response_data(t::Int64, pr::StochasticLinearPR)
+    round_floats(Any[t, pr.state,
                           pr.displayRA,
                           pr.response,
                           pr.output.t,
@@ -669,12 +414,12 @@ function extract_response(pr::StochasticLinearPR)
                           pr.output.logProb], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
-extract_response_names(pr::LLDetPR) = ASCIIString["state", "timer", "t", "v_d", "h_d", "psi_d", "logProb"]
-extract_response_units(pr::LLDetPR) = ASCIIString["enum", "s", "s", "ft/s^2", "ft/s", "deg/s", "float"]
+response_names(pr::LLDetPR) = String["t", "state", "timer", "t_s", "v_d", "h_d", "psi_d", "logProb"]
+response_types(pr::LLDetPR) = [Int64, String, Int64, Float64, Float64, Float64, Float64, Float64]   
+response_units(pr::LLDetPR) = String["int", "enum", "s", "s", "ft/s^2", "ft/s", "deg/s", "float"]
 
-function extract_response(pr::LLDetPR)
-
-  return round_floats(Any[pr.state,
+function response_data(t::Int64, pr::LLDetPR)
+    round_floats(Any[t, pr.state,
                           pr.timer,
                           pr.output.t,
                           pr.output.v_d,
@@ -683,73 +428,37 @@ function extract_response(pr::LLDetPR)
                           pr.output.logProb], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
-extract_runinfo_names() = ASCIIString["reward", "md_time", "hmd", "vmd", "nmac"]
-extract_runinfo_units() = ASCIIString["float", "s", "ft", "ft", "boolean"]
-
-function log_runinfo!(simLog::SimLog, args)
+function log_runinfo!(log::TaggedDFLogger, args)
   # called only once when isEndState is true
-
-  reward = args[1]
-  md_time = args[2]
-  hmd = args[3]
-  vmd = args[4]
-  nmac = args[5]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "run_info")
-    simLog["var_names"]["run_info"] = extract_runinfo_names()
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "run_info")
-    simLog["var_units"]["run_info"] = extract_runinfo_units()
-  end
-
-  check_key!(simLog, "run_info")
-
-  simLog["run_info"] = Any[reward, md_time, hmd, vmd, nmac]
-
+  reward, md_time, hmd, vmd, nmac = args
+  push!(log, "run_info", Any[reward, md_time, hmd, vmd, nmac])
 end
 
-function log_logProb!(simLog::SimLog, args)
+runinfo_names() = String["reward", "md_time", "hmd", "vmd", "nmac"]
+runinfo_types() = [Float64, Float64, Float64, Float64, Bool]
+runinfo_units() = String["float", "s", "ft", "ft", "bool"]
 
-  #[time_index, logProb]
-  t_index = args[1]
-  logProb = args[2]
-
-  check_key!(simLog, "var_names")
-
-  if !haskey(simLog["var_names"], "logProb")
-    simLog["var_names"]["logProb"] = ASCIIString["logProb"]
-  end
-
-  check_key!(simLog, "var_units")
-
-  if !haskey(simLog["var_units"], "logProb")
-    simLog["var_units"]["logProb"] = ASCIIString["float"]
-  end
-
-  check_key!(simLog, "logProb", subkey = "time")
-  d_t = simLog["logProb"]["time"]
-
-  d_t["$(t_index)"] = round_floats(Any[logProb],
-                                   ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
-
-  #check to make sure we're in sync
-  #@assert t_index == length(d_t)
-
+function log_logProb!(log::TaggedDFLogger, args)
+    #[time_index, logProb]
+    t, logProb = args
+    push!(log, "logProb", round_floats(Any[t, logProb], ROUND_NDECIMALS, 
+        enable=ENABLE_ROUNDING))
 end
 
-function log_actions!(simLog::SimLog, args)
-  action_seq = args[1]::Vector{ASTAction}
-  if !haskey(simLog, "action_seq")
-    simLog["action_seq"] = SaveDict[]
-  end
-  push!(simLog["action_seq"], map(Obj2Dict.to_dict, action_seq)...)
-  return
+logprob_names() = String["t", "logprob"]
+logprob_types() = [Int64, Float64]
+logprob_units() = String["int", "n/a"]
+
+function log_actions!(log::TaggedDFLogger, args)
+    action_seq = args[1]::Vector{ASTAction}
+    for t = 1:length(action_seq)
+        push!(log, "action_seq", [t, action_seq[t]])
+    end
 end
+
+actionseq_names() = String["t", "action"]
+actionseq_types() = [Int64, Any]
+actionseq_units() = String["index", "seed"]
 
 function round_floats(v::Vector{Any}, ndigits::Int64; enable::Bool=true)
   out = v
@@ -768,6 +477,5 @@ function to_plusminus_b(x::AbstractFloat, b::AbstractFloat)
 end
 
 to_plusminus_180(x::AbstractFloat) = to_plusminus_b(x, 180.0)
-sortByTime(d::SimLogDict) = sort(collect(d), by = x -> int64(x[1]))
 
 end #module
