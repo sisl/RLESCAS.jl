@@ -52,6 +52,7 @@ function addObservers(sim::ACASX_GM)
     log = TaggedDFLogger()
     #separate folders for each aircraft.  logs can be different.  e.g. 2 different CAS 
     for i = 1:sim.params.num_aircraft
+        #data
         add_folder!(log, "CAS_info_$i", cas_info_types(sim.cas[i]),  cas_info_names(sim.cas[i]))
         add_folder!(log, "Initial_$i", initial_types(sim.em),  initial_names(sim.em))
         add_folder!(log, "Command_$i", command_types(sim.em.output_commands[i]), 
@@ -62,20 +63,64 @@ function addObservers(sim::ACASX_GM)
         add_folder!(log, "Dynamics_$i", dynamics_types(sim.dm[i]),  dynamics_names(sim.dm[i]))
         add_folder!(log, "WorldModel_$i", worldmodel_types(sim.wm),  worldmodel_names(sim.wm))
 
-        addObserver(sim, "CAS_info",   x->log_cas_info!(log, x))
-        addObserver(sim, "Initial",    x->log_initial!(log, x))
-        addObserver(sim, "Command",    x->log_command!(log, x))
-        addObserver(sim, "Sensor",     x->log_sensor!(log, x))
-        addObserver(sim, "CAS",        x->log_cas!(log, x))
-        addObserver(sim, "Response",   x->log_response!(log, x))
-        addObserver(sim, "Dynamics",   x->log_adm!(log, x))
+        #units
+        names = cas_info_names(sim.cas[i])
+        units = cas_info_units(sim.cas[i])
+        add_folder!(log, "CAS_info_units_$i", fill(String, length(units)), names)
+        push!(log, "CAS_info_units_$i", units)
+        names = initial_names(sim.em)
+        units = initial_units(sim.em)
+        add_folder!(log, "Initial_units_$i", fill(String, length(units)), names)
+        push!(log, "Initial_units_$i", units)
+        names = command_names(sim.em.output_commands[i])
+        units = command_units(sim.em.output_commands[i])
+        add_folder!(log, "Command_units_$i", fill(String, length(units)), names)
+        push!(log, "Command_units_$i", units)
+        names = sensor_names(sim.sr[i])
+        units = sensor_units(sim.sr[i])
+        add_folder!(log, "Sensor_units_$i", fill(String, length(units)), names)
+        push!(log, "Sensor_units_$i", units)
+        names = cas_names(sim.cas[i])
+        units = cas_units(sim.cas[i])
+        add_folder!(log, "CAS_units_$i", fill(String, length(units)), names)
+        push!(log, "CAS_units_$i", units)
+        names = response_names(sim.pr[i])
+        units = response_units(sim.pr[i])
+        add_folder!(log, "Response_units_$i", fill(String, length(units)), names)
+        push!(log, "Response_units_$i", units)
+        names = dynamics_names(sim.dm[i])
+        units = dynamics_units(sim.dm[i])
+        add_folder!(log, "Dynamics_units_$i", fill(String, length(units)), names)
+        push!(log, "Dynamics_units_$i", units)
+        names = worldmodel_names(sim.wm)
+        units = worldmodel_units(sim.wm)
+        add_folder!(log, "WorldModel_units_$i", fill(String, length(units)), names)
+        push!(log, "WorldModel_units_$i", units)
     end
+    #data
     add_folder!(log, "logProb", logprob_types(), logprob_names()) 
-    add_folder!(log, "run_info", runinfo_types(), runinfo_names()) 
+    add_folder!(log, "run_info", run_info_types(), run_info_names()) 
 
+    #units
+    names = logprob_names()
+    units = logprob_units()
+    add_folder!(log, "logProb_units", fill(String, length(units)), names)
+    push!(log, "logProb_units", units)
+    names = run_info_names()
+    units = run_info_units()
+    add_folder!(log, "run_info_units", fill(String, length(units)), names)
+    push!(log, "run_info_units", units)
+
+    addObserver(sim, "CAS_info",   x->log_cas_info!(log, x))
+    addObserver(sim, "Initial",    x->log_initial!(log, x))
+    addObserver(sim, "Command",    x->log_command!(log, x))
+    addObserver(sim, "Sensor",     x->log_sensor!(log, x))
+    addObserver(sim, "CAS",        x->log_cas!(log, x))
+    addObserver(sim, "Response",   x->log_response!(log, x))
+    addObserver(sim, "Dynamics",   x->log_adm!(log, x))
     addObserver(sim, "WorldModel", x->log_wm!(log, x))
     addObserver(sim, "logProb",   x->log_logProb!(log, x))
-    addObserver(sim, "run_info",   x->log_runinfo!(log, x))
+    addObserver(sim, "run_info",   x->log_run_info!(log, x))
 
     TrajLog(log)
 end
@@ -172,16 +217,16 @@ end
 function log_adm!(log::TaggedDFLogger, args)
     #[aircraft_number, time_index, dynamics model]
     i, t, adm = args
-    push!(log, "Dynamics_$i", dynamics_data(adm))
+    push!(log, "Dynamics_$i", dynamics_data(t, adm))
 end
 
 dynamics_names(adm::SimpleADM) = String["t", "x", "y", "h", "v", "psi"]
 dynamics_types(adm::SimpleADM) = [Int, Float64, Float64, Float64, Float64, Float64]
 dynamics_units(adm::SimpleADM) = String["s", "ft", "ft", "ft", "ft/s", "deg"]
 
-function dynamics_data(adm::SimpleADM)
+function dynamics_data(t::Int64, adm::SimpleADM)
     s = adm.state
-    round_floats(Any[s.t, s.x, s.y, s.h, s.v, s.psi], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
+    round_floats(Any[t, s.x, s.y, s.h, s.v, s.psi], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
 dynamics_names(adm::LLADM) = String["t", "v", "N", "E", "h", "psi", "theta", "phi", "a"]
@@ -189,9 +234,9 @@ dynamics_types(adm::LLADM) = [Int, Float64, Float64, Float64, Float64, Float64, 
     Float64] 
 dynamics_units(adm::LLADM) = String["s", "ft/s", "ft", "ft", "ft", "rad", "rad", "rad", "ft/s^2"]
 
-function dynamics_data(adm::LLADM)
+function dynamics_data(t::Int64, adm::LLADM)
     s = adm.state
-    round_floats(Any[s.t, s.v, s.N, s.E, s.h, s.psi, s.theta, s.phi, s.a], ROUND_NDECIMALS, 
+    round_floats(Any[t, s.v, s.N, s.E, s.h, s.psi, s.theta, s.phi, s.a], ROUND_NDECIMALS, 
         enable=ENABLE_ROUNDING)
 end
 
@@ -199,7 +244,7 @@ function log_wm!(log::TaggedDFLogger, args)
     #[time_index, world model]
     t, wm = args
     for i = 1:wm.number_of_aircraft
-        push!(log, "WorldModel_$i", worldmodel_data(wm, i)) #[t, x,y,z,vx,vy,vz]
+        push!(log, "WorldModel_$i", worldmodel_data(t, wm, i)) #[t, x,y,z,vx,vy,vz]
     end
 end
 
@@ -207,9 +252,9 @@ worldmodel_names(wm::AirSpace) = String["t", "x", "y", "z", "vx", "vy", "vz"]
 worldmodel_types(wm::AirSpace) = [Int, Float64, Float64, Float64, Float64, Float64, Float64] 
 worldmodel_units(wm::AirSpace) = String["s", "ft", "ft", "ft", "ft/s", "ft/s", "ft/s"]
 
-function worldmodel_data(wm::AirSpace, aircraft_number::Int)
+function worldmodel_data(t::Int64, wm::AirSpace, aircraft_number::Int)
     s = wm.states[aircraft_number]
-    round_floats(Any[s.t, s.x, s.y, s.h, s.vx, s.vy, s.vh], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
+    round_floats(Any[t, s.x, s.y, s.h, s.vx, s.vy, s.vh], ROUND_NDECIMALS, enable=ENABLE_ROUNDING)
 end
 
 function log_sensor!(log::TaggedDFLogger, args)
@@ -426,15 +471,15 @@ function response_data(t::Int64, pr::LLDetPR)
                           pr.output.logProb], ROUND_NDECIMALS, enable = ENABLE_ROUNDING)
 end
 
-function log_runinfo!(log::TaggedDFLogger, args)
+function log_run_info!(log::TaggedDFLogger, args)
   # called only once when isEndState is true
   reward, md_time, hmd, vmd, nmac = args
   push!(log, "run_info", Any[reward, md_time, hmd, vmd, nmac])
 end
 
-runinfo_names() = String["reward", "md_time", "hmd", "vmd", "nmac"]
-runinfo_types() = [Float64, Float64, Float64, Float64, Bool]
-runinfo_units() = String["float", "s", "ft", "ft", "bool"]
+run_info_names() = String["reward", "md_time", "hmd", "vmd", "nmac"]
+run_info_types() = [Float64, Float64, Float64, Float64, Bool]
+run_info_units() = String["float", "s", "ft", "ft", "bool"]
 
 function log_logProb!(log::TaggedDFLogger, args)
     #[time_index, logProb]

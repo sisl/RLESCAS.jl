@@ -44,7 +44,7 @@ using ...SaveHelpers
 
 #runtype captions
 function vis_runtype_caps(d::TrajLog)
-    typ = run_type(d)
+    typ = get_run_type(d)
     if typ == "ONCE"
         cap = "Encounter. "
     elseif typ == "MCBest"

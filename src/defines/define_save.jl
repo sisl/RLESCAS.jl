@@ -47,15 +47,16 @@ immutable TrajLog
 end
 
 function trajSave(fileroot::AbstractString, d::TrajLog)
-    file = "$fileroot.sav"
+    file = LogFile("$fileroot")
     save_log(file, d.log)
-    file
+    name(file) #return
 end
 
 getindex(d::TrajLog, x) = getindex(d.log, x)
 
 function trajLoad(logfile::AbstractString)
-    TrajLog(load_log(logfile))
+    file = LogFile(logfile)
+    TrajLog(load_log(file)) #return
 end
 
 readdirSavs(dir::AbstractString=".") = readdir_ext(".sav", dir)

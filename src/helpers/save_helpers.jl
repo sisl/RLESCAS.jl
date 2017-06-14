@@ -45,7 +45,9 @@ export set_sim_params!, set_ast_params!, set_mcts_params!, set_compute_info!,
     set_study_params!, set_run_type!, set_q_values!, set_action_seq!, set_result!,
     set_mcbest_params!, set_study_results!
 export get_sim_params, get_ast_params, get_mcts_params, get_compute_info, get_result, 
-    get_action_seq, get_study_params, get_mcbest_params, get_study_results
+    get_action_seq, get_study_params, get_mcbest_params, get_study_results, get_log,
+    get_unit, get_run_type, get_mcts_iterations, get_mcbest_n, get_logprobs, 
+    get_encounter_id, get_q_values
 export get_reward, get_num_aircraft, get_vmd, get_hmd, get_md_time, get_nmac, is_nmac,
     nmacs_only
 
@@ -109,11 +111,25 @@ function get_result(d::TrajLog)
     StressTestResults(reward, action_seq, q_values)
 end
 
+get_mcts_iterations(d::TrajLog) = d.log["mcts_params"][1, :n]
+get_mcbest_n(d::TrajLog) = d.log["mcbest_params"][1, :num_samples]
+
 get_reward(d::TrajLog) = d.log["run_info"][1, :reward] 
 get_num_aircraft(d::TrajLog) = d.log["sim_params"][1, :num_aircraft]
 get_vmd(d::TrajLog) = d.log["run_info"][1, :vmd]
 get_hmd(d::TrajLog) = d.log["run_info"][1, :hmd]
 get_md_time(d::TrajLog) = d.log["run_info"][1, :md_time]
+
+function get_log(d::TrajLog, logname::AbstractString, aircraft_number::Int64)
+    d.log["$(logname)_$(aircraft_number)"]
+end
+
+function get_unit(d::TrajLog, logname::AbstractString, aircraft_number::Int64, var::Symbol)
+    d.log["$(logname)_units_$(aircraft_number)"][1, var]
+end
+
+get_encounter_id(d::TrajLog) = d.log["sim_params"][1, :encounter_number] 
+get_logprobs(d::TrajLog) = convert(Array, d.log["logProb"][:logprob])
 
 is_nmac(file::AbstractString) = file |> trajLoad |> get_nmac
 get_nmac(d::TrajLog) = d.log["run_info"][1, :nmac] 

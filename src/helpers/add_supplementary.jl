@@ -66,8 +66,8 @@ function add_label270(file::AbstractString)
             push!(label_shorts, label_short) #append to data vector
             code_tm1 = code
         end
-        df[:label] = labels
-        df[:label_short] = label_shorts
+        df[:label270] = labels
+        df[:label270_short] = label_shorts
     end
     trajSave(getSaveFileRoot(file), d)
 end
