@@ -37,8 +37,7 @@ module TrajSaveReplay
 export trajReplay, fill_replay
 
 using AdaptiveStressTesting
-using SISLES: GenerativeModel
-using RLESUtils, Obj2Dict, RunCases, Observers
+using RLESUtils, Obj2Dict, Observers
 using CPUTime
 
 using ..Config_ACASX_GM
@@ -51,52 +50,42 @@ using ..Fill_To_Max_Time
 using ..DefineLog
 using ..SaveTypes
 
-function trajReplay(savefile::AbstractString; fileroot::AbstractString="", case::Case=Case())
-  d = trajLoad(savefile)
-  if isempty(fileroot)
-    fileroot = string(getSaveFileRoot(savefile), "_replay")
-  end
-  return trajReplay(d; fileroot=fileroot, case=case)
+function trajReplay(savefile::AbstractString; fileroot::AbstractString="")
+    d = trajLoad(savefile)
+    if isempty(fileroot)
+        fileroot = string(getSaveFileRoot(savefile), "_replay")
+    end
+    trajReplay(d; fileroot=fileroot)
 end
 
-function trajReplay(d::SaveDict; fileroot::AbstractString = "", case::Case=Case())
-  sim_params = extract_params!(Obj2Dict.to_obj(d["sim_params"]), case, "sim_params")
-  ast_params = extract_params!(Obj2Dict.to_obj(d["ast_params"]), case, "ast_params")
-  reward = sv_reward(d)
+function trajReplay(d::TrajLog; fileroot::AbstractString="")
+    sim_params = get_sim_params(d)
+    ast_params = get_ast_params(d)
+    reward = get_reward(d)
+    action_seq = get_action_seq(d)
 
-  sim = defineSim(sim_params)
-  ast = defineAST(sim, ast_params)
-  action_seq = Obj2Dict.to_obj(d["sim_log"]["action_seq"])
+    sim = defineSim(sim_params)
+    ast = defineAST(sim, ast_params)
+    compute_info = get_compute_info(d)
+    study_params = get_study_params(d)
 
-  simLog = SimLog()
-  addObservers!(simLog, ast)
+    d2 = trajLoggedPlay(ast, reward, action_seq, compute_info, sim_params, ast_params)
 
-  reward, action_seq2 = play_sequence(ast, action_seq)
-  @notify_observer(sim.observer, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
-  @notify_observer(sim.observer, "action_seq", Any[action_seq])
+    copy!(d, d2)
+    outfile = trajSave(fileroot, d)
 
-  #Save
-  sav = d #copy original
-  sav["sim_log"] = simLog #replace with new log
-  replay_reward = sv_reward(d)  #there's rounding in logs, so need to compare the log version of rewards
-  if replay_reward != reward
-    warn("traj_save_load::trajReplay: replay reward is different than original reward")
-  end
-  fileroot = isempty(fileroot) ? "trajReplay$(enc)" : fileroot
-  outfilename = trajSave(fileroot, sav)
-
-  return outfilename
+    outfile
 end
 
 function fill_replay(filename::AbstractString; overwrite::Bool=false)
-  fillfile = fill_to_max_time(filename)
-  if overwrite
-    outfile = trajReplay(fillfile, fileroot=getSaveFileRoot(filename))
-  else
-    outfile = trajReplay(fillfile)
-  end
-  rm(fillfile) #delete intermediate fill file
-  return outfile
+    fillfile = fill_to_max_time(filename)
+    if overwrite
+        outfile = trajReplay(fillfile, fileroot=getSaveFileRoot(filename))
+    else
+        outfile = trajReplay(fillfile)
+    end
+    rm(fillfile) #delete intermediate fill file
+    outfile
 end
 
 fill_replay{T<:AbstractString}(filenames::Vector{T}) = map(fill_replay, filenames)

@@ -34,61 +34,44 @@
 
 module DefineSave
 
-export trajSave, trajLoad, SaveDict, getSaveFileRoot
-export readdirJSONs, readdirGZs, readdirSaves, isRawSave, isCompressedSave, isSave
+export TrajLog
+export trajSave, trajLoad, getSaveFileRoot
+export readdirSavs, isSave
 
-import Compat.ASCIIString
+using RLESUtils, FileUtils, Loggers
 
-using JSON
-using GZip
-using RLESUtils, FileUtils
+import Base: getindex, copy!, haskey
 
-typealias SaveDict Dict{ASCIIString,Any}
-
-function trajSave(fileroot::AbstractString, d::SaveDict; compress::Bool=true)
-  if compress
-    outfile = "$(fileroot).json.gz"
-    f = GZip.open(outfile, "w")
-  else
-    outfile = "$(fileroot).json"
-    f = open(outfile, "w")
-  end
-  JSON.print(f, d)
-  close(f)
-  return outfile
+immutable TrajLog
+    log::TaggedDFLogger
 end
 
-function trajLoad(infile::AbstractString)
-  if isCompressedSave(infile)
-    #compressed
-    f = GZip.open(infile, "r")
-  elseif isRawSave(infile)
-    #raw json
-    f = open(infile, "r")
-  else
-    error("Invalid file type.  Expected .gz or .json extension.")
-  end
-  d = JSON.parse(f)
-  close(f)
-  d = convert(SaveDict, d)
-  return d
+function trajSave(fileroot::AbstractString, d::TrajLog)
+    file = "$fileroot.sav"
+    save_log(file, d.log)
+    file
 end
 
-readdirJSONs(dir::AbstractString=".") = readdir_ext(".json", dir)
-readdirGZs(dir::AbstractString=".") = readdir_ext(".gz", dir)
-readdirSaves(dir::AbstractString=".") = vcat(readdirJSONs(dir), readdirGZs(dir))
-isRawSave(f::AbstractString) = splitext(f)[2] == ".json"
-isCompressedSave(f::AbstractString) = endswith(f, ".gz")
-isSave(f::AbstractString) = isRawSave(f) || isCompressedSave(f)
+getindex(d::TrajLog, x) = getindex(d.log, x)
 
-function getSaveFileRoot(f::AbstractString)
-  if isCompressedSave(f)
-    j = splitext(f)[1] #contains .json, need to split again
-    fileroot = splitext(j)[1]
-  else #raw save
-    fileroot = splitext(f)[1]
-  end
-  return fileroot
+function trajLoad(logfile::AbstractString)
+    TrajLog(load_log(logfile))
 end
+
+readdirSavs(dir::AbstractString=".") = readdir_ext(".sav", dir)
+isSave(f::AbstractString) = endswith(f, ".sav")
+
+function getSaveFileRoot(file::AbstractString)
+    splitext(file)[1]
+end
+
+function copy!(dst::TrajLog, src::TrajLog)
+    for k in keys(src.log)
+        dst.log[k] = src.log[k]
+    end
+    dst
+end
+
+haskey(d::TrajLog, k::String) = haskey(d.log, k)
 
 end #module

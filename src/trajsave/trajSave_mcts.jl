@@ -41,24 +41,28 @@ using SISLES: GenerativeModel
 
 using CPUTime
 using RLESUtils, Obj2Dict, RunCases, Observers, Loggers, Obj2DataFrames
+using DataFrames
 
 using ..Config_ACASX_GM
 using ..ConfigAST
 using ..ConfigMCTS
 using ..DefineSave
-import ..DefineSave.trajSave
 using ..TrajSaveCommon
 using ..DefineLog
 using ..SaveTypes
+using ..SaveHelpers
 using ..PostProcess
 
+import ..DefineSave.trajSave
+import ..TrajSaveCommon.get_study_params
+
 type MCTSStudy
-  fileroot::String
+    fileroot::String
 end
 
 function MCTSStudy(;
-                   fileroot::AbstractString = "trajSaveMCTS")
-  MCTSStudy(fileroot)
+    fileroot::AbstractString="trajSaveMCTS")
+    MCTSStudy(fileroot)
 end
 
 function trajSave(study_params::MCTSStudy,
@@ -80,56 +84,34 @@ function trajSave(study_params::MCTSStudy,
         ast = defineAST(sim, ast_params)
 
         result = stress_test(ast, mcts_params)
-        reward, action_seq, q_vals = result.reward, result.action_seq, result.q_values
+
+        compute_info = ComputeInfo(startnow, string(now()), gethostname(), 
+            (CPUtime_us() - starttime_us) / 1e6)
 
         fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
         outfileroot = joinpath(outdir, fileroot_)
-        trajLoggedPlay(ast, action_seq, study_params, sim_params, ast_params, 
-            mcts_params, outfileroot)
+        log = trajLoggedPlay(ast, result.reward, result.action_seq, 
+            compute_info, sim_params, ast_params)
 
-         return reward
-       end,
+        set_run_type!(log, "MCTS")
+        set_mcts_params!(log, mcts_params)
+        set_q_values!(log, result.q_values)
+        set_study_params!(log, study_params)
+        set_result!(log, result)
 
-       cases)
+        outfile = trajSave(outfileroot, log)
+
+        #callback for postprocessing
+        postprocess(outfile, postproc)
+
+        result.reward
+    end, cases)
+
 end
 
-function trajLoggedPlay(ast::AdaptiveStressTest, action_seq,
-        study_params,
-        sim_params,
-        ast_params::ASTParams,
-        mcts_params,
-        outfileroot::AbstractString
-        )
-
-    #replay to get logs
-    log = addObservers(ast.sim)
-    replay_reward, action_seq2 = play_sequence(ast, action_seq)
-
-    @notify_observer(sim.observer, "run_info", Any[reward, sim.md_time, sim.hmd, 
-        sim.vmd, sim.label_as_nmac])
-    @notify_observer(sim.observer, "action_seq", Any[action_seq])
-
-    #sanity check replay
-    @assert replay_reward == reward
-    @assert action_seq2 == action_seq
-
-    compute_info = ComputeInfo(startnow, string(now()), gethostname(), 
-        (CPUtime_us() - starttime_us) / 1e6)
-
-    #Save
-    add_varlist!(log, "run_type")
-    push!(log, "run_type", ["run_type", "MCTS"])
-    Loggers.set!(log, "compute_info", to_df(compute_info))
-    Loggers.set!(log, "study_params", to_df(study_params))
-    Loggers.set!(log, "sim_params", to_df(sim_params))
-    Loggers.set!(log, "ast_params", to_df(ast_params))
-    Loggers.set!(log, "mcts_params", to_df(mcts_params))
-    Loggers.set!(log, "q_values", q_vals)
-
-    outfile = trajSave(outfileroot, log)
-
-    #callback for postprocessing
-    postprocess(outfile, postproc)
+function get_study_params(d::TrajLog, ::Type{Val{:MCTS}})
+    study = MCTSStudy()
+    Obj2DataFrames.set!(study, ObjDataFrame(d["study_params"]))
 end
 
 end #module

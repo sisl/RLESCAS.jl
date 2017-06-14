@@ -53,7 +53,7 @@ using TikzPictures
 import PGFPlots
 import PGFPlots: Plots, Axis, GroupPlot
 
-using RLESUtils, Obj2Dict, MathUtils, PGFPlotUtils
+using RLESUtils, MathUtils, PGFPlotUtils
 
 const RA_STYLE_MAP = [
     ((ra, h_d) -> ra && abs(h_d) < 5, "mark options={color=gray}, mark=*"),
@@ -69,7 +69,7 @@ const RESPONSE_STYLE_MAP = [
     ]
 
 #xy
-function pgfplot_hor(sav::SaveDict)
+function pgfplot_hor(d::TrajLog)
     plotArray = vcat(pplot_line(sav, "wm", "y", "x"),
         pplot_startpoint(sav, "wm", "y", "x", "top"), # label start point
         pplot_aircraft_num(sav, "wm", "y", "x", startdist = 3.4)) # label aircraft numbers
@@ -84,7 +84,7 @@ function pgfplot_hor(sav::SaveDict)
 end
 
 #altitude vs. time
-function pgfplot_alt(sav::SaveDict)
+function pgfplot_alt(d::TrajLog)
     plotArray = vcat(pplot_z_label270s(sav), # label270 short
         pplot_line(sav, "wm", "t", "z"),
         pplot_startpoint(sav, "wm", "t", "z", "side", overrideangle = 0), # label start point
@@ -99,7 +99,7 @@ function pgfplot_alt(sav::SaveDict)
 end
 
 #heading vs time
-function pgfplot_heading(sav::SaveDict)
+function pgfplot_heading(d::TrajLog)
     plotArray = vcat(pplot_aircraft_num(sav, "adm", "t", "psi", fy=psidot_from_psi), # label aircraft numbers
         pplot_line(sav, "adm", "t", "psi", fy=psidot_from_psi))
     ax = Axis(plotArray,
@@ -110,7 +110,7 @@ function pgfplot_heading(sav::SaveDict)
 end
 
 #vertical rate vs time
-function pgfplot_vrate(sav::SaveDict)
+function pgfplot_vrate(d::TrajLog)
     plotArray = vcat(pplot_aircraft_num(sav, "wm", "t", "vz"), # label aircraft numbers
         pplot_line(sav, "wm", "t", "vz"))
     ax = Axis(plotArray,
@@ -120,23 +120,23 @@ function pgfplot_vrate(sav::SaveDict)
     ax
 end
 
-function pgfplotLog(sav::SaveDict)
+function pgfplotLog(d::TrajLog)
   tps = TikzPicture[]
 
   #xy and tz group
   g = GroupPlot(2, 2, groupStyle = "horizontal sep = 2.2cm, vertical sep = 2.2cm")
 
   #xy
-  push!(g, pgfplot_hor(sav))
+  push!(g, pgfplot_hor(d))
 
   #altitude vs time
-  push!(g, pgfplot_alt(sav))
+  push!(g, pgfplot_alt(d))
 
   #heading rate vs time
-  push!(g, pgfplot_heading(sav))
+  push!(g, pgfplot_heading(d))
 
   #vertical rate vs time
-  push!(g, pgfplot_vrate(sav))
+  push!(g, pgfplot_vrate(d))
 
   tp = PGFPlots.plot(g)
   use_geometry_package!(tp, landscape = true)
@@ -147,10 +147,9 @@ function pgfplotLog(sav::SaveDict)
   return tps
 end
 
-function manual_axis_equal(sav, field::AbstractString, xname::AbstractString, yname::AbstractString;
+function manual_axis_equal(d::TrajLog, field::AbstractString, xname::AbstractString, yname::AbstractString;
                            fx::Function = identity,
                            fy::Function = identity)
-  d = sav
   xind = sv_lookup_id(d, field, xname)
   yind = sv_lookup_id(d, field, yname)
 
@@ -186,7 +185,7 @@ function manual_axis_equal(sav, field::AbstractString, xname::AbstractString, yn
   return (xmin, xmax, ymin, ymax)
 end
 
-function pplot_aircraft_num(sav, field::AbstractString, xname::AbstractString, yname::AbstractString;
+function pplot_aircraft_num(d::TrajLog, field::AbstractString, xname::AbstractString, yname::AbstractString;
                             ind_start::Int64 = 1,
                             displaystart::Bool = true,
                             displayend::Bool = true,
@@ -197,8 +196,6 @@ function pplot_aircraft_num(sav, field::AbstractString, xname::AbstractString, y
                             fy::Function = identity)
   #xname = field name of x variable
   #yname = field name of y variable
-
-  d = sav
 
   plotArray = Plots.Plot[]
 
@@ -242,7 +239,7 @@ function pplot_aircraft_num(sav, field::AbstractString, xname::AbstractString, y
   return plotArray
 end
 
-function pplot_startpoint(sav, field::AbstractString, xname::AbstractString, yname::AbstractString, view::AbstractString;
+function pplot_startpoint(d::TrajLog, field::AbstractString, xname::AbstractString, yname::AbstractString, view::AbstractString;
                           overrideangle::Union{Void, Real} = nothing,
                           ind_start::Int64 = 1,
                           minwidth::Float64 = 0.65,
@@ -253,8 +250,6 @@ function pplot_startpoint(sav, field::AbstractString, xname::AbstractString, yna
   #view = "top" or "side" view of aircraft
   #angle = angle of aircraft in degrees.  Pointing right is 0.  nothing = auto-determine from first and second points.
   #minwidth = minimum width of aircraft icon in cm
-
-  d = sav
 
   plotArray = Plots.Plot[]
 
@@ -294,9 +289,7 @@ function pplot_startpoint(sav, field::AbstractString, xname::AbstractString, yna
   return plotArray
 end
 
-function pplot_z_label270s(sav; start_time::Int64 = 0, end_time::Int64 = 50, label_scale::Float64 = 0.45)
-
-  d = sav
+function pplot_z_label270s(d::TrajLog; start_time::Int64 = 0, end_time::Int64 = 50, label_scale::Float64 = 0.45)
 
   @assert start_time < end_time
 
@@ -337,40 +330,30 @@ function pplot_z_label270s(sav; start_time::Int64 = 0, end_time::Int64 = 50, lab
   return plotArray
 end
 
-function closest_is_above(sav, t::Int64, z_index::Int64, own_id::Int64)
+function closest_is_above(d::TrajLog, t::Int64, z_index::Int64, own_id::Int64)
 
-  d = sav
   h1 = sv_simlog_tdata_vid(d, "wm", own_id, z_index, [t])[1]
-
   hs = Float64[]
-
   for i = 1:sv_num_aircraft(d, "wm")
-
     if i != own_id
-
       h2 = sv_simlog_tdata_vid(d, "wm", i, z_index, [t])[1]
       push!(hs,h2-h1)
-
     end
   end
-
   minindex = indmin(abs(hs))
   minval = hs[minindex]
 
   return minval >= 0.0
 end
 
-function pplot_line(sav, field::AbstractString,
+function pplot_line(d::TrajLog, field::AbstractString,
                          x::AbstractString,
                          y::AbstractString;
                          mark_ra::Bool = true,
                          fx::Function = identity,
                          fy::Function = identity)
 
-  d = sav
-
   plotArray = Plots.Plot[]
-
   xind = sv_lookup_id(d, field, x)
   yind = sv_lookup_id(d, field, y)
 
@@ -421,9 +404,7 @@ function psidot_from_psi(psi::Vector{Float64})
   vcat(psid, psid[end]) #repeat last element so output is same length
 end
 
-function get_ra_style(sav, aircraft_number::Int64)
-
-  d = sav
+function get_ra_style(d::TrajLog, aircraft_number::Int64)
   i = aircraft_number
 
   active_ind = sv_lookup_id(d, "ra", "ra_active")
@@ -440,11 +421,8 @@ function get_ra_style(sav, aircraft_number::Int64)
   return t_style_array #vector of tuples.  each tuple = (times::Vector, style::AbstractString)
 end
 
-function get_response_style(sav,aircraft_number::Int64)
-
-  d = sav
+function get_response_style(d::TrajLog, aircraft_number::Int64)
   i = aircraft_number
-
   #stochastic linear case
   follow_ind = sv_lookup_id(d, "response", "response", noerrors = true)
   if follow_ind != 0
@@ -454,7 +432,6 @@ function get_response_style(sav,aircraft_number::Int64)
       times = find(x->f(x[follow_ra_index]), sv_simlog_tdata(d, "response", i))
       push!(t_style_array,(times, s))
     end
-
     return t_style_array
   end
 
@@ -467,29 +444,27 @@ function get_response_style(sav,aircraft_number::Int64)
       times = find(x->f(x[state_index]), sv_simlog_tdata(d, "response", i))
       push!(t_style_array,(times, s))
     end
-
     return t_style_array
   end
 end
 
 function trajPlot{T<:AbstractString}(savefiles::Vector{T}; format::Symbol=:TEXPDF)
-
-  map(f -> trajPlot(f, format = format), savefiles)
+  map(f->trajPlot(f, format=format), savefiles)
 end
 
 function trajPlot(savefile::AbstractString; format::Symbol=:TEXPDF)
 
   # add suppl info and reload.  This avoids adding suppl info to all files
   add_supplementary(savefile)
-  sav = trajLoad(savefile)
+  d = trajLoad(savefile)
 
   outfileroot = getSaveFileRoot(savefile)
-  trajPlot(outfileroot, sav, format = format)
+  trajPlot(outfileroot, d, format=format)
 
   return savefile
 end
 
-function trajPlot(outfileroot::AbstractString, d::SaveDict; format::Symbol=:TEXPDF)
+function trajPlot(outfileroot::AbstractString, d::TrajLog; format::Symbol=:TEXPDF)
   #workaround, Tikzpictures/lualatex doesn't handle backslashes properly in path
   outfileroot = replace(outfileroot, "\\", "/") 
 

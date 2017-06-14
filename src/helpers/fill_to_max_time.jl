@@ -37,20 +37,21 @@ module Fill_To_Max_Time
 export fill_to_max_time
 
 using AdaptiveStressTesting: ASTAction
-using RLESUtils, Obj2Dict, RNGWrapper
+using RLESUtils, Obj2Dict, RNGWrapper, Loggers, Obj2DataFrames
 
 using ..DefineSave
+using ..SaveHelpers
 
 function fill_to_max_time(filename::AbstractString)
   d = trajLoad(filename)
 
   # disable ending on nmac
-  sim_params = Obj2Dict.to_obj(d["sim_params"])
+  sim_params = get_sim_params(d) 
   sim_params.end_on_nmac = false
-  d["sim_params"] = Obj2Dict.to_dict(sim_params)
+  set_sim_params!(d, sim_params)
 
-  action_seq = Obj2Dict.to_obj(d["sim_log"]["action_seq"])
-  ast_params = Obj2Dict.to_obj(d["ast_params"])
+  action_seq = get_action_seq(d)
+  ast_params = get_ast_params(d)
   rsg_length = ast_params.rsg_length
 
   max_steps = sim_params.max_steps
@@ -61,8 +62,8 @@ function fill_to_max_time(filename::AbstractString)
   actions_to_append = ASTAction[ ASTAction(rsg_length, seed) for t = 1:steps_to_append ] #append hash of t
   action_seq = vcat(action_seq, actions_to_append)
 
-  d["sim_log"]["action_seq"] = Obj2Dict.to_dict(action_seq)
-  outfilename = trajSave(string(getSaveFileRoot(filename), "_filled"), d, compress=isCompressedSave(filename))
+  set_action_seq!(d, action_seq)
+  outfilename = trajSave(string(getSaveFileRoot(filename), "_filled"), d)
   println("File: ", filename, "; Steps appended: ", steps_to_append)
 
   return outfilename

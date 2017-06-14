@@ -36,27 +36,28 @@ module TrajSaveMCBest
 
 export MCBestStudy, MCBestStudyResults
 
-import Compat.ASCIIString
-
 using AdaptiveStressTesting
 using SISLES: GenerativeModel
 
 using CPUTime
-using RLESUtils, Obj2Dict, RunCases, Observers
+using RLESUtils, Obj2Dict, RunCases, Observers, Loggers, Obj2DataFrames
 
 using ..Config_ACASX_GM
 using ..ConfigAST
 using ..ConfigMCBest
 using ..DefineSave
-import ..DefineSave.trajSave
 using ..TrajSaveCommon
 using ..DefineLog
 using ..SaveTypes
+using ..SaveHelpers
 using ..PostProcess
 
+import ..DefineSave.trajSave
+import ..TrajSaveCommon: get_study_params, get_study_results
+
 type MCBestStudy
-  fileroot::ASCIIString
-  studytype::ASCIIString #timed or samples
+  fileroot::String
+  studytype::String  #timed or samples
   trial::Int64
 end
 function MCBestStudy(;
@@ -102,46 +103,38 @@ function trajSave(study_params::MCBestStudy,
          index = indmax(rewards)
          reward, action_seq = results[index]
 
-         #replay to get the logs
-         simLog = SimLog()
-         addObservers!(simLog, ast)
-
-         replay_reward, action_seq2 = play_sequence(ast, action_seq)
-
-         @notify_observer(sim.observer, "run_info", Any[reward, sim.md_time, sim.hmd, sim.vmd, sim.label_as_nmac])
-         @notify_observer(sim.observer, "action_seq", Any[action_seq])
-
-         #sanity check replay
-         @assert replay_reward == reward
-         @assert action_seq2 == action_seq
-
          compute_info = ComputeInfo(startnow,
                                     string(now()),
                                     gethostname(),
                                     (CPUtime_us() - starttime_us) / 1e6)
 
-         #Save
-         sav = SaveDict()
-         sav["run_type"] = "MCBest"
-         sav["compute_info"] = Obj2Dict.to_dict(compute_info)
-         sav["study_params"] = Obj2Dict.to_dict(study_params)
-         sav["study_results"] = Obj2Dict.to_dict(study_results)
-         sav["sim_params"] = Obj2Dict.to_dict(sim_params)
-         sav["ast_params"] = Obj2Dict.to_dict(ast_params)
-         sav["mcbest_params"] = Obj2Dict.to_dict(mcbest_params)
-         sav["sim_log"] = simLog
-
          fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
          outfileroot = joinpath(outdir, fileroot_)
-         outfile = trajSave(outfileroot, sav)
+         log = trajLoggedPlay(ast, reward, action_seq, compute_info, sim_params, ast_params)
+
+         set_run_type!(log, "MCBest")
+         set_mcbest_params!(log, mcbest_params)
+         set_study_params!(log, study_params)
+         set_study_results!(log, study_results)
+
+         outfile = trajSave(outfileroot, log)
 
          #callback for postprocessing
          postprocess(outfile, postproc)
 
-         return reward
+         reward
        end,
 
        cases)
+end
+
+function get_study_params(d::TrajLog, ::Type{Val{:MCBest}})
+    study = MCBestStudy()
+    Obj2DataFrames.set!(study, ObjDataFrame(d["study_params"]))
+end
+function get_study_results(d::TrajLog, ::Type{Val{:MCBest}})
+    result = MCBestStudyResults()
+    Obj2DataFrames.set!(result, ObjDataFrame(d["study_results"]))
 end
 
 end #module

@@ -39,69 +39,37 @@ export add_label270, add_supplementary
 using ..DefineSave
 using ..SaveHelpers
 using ..Label270
+using DataFrames
 
 add_label270{T<:AbstractString}(files::Vector{T}) = map(add_label270, files)
 function add_label270(file::AbstractString)
-  d = trajLoad(file)
-  ra_names = sv_simlog_names(d, "ra")
-
-  b_label_exists = any(x -> x == "label270", ra_names)
-  b_label_short_exists = any(x -> x == "label270_short", ra_names)
-
-  if b_label_exists && b_label_short_exists
-    return #already processed, nothing to do
-  end
-
-  #append field to var_names
-  if !b_label_exists
-    push!(d["sim_log"]["var_names"]["ra"], "label270")
-    push!(d["sim_log"]["var_units"]["ra"], "text")
-  end
-
-  if !b_label_short_exists
-    push!(d["sim_log"]["var_names"]["ra"], "label270_short")
-    push!(d["sim_log"]["var_units"]["ra"], "text")
-  end
-
-  cr_index = findfirst(x -> x == "crossing", ra_names)
-  cc_index = findfirst(x -> x == "cc", ra_names)
-  vc_index = findfirst(x -> x == "vc", ra_names)
-  ua_index = findfirst(x -> x == "ua", ra_names)
-  da_index = findfirst(x -> x == "da", ra_names)
-
-  if any(x -> x == 0, [cr_index, cc_index, vc_index, ua_index, da_index])
-    error("add_supplementary: Flags not found!")
-  end
-
-  ra_top = d["sim_log"]["ra"]
-  num_aircraft = length(ra_top["aircraft"])
-
-  for i = 1:num_aircraft
-    ra_i = ra_top["aircraft"][string(i)]
-    t_end = length(ra_i["time"])
-    prev_label_code = 0 #code at previous change
-    code_tm1 = 0 #code at t-1
-
-    for t = 1:t_end
-      ra = ra_i["time"][string(t)]
-      code = get_code(ra[cc_index], ra[vc_index], ra[ua_index], ra[da_index])
-      crossing = ra[cr_index]
-      #prev_code is previous different code
-      if code != code_tm1
-        prev_label_code = code_tm1
-      end
-      if !b_label_exists
-        label = get_textual_label(code, prev_label_code, crossing, true)
-        push!(ra, label) #append to data vector
-      end
-      if !b_label_short_exists
-        label_short = get_textual_label(code, prev_label_code, crossing, false)
-        push!(ra, label_short) #append to data vector
-      end
-      code_tm1 = code
+    d = trajLoad(file)
+    num_aircraft = get_num_aircraft(d)
+    for i = 1:num_aircraft
+        df = d["CAS_$i"]
+        t_end = nrow(df) 
+        prev_label_code = 0 #code at previous change
+        code_tm1 = 0 #code at t-1
+        labels = String[]
+        label_shorts = String[]
+        for t = 1:t_end
+            code = get_code(df[t, :ownOutput_cc], df[t, :ownOutput_vc], df[t, :ownOutput_ua], 
+                df[t, :ownOutput_da])
+            crossing = df[t, :ownOutput_crossing]
+            #prev_code is previous different code
+            if code != code_tm1
+                prev_label_code = code_tm1
+            end
+            label = get_textual_label(code, prev_label_code, crossing, true)
+            push!(labels, label) #append to data vector
+            label_short = get_textual_label(code, prev_label_code, crossing, false)
+            push!(label_shorts, label_short) #append to data vector
+            code_tm1 = code
+        end
+        df[:label] = labels
+        df[:label_short] = label_shorts
     end
-  end
-  trajSave(getSaveFileRoot(file), d, compress=isCompressedSave(file))
+    trajSave(getSaveFileRoot(file), d)
 end
 
 add_supplementary{T<:AbstractString}(files::Vector{T}) = map(add_supplementary, files)

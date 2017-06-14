@@ -62,24 +62,22 @@ function addObservers(sim::ACASX_GM)
         add_folder!(log, "Dynamics_$i", dynamics_types(sim.dm[i]),  dynamics_names(sim.dm[i]))
         add_folder!(log, "WorldModel_$i", worldmodel_types(sim.wm),  worldmodel_names(sim.wm))
 
-        addObserver(sim, "CAS_info_$i",   x->log_cas_info!(log, x))
-        addObserver(sim, "Initial_$i",    x->log_initial!(log, x))
-        addObserver(sim, "Command_$i",    x->log_command!(log, x))
-        addObserver(sim, "Sensor_$i",     x->log_sensor!(log, x))
-        addObserver(sim, "CAS_$i",        x->log_cas!(log, x))
-        addObserver(sim, "Response_$i",   x->log_response!(log, x))
-        addObserver(sim, "Dynamics_$i",   x->log_adm!(log, x))
+        addObserver(sim, "CAS_info",   x->log_cas_info!(log, x))
+        addObserver(sim, "Initial",    x->log_initial!(log, x))
+        addObserver(sim, "Command",    x->log_command!(log, x))
+        addObserver(sim, "Sensor",     x->log_sensor!(log, x))
+        addObserver(sim, "CAS",        x->log_cas!(log, x))
+        addObserver(sim, "Response",   x->log_response!(log, x))
+        addObserver(sim, "Dynamics",   x->log_adm!(log, x))
     end
     add_folder!(log, "logProb", logprob_types(), logprob_names()) 
     add_folder!(log, "run_info", runinfo_types(), runinfo_names()) 
-    add_folder!(log, "action_seq", actionseq_types(), actionseq_names()) 
 
     addObserver(sim, "WorldModel", x->log_wm!(log, x))
     addObserver(sim, "logProb",   x->log_logProb!(log, x))
     addObserver(sim, "run_info",   x->log_runinfo!(log, x))
-    addObserver(sim, "action_seq", x->log_actions!(log, x))
 
-    log
+    TrajLog(log)
 end
 
 function log_cas_info!(log::TaggedDFLogger, args)
@@ -96,7 +94,7 @@ cas_info_data(cas::Union{ACASX_CCAS,ACASX_ADD}) = Any[cas.version]
 function log_initial!(log::TaggedDFLogger, args)
     #[aircraft_number, time_index, initial]
     i, t, aem = args
-    @assert t_index == 0
+    @assert t == 0
     push!(log, "Initial_$i", initial_data(i, aem))
 end
 
@@ -159,7 +157,7 @@ end
 function log_command!(log::TaggedDFLogger, args)
     #[aircraft_number, time_index, command]
     i, t, command = args
-    push!(log, "Command_$i", command_data(command))
+    push!(log, "Command_$i", command_data(t, command))
 end
 
 command_names(command::CorrAEMCommand) = String["t", "h_d", "v_d", "psi_d"]
@@ -338,7 +336,7 @@ function cas_units(cas::Union{ACASX_CCAS,ACASX_ADD})
          [["num", "n/a", "n/a", "n/a", "n/a", "n/a"]
           for i = 1:cas.max_intruders]...)
 end
-function cas_data(cas::Union{ACASX_CCAS,ACASX_ADD}) #log everything
+function cas_data(t::Int64, cas::Union{ACASX_CCAS,ACASX_ADD}) #log everything
     ra_active = (cas.output.dh_min > -9999.0 || cas.output.dh_max < 9999.0)::Bool
     ownInput = Any[cas.input.ownInput.dz,
              cas.input.ownInput.z,
@@ -383,7 +381,7 @@ function cas_data(cas::Union{ACASX_CCAS,ACASX_ADD}) #log everything
                               cas.output.intruders[i].code]
                           for i=1:length(cas.output.intruders)]...)
 
-    round_floats(vcat(ra_active,
+    round_floats(vcat(t, ra_active,
                            ownInput,
                            intruderInputs,
                            ownOutput,
@@ -415,7 +413,7 @@ function response_data(t::Int64, pr::StochasticLinearPR)
 end
 
 response_names(pr::LLDetPR) = String["t", "state", "timer", "t_s", "v_d", "h_d", "psi_d", "logProb"]
-response_types(pr::LLDetPR) = [Int64, String, Int64, Float64, Float64, Float64, Float64, Float64]   
+response_types(pr::LLDetPR) = [Int64, Symbol, Int64, Float64, Float64, Float64, Float64, Float64]   
 response_units(pr::LLDetPR) = String["int", "enum", "s", "s", "ft/s^2", "ft/s", "deg/s", "float"]
 
 function response_data(t::Int64, pr::LLDetPR)
@@ -448,17 +446,6 @@ end
 logprob_names() = String["t", "logprob"]
 logprob_types() = [Int64, Float64]
 logprob_units() = String["int", "n/a"]
-
-function log_actions!(log::TaggedDFLogger, args)
-    action_seq = args[1]::Vector{ASTAction}
-    for t = 1:length(action_seq)
-        push!(log, "action_seq", [t, action_seq[t]])
-    end
-end
-
-actionseq_names() = String["t", "action"]
-actionseq_types() = [Int64, Any]
-actionseq_units() = String["index", "seed"]
 
 function round_floats(v::Vector{Any}, ndigits::Int64; enable::Bool=true)
   out = v

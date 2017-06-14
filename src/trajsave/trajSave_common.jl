@@ -34,11 +34,17 @@
 
 module TrajSaveCommon
 
-export extract_params!, extract_params
+export extract_params!, extract_params, trajLoggedPlay
 
-import Compat.ASCIIString
+using AdaptiveStressTesting
+using CPUTime
+using RLESUtils, Obj2Dict, RunCases, Observers, Loggers, Obj2DataFrames
+using DataFrames
 
-using RLESUtils, RunCases
+using ..DefineSave
+using ..SaveTypes
+using ..DefineLog
+using ..SaveHelpers
 
 function extract_params!(paramObj, case::Case, key::AbstractString)
   #assumes format of key is: "key.field"
@@ -75,5 +81,39 @@ function extract_params(case::Case, key::AbstractString)
     end
     kwargs
 end
+
+"""
+Replay trajectory instrumented with logs
+"""
+function trajLoggedPlay(ast::AdaptiveStressTest, reward, action_seq,
+        compute_info,
+        sim_params,
+        ast_params::ASTParams
+        )
+
+    sim = ast.sim
+
+    #replay to get logs
+    log = addObservers(ast.sim)
+    replay_reward, action_seq2 = play_sequence(ast, action_seq)
+
+    @notify_observer(sim.observer, "run_info", Any[reward, sim.md_time, sim.hmd, 
+        sim.vmd, sim.label_as_nmac])
+
+    #sanity check replay
+    @assert action_seq2 == action_seq
+    if replay_reward != reward
+        warn("trajLoggedPlay: replay reward is different than original reward. replay_reward=$(replay_reward) and reward=$reward")
+    end
+
+    #Save
+    set_compute_info!(log, compute_info)
+    set_sim_params!(log, sim_params)
+    set_ast_params!(log, ast_params)
+    set_action_seq!(log, action_seq)
+
+    log
+end
+
 
 end #module
