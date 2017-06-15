@@ -32,6 +32,32 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("json_to_waypoints.jl")
+module Log_To_CSV
 
-json_to_waypoints(ARGS[1])
+export log_to_csv
+
+using ..DefineSave
+using ..SaveHelpers
+using DataFrames
+using RLESUtils, DataFrameUtils
+
+function calc_catranges(catlengths::Vector{Int64})
+  cl = [1; cumsum(catlengths) + 1]
+  return Range[cl[i]:(cl[i+1] - 1) for i = 1:length(catlengths)]
+end
+
+function log_to_csv{T<:AbstractString}(savefile::AbstractString,
+    lognames::Vector{T}=["Command", "Sensor", "CAS", "Response",
+    "Dynamics", "WorldModel"])
+
+    d = trajLoad(savefile)
+    num_aircraft = get_num_aircraft(d)
+    fileroot = getSaveFileRoot(savefile)
+    for i = 1:num_aircraft
+        D = join_all(map(x->get_log(d, x, i), lognames)...; on=:t)
+        filename = string(fileroot, "_aircraft$i.csv")
+        writetable(filename, D) #no units
+    end
+end
+
+end #module

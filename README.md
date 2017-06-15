@@ -5,7 +5,7 @@ RLESCAS is a Julia package for applying Monte Carlo tree search (MCTS) to stress
 
 ## Installation ##
 
-The software works best in Julia v0.5 (tested on v0.5.0).  It is compatible with Julia 0.4 (tested on 0.4.7) via the Compat.jl package.  Requires 64-bit Julia.
+The software requires Julia v0.5 (tested on v0.5.1).  Requires 64-bit Julia.
 
 * Pkg.clone("https://github.com/sisl/rlescas.jl.git", "RLESCAS")
 * Pkg.build("RLESCAS")

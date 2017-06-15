@@ -41,9 +41,9 @@ import Compat.ASCIIString
 using ..TrajSaveReplay
 using ..AddSupplementary
 using ..SaveHelpers
-using ..JSON_To_CSV
-using ..JSON_To_Scripted
-using ..JSON_To_Waypoints
+using ..Log_To_CSV
+using ..Log_To_Scripted
+using ..Log_To_Waypoints
 using ..Summarize
 using ..Label270_To_Text
 import ...RLESCAS
@@ -82,11 +82,11 @@ function postprocess(filename::AbstractString, opts::StandardPostProc)
       RLESCAS.include_visualize()
       RLESCAS.trajPlot(filename, format=:TEX)
     elseif f == "scripted"
-      json_to_scripted(filename)
+      log_to_scripted(filename)
     elseif f == "waypoints"
-      json_to_waypoints(filename)
+      log_to_waypoints(filename)
     elseif f == "csv"
-      json_to_csv(filename)
+      log_to_csv(filename)
     elseif f == "label270_text"
       label270_to_text(filename)
     elseif f == "summary"

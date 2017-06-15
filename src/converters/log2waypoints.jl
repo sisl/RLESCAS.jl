@@ -32,6 +32,6 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("json_to_scripted.jl")
+include("log_to_waypoints.jl")
 
-json_to_scripted(ARGS[1])
+log_to_waypoints(ARGS[1])

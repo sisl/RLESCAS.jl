@@ -73,12 +73,12 @@ include("tools/label270_to_text.jl")
 @reexport using .Label270_To_Text
 include("tools/summarize.jl")
 @reexport using .Summarize
-include("converters/json_to_csv.jl")
-@reexport using .JSON_To_CSV
-include("converters/json_to_scripted.jl")
-@reexport using .JSON_To_Scripted
-include("converters/json_to_waypoints.jl")
-@reexport using .JSON_To_Waypoints
+include("converters/log_to_csv.jl")
+@reexport using .Log_To_CSV
+include("converters/log_to_scripted.jl")
+@reexport using .Log_To_Scripted
+include("converters/log_to_waypoints.jl")
+@reexport using .Log_To_Waypoints
 
 include("helpers/plot_nmacs.jl")
 @reexport using .PlotNMACs
@@ -106,8 +106,8 @@ include("trajsave/trajSave_mcts.jl")
 
 include("tools/nmac_stats.jl")
 @reexport using .NMACStats
-include("tools/json_update.jl")
-@reexport using .JsonUpdate
+#include("tools/json_update.jl")
+#@reexport using .JsonUpdate
 include("tools/recursive_plot.jl")
 @reexport using .RecursivePlot
 include("tools/collage.jl")

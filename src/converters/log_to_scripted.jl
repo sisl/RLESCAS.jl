@@ -36,7 +36,7 @@
 # According to file format specified in Matlab script
 # written by Mykel Kochenderfer, mykel@stanford.edu
 #
-# This script converts a json file produced by RLES and converts it to a "scripts" file
+# This script converts a log file produced by RLES and converts it to a "scripts" file
 # of the following format:
 #
 #   SCRIPTS FILE:
@@ -89,11 +89,9 @@
 #       [Encounter k]
 #           ...
 
-module JSON_To_Scripted
+module Log_To_Scripted
 
-export json_to_scripted
-
-import Compat.ASCIIString
+export log_to_scripted
 
 using ..DefineSave
 using ..SaveHelpers
@@ -101,82 +99,71 @@ using ..SaveHelpers
 include("corr_aem_save_scripts.jl")
 
 using JSON
-using Base.Test
+using DataFrames
 
-function json_to_scripted{T<:AbstractString}(filenames::Vector{T}; outfile::AbstractString = "scripted.dat")
+function log_to_scripted{T<:AbstractString}(filenames::Vector{T}; 
+    outfile::AbstractString = "scripted.dat")
 
-  d = trajLoad(filenames[1]) #use the first one as a reference
-  num_aircraft = sv_num_aircraft(d, "wm")
-  num_encounters = length(filenames) #one encounter per json file
-  encounters = Array(Dict{ASCIIString, Array{Float64, 2}}, num_aircraft, num_encounters)
+    d = trajLoad(filenames[1]) #use the first one as a reference
+    num_aircraft = get_num_aircraft(d)
+    num_encounters = length(filenames) #one encounter per log file
+    encounters = Array(Dict{String, Array{Float64, 2}}, num_aircraft, num_encounters)
 
-  #encounter i
-  for (i, file) in enumerate(filenames)
-    d = trajLoad(file)
+    #encounter i
+    for (i, file) in enumerate(filenames)
+        d = trajLoad(file)
 
-    #make sure all of them have the same number of aircraft
-    @test num_aircraft == sv_num_aircraft(d, "wm")
+        #make sure all of them have the same number of aircraft
+        @assert num_aircraft == get_num_aircraft(d)
 
-    #aircraft j
-    for j = 1 : num_aircraft
-      encounters[j, i] = Dict{ASCIIString,Array{Float64, 2}}()
-      encounters[j, i]["initial"] = j2s_initial(d, j)
-      encounters[j, i]["update"] = j2s_update(d, j)'
+        #aircraft j
+        for j = 1:num_aircraft
+            encounters[j, i] = Dict{String,Array{Float64, 2}}()
+            encounters[j, i]["initial"] = j2s_initial(d, j)
+            encounters[j, i]["update"] = j2s_update(d, j)'
+        end
     end
-  end
-
-  save_scripts(outfile, encounters, numupdatetype=UInt8)
-
-  return encounters
+    save_scripts(outfile, encounters, numupdatetype=UInt8)
+    encounters
 end
 
-function j2s_initial{T<:AbstractString}(d::Dict{T, Any}, aircraft_number::Int64)
-  #d is the loaded json / encounter
-  #j is aircraft number
+function j2s_initial(d::TrajLog, aircraft_number::Int64)
+    #d is the loaded encounter
+    #j is aircraft number
 
-  out = Array(Float64, 1, 8)
+    out = Array(Float64, 1, 8)
+    initial = get_log(d, "Initial", aircraft_number)
+    airspeed            = initial[1, :v] 
+    pos_north           = initial[1, :y] 
+    pos_east            = initial[1, :x] 
+    altitude            = initial[1, :z] 
+    heading             = initial[1, :psi]   |> deg2rad #to radians
+    flight_path_angle   = initial[1, :theta] |> deg2rad #to radians
+    roll_angle          = initial[1, :phi]   |> deg2rad #to radians
+    airspeed_accel      = initial[1, :v_d]
 
-  getvar(var::AbstractString) = sv_simlog_data_vid(d, "initial", aircraft_number, var)  # for local convenience
-
-  airspeed            = getvar("v")
-  pos_north           = getvar("y")
-  pos_east            = getvar("x")
-  altitude            = getvar("z")
-  heading             = getvar("psi")   |> deg2rad #to radians
-  flight_path_angle   = getvar("theta") |> deg2rad #to radians
-  roll_angle          = getvar("phi")   |> deg2rad #to radians
-  airspeed_accel      = getvar("v_d")
-
-  out[1, :] = [airspeed, pos_north, pos_east, altitude, heading, flight_path_angle,
+    out[1, :] = [airspeed, pos_north, pos_east, altitude, heading, flight_path_angle,
               roll_angle, airspeed_accel]
-
-  return out
+    out
 end
 
-function j2s_update{T<:AbstractString}(d::Dict{T, Any}, aircraft_number::Int64)
-  #d is the loaded json / encounter,
-  #j is aircraft number
-
-  t_end = length(sorted_times(d, "response", aircraft_number))
-  out = Array(Float64, t_end - 1, 4)
-
-  for t = 2 : t_end #ignore init values
-    getvar(var::AbstractString) = sv_simlog_tdata_vid(d, "response", aircraft_number, var, [t])[1] # for local convenience
-
-    t_     = getvar("t")
-    h_d    = getvar("h_d")
-    psi_d  = getvar("psi_d") |> deg2rad #to radians
-    v_d    = getvar("v_d")
-
-    out[t - 1, :] = Float64[t_, h_d, psi_d, v_d]
-  end
-
-  return out
+function j2s_update(d::TrajLog, aircraft_number::Int64)
+    #d is the loaded encounter,
+    pr = get_log(d, "Response", aircraft_number)
+    t_end = nrow(pr) 
+    out = Array(Float64, t_end-1, 4)
+    for t = 2:t_end #ignore init values
+        t_     = pr[t, :t]
+        h_d    = pr[t, :h_d]
+        psi_d  = pr[t, :psi_d] |> deg2rad #to radians
+        v_d    = pr[t, :v_d]
+        out[t-1, :] = Float64[t_, h_d, psi_d, v_d]
+    end
+    out
 end
 
-function json_to_scripted(filename::AbstractString)
-
-  json_to_scripted([filename], outfile = string(getSaveFileRoot(filename), "_scripted.dat"))
+function log_to_scripted(filename::AbstractString)
+  log_to_scripted([filename], outfile = string(getSaveFileRoot(filename), "_scripted.dat"))
 end
 
 end #module

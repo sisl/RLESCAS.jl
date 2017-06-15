@@ -32,53 +32,6 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module JSON_To_CSV
+include("log_to_scripted.jl")
 
-export json_to_csv
-
-import Compat.ASCIIString
-
-using ..DefineSave
-using ..SaveHelpers
-
-function calc_catranges(catlengths::Vector{Int64})
-  cl = [1; cumsum(catlengths) + 1]
-  return Range[cl[i]:(cl[i+1] - 1) for i = 1:length(catlengths)]
-end
-
-function json_to_csv{T<:AbstractString}(savefile::AbstractString,
-    categories::Vector{T}=["command", "sensor", "ra", "ra_detailed", "response",
-    "adm", "wm"])
-
-  d = trajLoad(savefile)
-
-  catlengths = Int64[length(sv_simlog_names(d, c)) for c in categories]
-  catranges = calc_catranges(catlengths)
-  t_end = maximum([length(sorted_times(d, c, 1)) for c in categories])
-  num_aircraft = sv_num_aircraft(d)
-
-  header = convert(Array{ASCIIString}, vcat([map(s->"$c.$s", sv_simlog_names(d, c)) for c = categories]...))
-  units = convert(Array{ASCIIString}, vcat([map(u->"$u", sv_simlog_units(d, c)) for c = categories]...))
-  data = Array(Any, t_end, length(header), num_aircraft)
-  fill!(data, "n/a")
-
-  for i = 1 : num_aircraft
-    for (j, c) = enumerate(categories)
-      for t = sorted_times(d, c, i)
-        data[t, catranges[j], i] = sv_simlog_tdata(d, c, i, [t])[1]
-      end
-    end
-
-    fileroot = getSaveFileRoot(savefile)
-    filename = string(fileroot, "_aircraft$i.csv")
-    f = open(filename, "w")
-    writecsv(f, reshape(header, 1, length(header)))
-    writecsv(f, reshape(units, 1, length(units)))
-    writecsv(f, data[:, :, i])
-    close(f)
-  end
-
-  return header, units, data
-end
-
-end #module
+log_to_scripted(ARGS[1])

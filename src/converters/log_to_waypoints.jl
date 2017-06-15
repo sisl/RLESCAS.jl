@@ -35,7 +35,7 @@
 # According to file format specified in Matlab script
 # written by Mykel Kochenderfer, mykel@stanford.edu
 #
-# This script converts a json file produced by RLES and converts it to a "waypoints" file
+# This script converts a log file produced by RLES and converts it to a "waypoints" file
 # of the following format.
 #
 #   WAYPOINTS FILE:
@@ -81,85 +81,73 @@
 #       [Encounter k]
 
 
-module JSON_To_Waypoints
+module Log_To_Waypoints
 
-export json_to_waypoints
-
-import Compat.ASCIIString
+export log_to_waypoints
 
 using ..DefineSave
 using ..SaveHelpers
 
+
 include("corr_aem_save_scripts.jl")
 
 using JSON
+using DataFrames
 
-function json_to_waypoints{T<:AbstractString}(filenames::Vector{T}; outfile::AbstractString = "waypoints.dat")
+function log_to_waypoints{T<:AbstractString}(filenames::Vector{T}; 
+    outfile::AbstractString="waypoints.dat")
 
-  d = trajLoad(filenames[1]) #use the first one as a reference
-  num_aircraft = sv_num_aircraft(d, "wm")
-  num_encounters = length(filenames) #one encounter per json file
-  encounters = Array(Dict{ASCIIString, Array{Float64, 2}}, num_aircraft, num_encounters)
+    d = trajLoad(filenames[1]) #use the first one as a reference
+    num_aircraft = get_num_aircraft(d)
+    num_encounters = length(filenames) #one encounter per log file
+    encounters = Array(Dict{String, Array{Float64, 2}}, num_aircraft, num_encounters)
 
-  #encounter i
-  for (i, file) in enumerate(filenames)
+    #encounter i
+    for (i, file) in enumerate(filenames)
+        d = trajLoad(file)
+        #make sure all of them have the same number of aircraft
+        @assert num_aircraft == get_num_aircraft(d)
 
-    d = trajLoad(file)
-
-    #make sure all of them have the same number of aircraft
-    @assert num_aircraft == sv_num_aircraft(d, "wm")
-
-    #aircraft j
-    for j = 1 : num_aircraft
-      encounters[j, i] = Dict{ASCIIString, Array{Float64, 2}}()
-      encounters[j, i]["initial"] = j2w_initial(d, j)
-      encounters[j, i]["update"] = j2w_update(d, j)'
+        #aircraft j
+        for j = 1:num_aircraft
+            encounters[j, i] = Dict{String, Array{Float64, 2}}()
+            encounters[j, i]["initial"] = j2w_initial(d, j)
+            encounters[j, i]["update"] = j2w_update(d, j)'
+        end
     end
-  end
-
-  save_waypoints(outfile, encounters, numupdatetype = UInt16)
-
-  return encounters
+    save_waypoints(outfile, encounters, numupdatetype=UInt16)
+    encounters
 end
 
-function j2w_initial{T<:AbstractString}(d::Dict{T, Any}, aircraft_number::Int64)
-  #d is the loaded json / encounter
-
+function j2w_initial(d::TrajLog, aircraft_number::Int64)
+  #d is the loaded encounter
   out = Array(Float64, 1, 3)
+  wm = get_log(d, "WorldModel", aircraft_number)
 
-  getvar(var::AbstractString) = sv_simlog_tdata_vid(d, "wm", aircraft_number, var, [1])[1]  # for local convenience
-
-  pos_north     = getvar("y")
-  pos_east      = getvar("x")
-  altitude      = getvar("z")
-
+  pos_north     = wm[1, :y] 
+  pos_east      = wm[1, :x]
+  altitude      = wm[1, :z] 
   out[1, :] = [pos_north, pos_east, altitude]
-
-  return out
+  out
 end
 
-function j2w_update{T<:AbstractString}(d::Dict{T, Any}, aircraft_number::Int64)
-  #d is the loaded json / encounter,
-
-  t_end = length(sorted_times(d, "wm", aircraft_number))
-  out = Array(Float64, t_end - 1, 4)
-
-  for t = 2 : t_end #ignore init values
-    getvar(var::AbstractString) = sv_simlog_tdata_vid(d, "wm", aircraft_number, var, [t])[1]  # for local convenience
-
-    t_         = getvar("t")
-    pos_north  = getvar("y")
-    pos_east   = getvar("x")
-    altitude   = getvar("z")
-
+function j2w_update(d::TrajLog, aircraft_number::Int64)
+  #d is the loaded encounter,
+  wm = get_log(d, "WorldModel", aircraft_number)
+  t_end = nrow(wm) 
+  out = Array(Float64, t_end-1, 4)
+  for t = 2:t_end #ignore init values
+    t_         = wm[t, :t]
+    pos_north  = wm[t, :y]
+    pos_east   = wm[t, :x]
+    altitude   = wm[t, :z]
     out[t - 1, :] = Float64[t_, pos_north, pos_east, altitude]
   end
-
-  return out
+  out
 end
 
-function json_to_waypoints(filename::AbstractString)
-  json_to_waypoints([filename], outfile = string(getSaveFileRoot(filename), "_waypoints.dat"))
+function log_to_waypoints(filename::AbstractString)
+  log_to_waypoints([filename], outfile = string(getSaveFileRoot(filename), "_waypoints.dat"))
 end
 
 end #module
