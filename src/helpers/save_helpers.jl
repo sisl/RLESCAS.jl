@@ -67,12 +67,6 @@ set_run_type!(d::TrajLog, run_type) = Loggers.set!(d.log, "run_type",
 set_q_values!(d::TrajLog, q_vals) = Loggers.set!(d.log, "q_values",
     DataFrame(Dict(:q_values=>q_vals)))
 
-function set_result!(d::TrajLog, result) 
-    #reward is saved under run_info
-    set_action_seq!(d, result.action_seq)
-    set_q_values!(d, result.q_values)
-end
-
 function set_action_seq!(d::TrajLog, action_seq) 
     n = length(action_seq[1].rsg)
     df = DataFrame(fill(UInt32, n), 0)

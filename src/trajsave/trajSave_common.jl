@@ -102,7 +102,7 @@ function trajLoggedPlay(ast::AdaptiveStressTest, reward, action_seq,
 
     #sanity check replay
     @assert action_seq2 == action_seq
-    if replay_reward != reward
+    if !isapprox(replay_reward, reward)
         warn("trajLoggedPlay: replay reward is different than original reward. replay_reward=$(replay_reward) and reward=$reward")
     end
 

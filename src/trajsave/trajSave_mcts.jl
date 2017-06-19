@@ -83,28 +83,31 @@ function trajSave(study_params::MCTSStudy,
         sim = defineSim(sim_params)
         ast = defineAST(sim, ast_params)
 
-        result = stress_test(ast, mcts_params)
+        results = stress_test2(ast, mcts_params)
 
         compute_info = ComputeInfo(startnow, string(now()), gethostname(), 
             (CPUtime_us() - starttime_us) / 1e6)
 
-        fileroot_ = "$(study_params.fileroot)_$(sim.string_id)"
-        outfileroot = joinpath(outdir, fileroot_)
-        log = trajLoggedPlay(ast, result.reward, result.action_seq, 
-            compute_info, sim_params, ast_params)
+        for k = 1:mcts_params.top_k
+            fileroot_ = "$(study_params.fileroot)_$(sim.string_id)_k$k"
+            outfileroot = joinpath(outdir, fileroot_)
+            log = trajLoggedPlay(ast, results.rewards[k], results.action_seqs[k], 
+                compute_info, sim_params, ast_params)
 
-        set_run_type!(log, "MCTS")
-        set_mcts_params!(log, mcts_params)
-        set_q_values!(log, result.q_values)
-        set_study_params!(log, study_params)
-        set_result!(log, result)
+            set_run_type!(log, "MCTS")
+            set_mcts_params!(log, mcts_params)
+            set_q_values!(log, results.q_values[k])
+            set_study_params!(log, study_params)
+            set_action_seq!(log, results.action_seqs[k])
+            set_q_values!(log, results.q_values[k])
 
-        outfile = trajSave(outfileroot, log)
+            outfile = trajSave(outfileroot, log)
 
-        #callback for postprocessing
-        postprocess(outfile, postproc)
+            #callback for postprocessing
+            postprocess(outfile, postproc)
+        end
 
-        result.reward
+        results.rewards[1]
     end, cases)
 
 end
