@@ -85,10 +85,11 @@ end
 """
 Replay trajectory instrumented with logs
 """
-function trajLoggedPlay(ast::AdaptiveStressTest, sim::GenerativeModel, reward, action_seq,
+function trajLoggedPlay(ast::AdaptiveStressTest, reward, action_seq,
         compute_info,
         sim_params,
-        ast_params::ASTParams
+        ast_params::ASTParams; 
+        suppress_warn::Bool=false
         )
 
     sim = ast.sim
@@ -97,42 +98,12 @@ function trajLoggedPlay(ast::AdaptiveStressTest, sim::GenerativeModel, reward, a
     log = addObservers(ast.sim)
     replay_reward, action_seq2 = play_sequence(ast, action_seq)
 
-    @notify_observer(sim.observer, "run_info", Any[reward, sim.md_time, sim.hmd, 
+    @notify_observer(sim.observer, "run_info", Any[replay_reward, sim.md_time, sim.hmd, 
         sim.vmd, sim.label_as_nmac])
 
     #sanity check replay
     @assert action_seq2 == action_seq
-    if !isapprox(replay_reward, reward)
-        warn("trajLoggedPlay: replay reward is different than original reward. replay_reward=$(replay_reward) and reward=$reward")
-    end
-
-    #Save
-    set_compute_info!(log, compute_info)
-    set_sim_params!(log, sim_params)
-    set_ast_params!(log, ast_params)
-    set_action_seq!(log, action_seq)
-
-    log
-end
-
-function trajLoggedPlay(ast::AdaptiveStressTest, ds::DualSim, reward, action_seq,
-        compute_info,
-        sim_params,
-        ast_params::ASTParams
-        )
-
-    sim = ast.sim
-
-    #replay to get logs
-    log = addObservers(ast.sim)
-    replay_reward, action_seq2 = play_sequence(ast, action_seq)
-
-    @notify_observer(sim.observer, "run_info", Any[reward, sim.md_time, sim.hmd, 
-        sim.vmd, sim.label_as_nmac])
-
-    #sanity check replay
-    @assert action_seq2 == action_seq
-    if !isapprox(replay_reward, reward)
+    if !suppress_warn && !isapprox(replay_reward, reward)
         warn("trajLoggedPlay: replay reward is different than original reward. replay_reward=$(replay_reward) and reward=$reward")
     end
 

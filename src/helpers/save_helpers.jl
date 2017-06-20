@@ -49,7 +49,7 @@ export get_sim_params, get_ast_params, get_mcts_params, get_compute_info, get_re
     get_unit, get_run_type, get_mcts_iterations, get_mcbest_n, get_logprobs, 
     get_encounter_id, get_q_values
 export get_reward, get_num_aircraft, get_vmd, get_hmd, get_md_time, get_nmac, is_nmac,
-    nmacs_only
+    nmacs_only, is_differential
 
 set_sim_params!(d::TrajLog, sim_params) = Loggers.set!(d.log, "sim_params", to_df(sim_params))
 set_ast_params!(d::TrajLog, ast_params) = Loggers.set!(d.log, "ast_params", to_df(ast_params))
@@ -129,5 +129,9 @@ is_nmac(file::AbstractString) = file |> trajLoad |> get_nmac
 get_nmac(d::TrajLog) = d.log["run_info"][1, :nmac] 
 nmacs_only(file::AbstractString) = is_nmac(file)
 nmacs_only{T<:AbstractString}(files::Vector{T}) = filter(is_nmac, files)
+
+function is_differential(d::TrajLog)
+    d.log["sim_params"][1, :libcas2] != "NONE" && d.log["sim_params"][1, :libcas2_config] != "NONE"
+end
 
 end #module

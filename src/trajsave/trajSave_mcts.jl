@@ -88,24 +88,8 @@ function trajSave(study_params::MCTSStudy,
         compute_info = ComputeInfo(startnow, string(now()), gethostname(), 
             (CPUtime_us() - starttime_us) / 1e6)
 
-        for k = 1:mcts_params.top_k
-            fileroot_ = "$(study_params.fileroot)_$(sim.string_id)_k$k"
-            outfileroot = joinpath(outdir, fileroot_)
-            log = trajLoggedPlay(ast, results.rewards[k], results.action_seqs[k], 
-                compute_info, sim_params, ast_params)
-
-            set_run_type!(log, "MCTS")
-            set_mcts_params!(log, mcts_params)
-            set_q_values!(log, results.q_values[k])
-            set_study_params!(log, study_params)
-            set_action_seq!(log, results.action_seqs[k])
-            set_q_values!(log, results.q_values[k])
-
-            outfile = trajSave(outfileroot, log)
-
-            #callback for postprocessing
-            postprocess(outfile, postproc)
-        end
+        save_k_logs(sim, mcts_params, ast, results, compute_info, 
+            sim_params, ast_params, study_params, postproc, outdir)
 
         results.rewards[1]
     end, cases)
@@ -115,6 +99,74 @@ end
 function get_study_params(d::TrajLog, ::Type{Val{:MCTS}})
     study = MCTSStudy()
     Obj2DataFrames.set!(study, ObjDataFrame(d["study_params"]))
+end
+
+function save_k_logs(sim::Any, mcts_params::DPWParams, ast::AdaptiveStressTest, 
+    results::StressTestResults, compute_info::ComputeInfo, sim_params, 
+    ast_params::ASTParams, study_params::MCTSStudy, postproc::PostProcessing, 
+    outdir::AbstractString)
+    for k = 1:mcts_params.top_k
+        fileroot_ = "$(study_params.fileroot)_$(sim.string_id)_k$k"
+        outfileroot = joinpath(outdir, fileroot_)
+        save_mcts_log(mcts_params, ast, results, k, compute_info, sim_params,
+            ast_params, study_params, postproc, outfileroot)
+    end
+end
+
+function save_k_logs(sim::DualSim, mcts_params::DPWParams, ast::AdaptiveStressTest, 
+    results::StressTestResults, compute_info::ComputeInfo, sim_params, 
+    ast_params::ASTParams, study_params::MCTSStudy, postproc::PostProcessing, 
+    outdir::AbstractString)
+    #save
+    ds_transition_model = ast.transition_model
+    ds_sim = ast.sim
+
+    #sim1
+    ast.sim = ds_sim.sim1
+    ast.transition_model = transition_model(ast)
+    for k = 1:mcts_params.top_k
+        fileroot_ = "$(study_params.fileroot)_$(ast.sim.string_id)_k$(k)_sim1"
+        outfileroot = joinpath(outdir, fileroot_)
+        save_mcts_log(mcts_params, ast, results, k, compute_info, sim_params[1],
+            ast_params, study_params, postproc, outfileroot; suppress_warn=true)
+    end
+
+    #sim2
+    ast.sim = ds_sim.sim2
+    ast.transition_model = transition_model(ast)
+    for k = 1:mcts_params.top_k
+        fileroot_ = "$(study_params.fileroot)_$(ast.sim.string_id)_k$(k)_sim2"
+        outfileroot = joinpath(outdir, fileroot_)
+        save_mcts_log(mcts_params, ast, results, k, compute_info, sim_params[2],
+            ast_params, study_params, postproc, outfileroot; suppress_warn=true)
+    end
+
+    #restore
+    ast.sim = ds_sim
+    ast.transition_model = ds_transition_model
+
+    ast
+end
+
+function save_mcts_log(mcts_params::DPWParams, ast::AdaptiveStressTest, 
+    results::StressTestResults, k::Int64, compute_info::ComputeInfo,
+    sim_params, ast_params::ASTParams, study_params::MCTSStudy, postproc, 
+    outfileroot::AbstractString; suppress_warn::Bool=false)
+
+    log = trajLoggedPlay(ast, results.rewards[k], results.action_seqs[k], 
+        compute_info, sim_params, ast_params; suppress_warn=suppress_warn)
+
+    set_run_type!(log, "MCTS")
+    set_mcts_params!(log, mcts_params)
+    set_q_values!(log, results.q_values[k])
+    set_study_params!(log, study_params)
+    set_action_seq!(log, results.action_seqs[k])
+    set_q_values!(log, results.q_values[k])
+
+    outfile = trajSave(outfileroot, log)
+
+    #callback for postprocessing
+    postprocess(outfile, postproc)
 end
 
 end #module
