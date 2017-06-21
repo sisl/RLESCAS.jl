@@ -106,7 +106,7 @@ function get_result(d::TrajLog)
 end
 
 get_mcts_iterations(d::TrajLog) = d.log["mcts_params"][1, :n]
-get_mcbest_n(d::TrajLog) = d.log["mcbest_params"][1, :num_samples]
+get_mcbest_n(d::TrajLog) = d.log["mcbest_params"][1, :n]
 
 get_reward(d::TrajLog) = d.log["run_info"][1, :reward] 
 get_num_aircraft(d::TrajLog) = d.log["sim_params"][1, :num_aircraft]
