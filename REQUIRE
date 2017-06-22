@@ -3,6 +3,7 @@ Compat
 ConfParser
 JSON
 GZip
+ZipFile
 CPUTime
 TikzPictures
 PGFPlots
