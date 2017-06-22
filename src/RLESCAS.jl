@@ -115,4 +115,7 @@ include("tools/collage.jl")
 include("tools/sortbylikelihood.jl")
 @reexport using .SortByLikelihood
 
+include("metrics/metrics.jl")
+@reexport using .Metrics
+
 end #module
